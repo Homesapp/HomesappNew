@@ -536,6 +536,15 @@ import {
   portalTicketUpdates,
   type PortalTicketUpdate,
   type InsertPortalTicketUpdate,
+  saleOffers,
+  type SaleOffer,
+  type InsertSaleOffer,
+  saleContracts,
+  type SaleContract,
+  type InsertSaleContract,
+  saleContractEvents,
+  type SaleContractEvent,
+  type InsertSaleContractEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray, ne } from "drizzle-orm";
@@ -2004,6 +2013,95 @@ export interface IStorage {
     rentalWithReferral: { rate: number; source: string; sourceId?: string };
     propertyRecruitment: { rate: number; source: string; sourceId?: string };
     brokerReferral: { rate: number; source: string; sourceId?: string };
+  }>;
+
+  // ==========================================
+  // SALE OFFERS - Ofertas de Compra (Homesapp)
+  // ==========================================
+  getSaleOffer(id: string): Promise<SaleOffer | undefined>;
+  getSaleOffers(filters?: { 
+    propertyId?: string; 
+    leadId?: string; 
+    agentId?: string; 
+    status?: string;
+    buyerId?: string;
+  }): Promise<SaleOffer[]>;
+  getSaleOfferWithDetails(id: string): Promise<SaleOffer & { property?: Property; lead?: Lead; agent?: User } | undefined>;
+  getSaleOffersWithDetails(filters?: { 
+    propertyId?: string; 
+    agentId?: string; 
+    status?: string;
+  }): Promise<Array<SaleOffer & { property?: Property; lead?: Lead; agent?: User }>>;
+  createSaleOffer(offer: InsertSaleOffer): Promise<SaleOffer>;
+  updateSaleOffer(id: string, updates: Partial<InsertSaleOffer>): Promise<SaleOffer>;
+  updateSaleOfferStatus(id: string, status: string, additionalData?: { 
+    counterOfferPrice?: string; 
+    counterOfferConditions?: string; 
+  }): Promise<SaleOffer>;
+  deleteSaleOffer(id: string): Promise<void>;
+  
+  // ==========================================
+  // SALE CONTRACTS - Contratos de Compraventa (Homesapp)
+  // ==========================================
+  getSaleContract(id: string): Promise<SaleContract | undefined>;
+  getSaleContracts(filters?: { 
+    propertyId?: string; 
+    buyerId?: string; 
+    sellerId?: string; 
+    agentId?: string; 
+    status?: string;
+    saleOfferId?: string;
+  }): Promise<SaleContract[]>;
+  getSaleContractWithDetails(id: string): Promise<SaleContract & { 
+    property?: Property; 
+    buyer?: User; 
+    seller?: User; 
+    agent?: User; 
+    saleOffer?: SaleOffer;
+  } | undefined>;
+  getSaleContractsWithDetails(filters?: { 
+    agentId?: string; 
+    status?: string;
+  }): Promise<Array<SaleContract & { 
+    property?: Property; 
+    buyer?: User; 
+    seller?: User;
+  }>>;
+  createSaleContract(contract: InsertSaleContract): Promise<SaleContract>;
+  createSaleContractFromOffer(saleOfferId: string, additionalData: Partial<InsertSaleContract>): Promise<SaleContract>;
+  updateSaleContract(id: string, updates: Partial<InsertSaleContract>): Promise<SaleContract>;
+  updateSaleContractStatus(id: string, status: string, additionalData?: { 
+    signingDate?: Date; 
+    closingDate?: Date;
+    deliveryDate?: Date;
+    cancellationReason?: string;
+    cancelledBy?: string;
+  }): Promise<SaleContract>;
+  deleteSaleContract(id: string): Promise<void>;
+  
+  // Sale Contract Events
+  getSaleContractEvent(id: string): Promise<SaleContractEvent | undefined>;
+  getSaleContractEvents(saleContractId: string): Promise<SaleContractEvent[]>;
+  createSaleContractEvent(event: InsertSaleContractEvent): Promise<SaleContractEvent>;
+  
+  // Sale Contract Payments
+  recordSaleContractPayment(saleContractId: string, payment: {
+    date: Date;
+    amount: string;
+    concept: string;
+    receipt?: string;
+    recordedBy: string;
+  }): Promise<SaleContract>;
+  
+  // Sale Analytics
+  getSalesAgentStats(agentId: string, dateRange?: { start?: Date; end?: Date }): Promise<{
+    totalOffers: number;
+    acceptedOffers: number;
+    pendingOffers: number;
+    totalContracts: number;
+    closedSales: number;
+    totalSalesValue: number;
+    commissionEarned: number;
   }>;
 }
 
@@ -14422,6 +14520,491 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return result || null;
+  }
+
+  // ==========================================
+  // SALE OFFERS - Ofertas de Compra (Homesapp)
+  // ==========================================
+  
+  async getSaleOffer(id: string): Promise<SaleOffer | undefined> {
+    const [offer] = await db.select().from(saleOffers).where(eq(saleOffers.id, id));
+    return offer;
+  }
+
+  async getSaleOffers(filters?: { 
+    propertyId?: string; 
+    leadId?: string; 
+    agentId?: string; 
+    status?: string;
+    buyerId?: string;
+  }): Promise<SaleOffer[]> {
+    const conditions: SQL[] = [];
+
+    if (filters?.propertyId) {
+      conditions.push(eq(saleOffers.propertyId, filters.propertyId));
+    }
+    if (filters?.leadId) {
+      conditions.push(eq(saleOffers.leadId, filters.leadId));
+    }
+    if (filters?.agentId) {
+      conditions.push(eq(saleOffers.agentId, filters.agentId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(saleOffers.status, filters.status as any));
+    }
+    if (filters?.buyerId) {
+      conditions.push(eq(saleOffers.buyerId, filters.buyerId));
+    }
+
+    let query = db.select().from(saleOffers);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    return await query.orderBy(desc(saleOffers.createdAt));
+  }
+
+  async getSaleOfferWithDetails(id: string): Promise<SaleOffer & { property?: Property; lead?: Lead; agent?: User } | undefined> {
+    const [offer] = await db.select().from(saleOffers).where(eq(saleOffers.id, id));
+    if (!offer) return undefined;
+
+    const [propertyData, leadData, agentData] = await Promise.all([
+      db.select().from(properties).where(eq(properties.id, offer.propertyId)),
+      offer.leadId ? db.select().from(leads).where(eq(leads.id, offer.leadId)) : Promise.resolve([]),
+      db.select().from(users).where(eq(users.id, offer.agentId))
+    ]);
+
+    return {
+      ...offer,
+      property: propertyData[0],
+      lead: leadData[0],
+      agent: agentData[0]
+    };
+  }
+
+  async getSaleOffersWithDetails(filters?: { 
+    propertyId?: string; 
+    agentId?: string; 
+    status?: string;
+  }): Promise<Array<SaleOffer & { property?: Property; lead?: Lead; agent?: User }>> {
+    const offersList = await this.getSaleOffers(filters);
+    if (offersList.length === 0) return [];
+
+    // Fetch all related data in parallel
+    const propertyIds = [...new Set(offersList.map(o => o.propertyId).filter(Boolean))];
+    const leadIds = [...new Set(offersList.map(o => o.leadId).filter(Boolean))] as string[];
+    const agentIds = [...new Set(offersList.map(o => o.agentId).filter(Boolean))];
+
+    const [propertiesData, leadsData, agentsData] = await Promise.all([
+      propertyIds.length > 0 ? db.select().from(properties).where(inArray(properties.id, propertyIds)) : [],
+      leadIds.length > 0 ? db.select().from(leads).where(inArray(leads.id, leadIds)) : [],
+      agentIds.length > 0 ? db.select().from(users).where(inArray(users.id, agentIds)) : []
+    ]);
+
+    // Create lookup maps
+    const propertyMap = new Map(propertiesData.map(p => [p.id, p]));
+    const leadMap = new Map(leadsData.map(l => [l.id, l]));
+    const agentMap = new Map(agentsData.map(a => [a.id, a]));
+
+    return offersList.map(offer => ({
+      ...offer,
+      property: propertyMap.get(offer.propertyId),
+      lead: offer.leadId ? leadMap.get(offer.leadId) : undefined,
+      agent: agentMap.get(offer.agentId)
+    }));
+  }
+
+  async createSaleOffer(offer: InsertSaleOffer): Promise<SaleOffer> {
+    const [created] = await db.insert(saleOffers).values(offer).returning();
+    return created;
+  }
+
+  async updateSaleOffer(id: string, updates: Partial<InsertSaleOffer>): Promise<SaleOffer> {
+    const [updated] = await db
+      .update(saleOffers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(saleOffers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateSaleOfferStatus(id: string, status: string, additionalData?: { 
+    counterOfferPrice?: string; 
+    counterOfferConditions?: string; 
+  }): Promise<SaleOffer> {
+    const updateData: any = {
+      status: status as any,
+      updatedAt: new Date()
+    };
+
+    if (additionalData?.counterOfferPrice) {
+      updateData.counterOfferPrice = additionalData.counterOfferPrice;
+      updateData.counterOfferDate = new Date();
+    }
+    if (additionalData?.counterOfferConditions) {
+      updateData.counterOfferConditions = additionalData.counterOfferConditions;
+    }
+
+    const [updated] = await db
+      .update(saleOffers)
+      .set(updateData)
+      .where(eq(saleOffers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSaleOffer(id: string): Promise<void> {
+    await db.delete(saleOffers).where(eq(saleOffers.id, id));
+  }
+
+  // ==========================================
+  // SALE CONTRACTS - Contratos de Compraventa (Homesapp)
+  // ==========================================
+  
+  async getSaleContract(id: string): Promise<SaleContract | undefined> {
+    const [contract] = await db.select().from(saleContracts).where(eq(saleContracts.id, id));
+    return contract;
+  }
+
+  async getSaleContracts(filters?: { 
+    propertyId?: string; 
+    buyerId?: string; 
+    sellerId?: string; 
+    agentId?: string; 
+    status?: string;
+    saleOfferId?: string;
+  }): Promise<SaleContract[]> {
+    const conditions: SQL[] = [];
+
+    if (filters?.propertyId) {
+      conditions.push(eq(saleContracts.propertyId, filters.propertyId));
+    }
+    if (filters?.buyerId) {
+      conditions.push(eq(saleContracts.buyerId, filters.buyerId));
+    }
+    if (filters?.sellerId) {
+      conditions.push(eq(saleContracts.sellerId, filters.sellerId));
+    }
+    if (filters?.agentId) {
+      conditions.push(eq(saleContracts.agentId, filters.agentId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(saleContracts.status, filters.status as any));
+    }
+    if (filters?.saleOfferId) {
+      conditions.push(eq(saleContracts.saleOfferId, filters.saleOfferId));
+    }
+
+    let query = db.select().from(saleContracts);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    return await query.orderBy(desc(saleContracts.createdAt));
+  }
+
+  async getSaleContractWithDetails(id: string): Promise<SaleContract & { 
+    property?: Property; 
+    buyer?: User; 
+    seller?: User; 
+    agent?: User; 
+    saleOffer?: SaleOffer;
+  } | undefined> {
+    const [contract] = await db.select().from(saleContracts).where(eq(saleContracts.id, id));
+    if (!contract) return undefined;
+
+    const [propertyData, buyerData, sellerData, agentData, offerData] = await Promise.all([
+      db.select().from(properties).where(eq(properties.id, contract.propertyId)),
+      contract.buyerId ? db.select().from(users).where(eq(users.id, contract.buyerId)) : Promise.resolve([]),
+      db.select().from(users).where(eq(users.id, contract.sellerId)),
+      db.select().from(users).where(eq(users.id, contract.agentId)),
+      db.select().from(saleOffers).where(eq(saleOffers.id, contract.saleOfferId))
+    ]);
+
+    return {
+      ...contract,
+      property: propertyData[0],
+      buyer: buyerData[0],
+      seller: sellerData[0],
+      agent: agentData[0],
+      saleOffer: offerData[0]
+    };
+  }
+
+  async getSaleContractsWithDetails(filters?: { 
+    agentId?: string; 
+    status?: string;
+  }): Promise<Array<SaleContract & { 
+    property?: Property; 
+    buyer?: User; 
+    seller?: User;
+  }>> {
+    const contractsList = await this.getSaleContracts(filters);
+    if (contractsList.length === 0) return [];
+
+    // Fetch all related data in parallel
+    const propertyIds = [...new Set(contractsList.map(c => c.propertyId).filter(Boolean))];
+    const buyerIds = [...new Set(contractsList.map(c => c.buyerId).filter(Boolean))] as string[];
+    const sellerIds = [...new Set(contractsList.map(c => c.sellerId).filter(Boolean))];
+
+    const [propertiesData, buyersData, sellersData] = await Promise.all([
+      propertyIds.length > 0 ? db.select().from(properties).where(inArray(properties.id, propertyIds)) : [],
+      buyerIds.length > 0 ? db.select().from(users).where(inArray(users.id, buyerIds)) : [],
+      sellerIds.length > 0 ? db.select().from(users).where(inArray(users.id, sellerIds)) : []
+    ]);
+
+    // Create lookup maps
+    const propertyMap = new Map(propertiesData.map(p => [p.id, p]));
+    const buyerMap = new Map(buyersData.map(b => [b.id, b]));
+    const sellerMap = new Map(sellersData.map(s => [s.id, s]));
+
+    return contractsList.map(contract => ({
+      ...contract,
+      property: propertyMap.get(contract.propertyId),
+      buyer: contract.buyerId ? buyerMap.get(contract.buyerId) : undefined,
+      seller: sellerMap.get(contract.sellerId)
+    }));
+  }
+
+  async createSaleContract(contract: InsertSaleContract): Promise<SaleContract> {
+    const [created] = await db.insert(saleContracts).values(contract).returning();
+    return created;
+  }
+
+  async createSaleContractFromOffer(saleOfferId: string, additionalData: Partial<InsertSaleContract>): Promise<SaleContract> {
+    // Get the offer
+    const offer = await this.getSaleOffer(saleOfferId);
+    if (!offer) {
+      throw new Error('Sale offer not found');
+    }
+
+    // Get property info for seller
+    const [property] = await db.select().from(properties).where(eq(properties.id, offer.propertyId));
+    if (!property) {
+      throw new Error('Property not found');
+    }
+
+    // Get seller info
+    const [seller] = await db.select().from(users).where(eq(users.id, property.ownerId));
+    if (!seller) {
+      throw new Error('Seller not found');
+    }
+
+    // Create contract from offer
+    const contractData: InsertSaleContract = {
+      saleOfferId: offer.id,
+      propertyId: offer.propertyId,
+      buyerId: offer.buyerId,
+      sellerId: property.ownerId,
+      agentId: offer.agentId,
+      buyerFullName: `${offer.buyerFirstName} ${offer.buyerLastName}`,
+      buyerEmail: offer.buyerEmail,
+      buyerPhone: offer.buyerPhone,
+      sellerFullName: `${seller.firstName || ''} ${seller.lastName || ''}`.trim() || seller.email || 'Unknown',
+      sellerEmail: seller.email,
+      sellerPhone: seller.phone || '',
+      salePrice: offer.offeredPrice,
+      currency: offer.currency,
+      downPayment: offer.downPayment,
+      paymentMethod: offer.paymentMethod,
+      status: 'draft',
+      ...additionalData
+    };
+
+    const [created] = await db.insert(saleContracts).values(contractData).returning();
+
+    // Update offer status to accepted
+    await this.updateSaleOfferStatus(saleOfferId, 'accepted');
+
+    // Create initial event
+    await this.createSaleContractEvent({
+      saleContractId: created.id,
+      eventType: 'status_change',
+      title: 'Contrato creado',
+      description: `Contrato de compraventa creado a partir de la oferta aceptada`,
+      userId: offer.agentId,
+      metadata: { previousStatus: null, newStatus: 'draft' }
+    });
+
+    return created;
+  }
+
+  async updateSaleContract(id: string, updates: Partial<InsertSaleContract>): Promise<SaleContract> {
+    const [updated] = await db
+      .update(saleContracts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(saleContracts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateSaleContractStatus(id: string, status: string, additionalData?: { 
+    signingDate?: Date; 
+    closingDate?: Date;
+    deliveryDate?: Date;
+    cancellationReason?: string;
+    cancelledBy?: string;
+  }): Promise<SaleContract> {
+    const updateData: any = {
+      status: status as any,
+      updatedAt: new Date()
+    };
+
+    if (additionalData?.signingDate) {
+      updateData.signingDate = additionalData.signingDate;
+    }
+    if (additionalData?.closingDate) {
+      updateData.closingDate = additionalData.closingDate;
+    }
+    if (additionalData?.deliveryDate) {
+      updateData.deliveryDate = additionalData.deliveryDate;
+    }
+    if (status === 'cancelled') {
+      updateData.cancelledAt = new Date();
+      if (additionalData?.cancellationReason) {
+        updateData.cancellationReason = additionalData.cancellationReason;
+      }
+      if (additionalData?.cancelledBy) {
+        updateData.cancelledBy = additionalData.cancelledBy;
+      }
+    }
+
+    const [updated] = await db
+      .update(saleContracts)
+      .set(updateData)
+      .where(eq(saleContracts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSaleContract(id: string): Promise<void> {
+    await db.delete(saleContracts).where(eq(saleContracts.id, id));
+  }
+
+  // Sale Contract Events
+  async getSaleContractEvent(id: string): Promise<SaleContractEvent | undefined> {
+    const [event] = await db.select().from(saleContractEvents).where(eq(saleContractEvents.id, id));
+    return event;
+  }
+
+  async getSaleContractEvents(saleContractId: string): Promise<SaleContractEvent[]> {
+    return await db
+      .select()
+      .from(saleContractEvents)
+      .where(eq(saleContractEvents.saleContractId, saleContractId))
+      .orderBy(desc(saleContractEvents.createdAt));
+  }
+
+  async createSaleContractEvent(event: InsertSaleContractEvent): Promise<SaleContractEvent> {
+    const [created] = await db.insert(saleContractEvents).values(event).returning();
+    return created;
+  }
+
+  // Sale Contract Payments
+  async recordSaleContractPayment(saleContractId: string, payment: {
+    date: Date;
+    amount: string;
+    concept: string;
+    receipt?: string;
+    recordedBy: string;
+  }): Promise<SaleContract> {
+    const contract = await this.getSaleContract(saleContractId);
+    if (!contract) {
+      throw new Error('Sale contract not found');
+    }
+
+    const existingPayments = (contract.paymentsReceived as any[]) || [];
+    const newPayment = {
+      id: `payment_${Date.now()}`,
+      date: payment.date.toISOString(),
+      amount: payment.amount,
+      concept: payment.concept,
+      receipt: payment.receipt,
+      recordedAt: new Date().toISOString(),
+      recordedBy: payment.recordedBy
+    };
+
+    const [updated] = await db
+      .update(saleContracts)
+      .set({
+        paymentsReceived: [...existingPayments, newPayment],
+        updatedAt: new Date()
+      })
+      .where(eq(saleContracts.id, saleContractId))
+      .returning();
+
+    // Create event for payment
+    await this.createSaleContractEvent({
+      saleContractId,
+      eventType: 'payment_received',
+      title: `Pago registrado: ${payment.concept}`,
+      description: `Monto: $${payment.amount} ${contract.currency}`,
+      userId: payment.recordedBy,
+      metadata: newPayment
+    });
+
+    return updated;
+  }
+
+  // Sale Analytics
+  async getSalesAgentStats(agentId: string, dateRange?: { start?: Date; end?: Date }): Promise<{
+    totalOffers: number;
+    acceptedOffers: number;
+    pendingOffers: number;
+    totalContracts: number;
+    closedSales: number;
+    totalSalesValue: number;
+    commissionEarned: number;
+  }> {
+    // Get offers stats
+    const offersConditions: SQL[] = [eq(saleOffers.agentId, agentId)];
+    if (dateRange?.start) {
+      offersConditions.push(gte(saleOffers.createdAt, dateRange.start));
+    }
+    if (dateRange?.end) {
+      offersConditions.push(lte(saleOffers.createdAt, dateRange.end));
+    }
+
+    const allOffers = await db
+      .select()
+      .from(saleOffers)
+      .where(and(...offersConditions));
+
+    const totalOffers = allOffers.length;
+    const acceptedOffers = allOffers.filter(o => o.status === 'accepted').length;
+    const pendingOffers = allOffers.filter(o => ['draft', 'sent', 'under_review'].includes(o.status)).length;
+
+    // Get contracts stats
+    const contractsConditions: SQL[] = [eq(saleContracts.agentId, agentId)];
+    if (dateRange?.start) {
+      contractsConditions.push(gte(saleContracts.createdAt, dateRange.start));
+    }
+    if (dateRange?.end) {
+      contractsConditions.push(lte(saleContracts.createdAt, dateRange.end));
+    }
+
+    const allContracts = await db
+      .select()
+      .from(saleContracts)
+      .where(and(...contractsConditions));
+
+    const totalContracts = allContracts.length;
+    const closedSales = allContracts.filter(c => c.status === 'closed_sale').length;
+    
+    // Calculate total sales value and commission
+    const closedContracts = allContracts.filter(c => c.status === 'closed_sale');
+    const totalSalesValue = closedContracts.reduce((sum, c) => sum + parseFloat(c.salePrice || '0'), 0);
+    const commissionEarned = closedContracts.reduce((sum, c) => sum + parseFloat(c.commissionAmount || '0'), 0);
+
+    return {
+      totalOffers,
+      acceptedOffers,
+      pendingOffers,
+      totalContracts,
+      closedSales,
+      totalSalesValue,
+      commissionEarned
+    };
   }
 }
 

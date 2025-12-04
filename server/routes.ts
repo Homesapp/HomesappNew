@@ -45931,11 +45931,832 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       res.status(500).json({ message: error.message });
     }
   });
+
+  // =========================================================
+  // SALE OFFERS & CONTRACTS - Módulo de Ventas (Homesapp)
+  // =========================================================
+  
+  const SALES_ROLES = ["master", "admin", "admin_jr", "sales_agent"] as const;
+
+  // Helper function to check if user can access a sale offer
+  async function canAccessSaleOffer(userId: string, offer: any): Promise<boolean> {
+    const user = await storage.getUser(userId);
+    if (!user) return false;
+    
+    // Admins can access all
+    if (["master", "admin", "admin_jr"].includes(user.role)) return true;
+    
+    // Sales agents can only access their own offers
+    if (user.role === "sales_agent") return offer.agentId === userId;
+    
+    // Owners can access offers on their properties
+    if (user.role === "owner") {
+      const property = await storage.getProperty(offer.propertyId);
+      return property?.ownerId === userId;
+    }
+    
+    return false;
+  }
+
+  // Helper function to check if user can access a sale contract
+  async function canAccessSaleContract(userId: string, contract: any): Promise<boolean> {
+    const user = await storage.getUser(userId);
+    if (!user) return false;
+    
+    // Admins can access all
+    if (["master", "admin", "admin_jr"].includes(user.role)) return true;
+    
+    // Sales agents can only access their own contracts
+    if (user.role === "sales_agent") return contract.agentId === userId;
+    
+    // Owners can access contracts where they are the seller
+    if (user.role === "owner") return contract.sellerId === userId;
+    
+    // Clients can access contracts where they are the buyer
+    if (user.role === "cliente") return contract.buyerId === userId;
+    
+    return false;
+  }
+
+  // GET /api/sale-offers - List all sale offers (filtered by agent for sales_agent role)
+  app.get("/api/sale-offers", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      const filters: any = {};
+      
+      // Sales agents can only see their own offers - enforce strict RBAC
+      if (user.role === "sales_agent") {
+        filters.agentId = userId;
+      }
+
+      // Apply query filters for admins
+      if (req.query.propertyId) filters.propertyId = req.query.propertyId;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.agentId && user.role !== "sales_agent") filters.agentId = req.query.agentId;
+
+      const offers = await storage.getSaleOffersWithDetails(filters);
+      res.json(offers);
+    } catch (error: any) {
+      console.error("Error fetching sale offers:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/sale-offers/:id - Get a single sale offer
+  app.get("/api/sale-offers/:id", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const offer = await storage.getSaleOfferWithDetails(req.params.id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      const userId = req.user?.claims?.sub;
+      if (!userId || !(await canAccessSaleOffer(userId, offer))) {
+        return res.status(403).json({ message: "No tienes acceso a esta oferta" });
+      }
+
+      res.json(offer);
+    } catch (error: any) {
+      console.error("Error fetching sale offer:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/sale-offers - Create a new sale offer
+  app.post("/api/sale-offers", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      // Validate input
+      const schema = z.object({
+        propertyId: z.string().min(1, "Se requiere propiedad"),
+        buyerLeadId: z.string().optional(),
+        offerPrice: z.number().positive("El precio debe ser positivo"),
+        currency: z.enum(["USD", "MXN"]).default("USD"),
+        downPayment: z.number().optional(),
+        closingDate: z.string().optional(),
+        conditions: z.string().optional(),
+        financingType: z.enum(["cash", "mortgage", "seller_financing", "other"]).optional(),
+        expirationDate: z.string().optional(),
+        notes: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const user = await storage.getUser(userId);
+      const offerData = {
+        ...validationResult.data,
+        agentId: user?.role === "sales_agent" ? userId : (req.body.agentId || userId),
+        status: "draft" as const,
+        closingDate: validationResult.data.closingDate ? new Date(validationResult.data.closingDate) : undefined,
+        expirationDate: validationResult.data.expirationDate ? new Date(validationResult.data.expirationDate) : undefined,
+      };
+
+      const offer = await storage.createSaleOffer(offerData);
+      
+      await createAuditLog(
+        req,
+        "create",
+        "sale_offer",
+        offer.id,
+        `Nueva oferta de compra creada para propiedad ${offer.propertyId}`
+      );
+
+      res.status(201).json(offer);
+    } catch (error: any) {
+      console.error("Error creating sale offer:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/sale-offers/:id - Update a sale offer
+  app.patch("/api/sale-offers/:id", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const offer = await storage.getSaleOffer(req.params.id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      // Check ownership
+      if (!(await canAccessSaleOffer(userId, offer))) {
+        return res.status(403).json({ message: "No tienes permiso para editar esta oferta" });
+      }
+
+      // Validate update data
+      const schema = z.object({
+        offerPrice: z.number().positive().optional(),
+        downPayment: z.number().optional(),
+        closingDate: z.string().optional(),
+        conditions: z.string().optional(),
+        financingType: z.enum(["cash", "mortgage", "seller_financing", "other"]).optional(),
+        expirationDate: z.string().optional(),
+        notes: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const updateData = {
+        ...validationResult.data,
+        closingDate: validationResult.data.closingDate ? new Date(validationResult.data.closingDate) : undefined,
+        expirationDate: validationResult.data.expirationDate ? new Date(validationResult.data.expirationDate) : undefined,
+      };
+
+      const updated = await storage.updateSaleOffer(req.params.id, updateData);
+      
+      await createAuditLog(
+        req,
+        "update",
+        "sale_offer",
+        offer.id,
+        "Oferta de compra actualizada"
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating sale offer:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/sale-offers/:id/status - Update sale offer status
+  app.post("/api/sale-offers/:id/status", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const offer = await storage.getSaleOffer(req.params.id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      // Check access
+      if (!(await canAccessSaleOffer(userId, offer))) {
+        return res.status(403).json({ message: "No tienes permiso para modificar esta oferta" });
+      }
+
+      // Validate status transition
+      const schema = z.object({
+        status: z.enum(["draft", "pending", "under_review", "counter_offer", "accepted", "rejected", "expired", "withdrawn"]),
+        counterOfferPrice: z.number().positive().optional(),
+        counterOfferConditions: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const { status, counterOfferPrice, counterOfferConditions } = validationResult.data;
+
+      const updated = await storage.updateSaleOfferStatus(req.params.id, status, {
+        counterOfferPrice,
+        counterOfferConditions
+      });
+
+      await createAuditLog(
+        req,
+        "update",
+        "sale_offer",
+        offer.id,
+        `Estado de oferta cambiado a ${status}`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating sale offer status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/sale-offers/:id/accept - Accept offer and create contract
+  app.post("/api/sale-offers/:id/accept", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const offer = await storage.getSaleOffer(req.params.id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      // Check access
+      if (!(await canAccessSaleOffer(userId, offer))) {
+        return res.status(403).json({ message: "No tienes permiso para aceptar esta oferta" });
+      }
+
+      // Validate contract data
+      const schema = z.object({
+        notaryId: z.string().optional(),
+        lawyerId: z.string().optional(),
+        escrowAgent: z.string().optional(),
+        notes: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      // Create contract from accepted offer
+      const contract = await storage.createSaleContractFromOffer(req.params.id, validationResult.data);
+
+      await createAuditLog(
+        req,
+        "create",
+        "sale_contract",
+        contract.id,
+        "Contrato de compraventa creado a partir de oferta aceptada"
+      );
+
+      res.status(201).json({ offer, contract });
+    } catch (error: any) {
+      console.error("Error accepting sale offer:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/sale-offers/:id - Delete a sale offer
+  app.delete("/api/sale-offers/:id", isAuthenticated, requireRole(SALES_ROLES), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const offer = await storage.getSaleOffer(req.params.id);
+      if (!offer) {
+        return res.status(404).json({ message: "Oferta no encontrada" });
+      }
+
+      // Check ownership
+      if (!(await canAccessSaleOffer(userId, offer))) {
+        return res.status(403).json({ message: "No tienes permiso para eliminar esta oferta" });
+      }
+
+      // Only allow deletion of draft offers
+      if (offer.status !== "draft") {
+        return res.status(400).json({ message: "Solo se pueden eliminar ofertas en estado borrador" });
+      }
+
+      await storage.deleteSaleOffer(req.params.id);
+      
+      await createAuditLog(
+        req,
+        "delete",
+        "sale_offer",
+        req.params.id,
+        "Oferta de compra eliminada"
+      );
+
+      res.json({ message: "Oferta eliminada exitosamente" });
+    } catch (error: any) {
+      console.error("Error deleting sale offer:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // =========================================================
+  // SALE CONTRACTS - Contratos de Compraventa
+  // =========================================================
+
+  // GET /api/sale-contracts - List all sale contracts
+  app.get("/api/sale-contracts", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      const filters: any = {};
+      
+      // Role-based filtering - enforce strict RBAC
+      if (user.role === "sales_agent") {
+        filters.agentId = userId;
+      } else if (user.role === "owner") {
+        filters.sellerId = userId;
+      }
+
+      // Apply query filters
+      if (req.query.propertyId) filters.propertyId = req.query.propertyId;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.agentId && !["sales_agent", "owner"].includes(user.role)) {
+        filters.agentId = req.query.agentId;
+      }
+
+      const contracts = await storage.getSaleContractsWithDetails(filters);
+      res.json(contracts);
+    } catch (error: any) {
+      console.error("Error fetching sale contracts:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/sale-contracts/:id - Get a single sale contract
+  app.get("/api/sale-contracts/:id", isAuthenticated, requireRole([...SALES_ROLES, "owner", "cliente"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const contract = await storage.getSaleContractWithDetails(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contrato no encontrado" });
+      }
+
+      // Check access
+      if (!(await canAccessSaleContract(userId, contract))) {
+        return res.status(403).json({ message: "No tienes acceso a este contrato" });
+      }
+
+      res.json(contract);
+    } catch (error: any) {
+      console.error("Error fetching sale contract:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/sale-contracts - Create a new sale contract
+  app.post("/api/sale-contracts", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      // Validate input
+      const schema = z.object({
+        propertyId: z.string().min(1, "Se requiere propiedad"),
+        buyerId: z.string().optional(),
+        sellerId: z.string().optional(),
+        salePrice: z.number().positive("El precio debe ser positivo"),
+        currency: z.enum(["USD", "MXN"]).default("USD"),
+        depositAmount: z.number().optional(),
+        commissionPercentage: z.number().min(0).max(100).optional(),
+        closingDate: z.string().optional(),
+        notaryId: z.string().optional(),
+        lawyerId: z.string().optional(),
+        escrowAgent: z.string().optional(),
+        notes: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const user = await storage.getUser(userId);
+      const contractData = {
+        ...validationResult.data,
+        agentId: user?.role === "sales_agent" ? userId : (req.body.agentId || userId),
+        status: "draft" as const,
+        closingDate: validationResult.data.closingDate ? new Date(validationResult.data.closingDate) : undefined,
+      };
+
+      const contract = await storage.createSaleContract(contractData);
+      
+      // Create initial event
+      await storage.createSaleContractEvent({
+        saleContractId: contract.id,
+        eventType: "status_change",
+        title: "Contrato creado",
+        description: "Se creó el contrato de compraventa",
+        userId,
+        metadata: { status: "draft" }
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "sale_contract",
+        contract.id,
+        "Nuevo contrato de compraventa creado"
+      );
+
+      res.status(201).json(contract);
+    } catch (error: any) {
+      console.error("Error creating sale contract:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/sale-contracts/:id - Update a sale contract
+  app.patch("/api/sale-contracts/:id", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const contract = await storage.getSaleContract(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contrato no encontrado" });
+      }
+
+      // Check ownership
+      if (!(await canAccessSaleContract(userId, contract))) {
+        return res.status(403).json({ message: "No tienes permiso para editar este contrato" });
+      }
+
+      // Validate update data
+      const schema = z.object({
+        salePrice: z.number().positive().optional(),
+        depositAmount: z.number().optional(),
+        commissionPercentage: z.number().min(0).max(100).optional(),
+        closingDate: z.string().optional(),
+        notaryId: z.string().optional(),
+        lawyerId: z.string().optional(),
+        escrowAgent: z.string().optional(),
+        notes: z.string().optional(),
+        documents: z.any().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const updateData = {
+        ...validationResult.data,
+        closingDate: validationResult.data.closingDate ? new Date(validationResult.data.closingDate) : undefined,
+      };
+
+      const updated = await storage.updateSaleContract(req.params.id, updateData);
+      
+      await createAuditLog(
+        req,
+        "update",
+        "sale_contract",
+        contract.id,
+        "Contrato de compraventa actualizado"
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating sale contract:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/sale-contracts/:id/status - Update contract status
+  app.post("/api/sale-contracts/:id/status", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const contract = await storage.getSaleContract(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contrato no encontrado" });
+      }
+
+      // Check ownership
+      if (!(await canAccessSaleContract(userId, contract))) {
+        return res.status(403).json({ message: "No tienes permiso para modificar este contrato" });
+      }
+
+      // Validate status transition
+      const schema = z.object({
+        status: z.enum(["draft", "pending_signature", "active", "in_escrow", "pending_closing", "closed", "cancelled"]),
+        signingDate: z.string().optional(),
+        closingDate: z.string().optional(),
+        deliveryDate: z.string().optional(),
+        cancellationReason: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const { status, signingDate, closingDate, deliveryDate, cancellationReason } = validationResult.data;
+
+      const previousStatus = contract.status;
+      const updated = await storage.updateSaleContractStatus(req.params.id, status, {
+        signingDate: signingDate ? new Date(signingDate) : undefined,
+        closingDate: closingDate ? new Date(closingDate) : undefined,
+        deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
+        cancellationReason,
+        cancelledBy: status === "cancelled" ? userId : undefined
+      });
+
+      // Create status change event
+      await storage.createSaleContractEvent({
+        saleContractId: contract.id,
+        eventType: "status_change",
+        title: `Estado cambiado a ${status}`,
+        description: cancellationReason || `Estado actualizado de ${previousStatus} a ${status}`,
+        userId: userId!,
+        metadata: { previousStatus, newStatus: status }
+      });
+
+      await createAuditLog(
+        req,
+        "update",
+        "sale_contract",
+        contract.id,
+        `Estado de contrato cambiado de ${previousStatus} a ${status}`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating sale contract status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/sale-contracts/:id/events - Get contract events/timeline
+  app.get("/api/sale-contracts/:id/events", isAuthenticated, requireRole([...SALES_ROLES, "owner", "cliente"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const contract = await storage.getSaleContract(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contrato no encontrado" });
+      }
+
+      // Check access
+      if (!(await canAccessSaleContract(userId, contract))) {
+        return res.status(403).json({ message: "No tienes acceso a este contrato" });
+      }
+
+      const events = await storage.getSaleContractEvents(req.params.id);
+      res.json(events);
+    } catch (error: any) {
+      console.error("Error fetching contract events:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/sale-contracts/:id/events - Add a contract event
+  app.post("/api/sale-contracts/:id/events", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const contract = await storage.getSaleContract(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contrato no encontrado" });
+      }
+
+      // Check ownership
+      if (!(await canAccessSaleContract(userId, contract))) {
+        return res.status(403).json({ message: "No tienes permiso para agregar eventos a este contrato" });
+      }
+
+      // Validate event data
+      const schema = z.object({
+        eventType: z.string().min(1),
+        title: z.string().min(1),
+        description: z.string().optional(),
+        metadata: z.any().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const { eventType, title, description, metadata } = validationResult.data;
+
+      const event = await storage.createSaleContractEvent({
+        saleContractId: req.params.id,
+        eventType,
+        title,
+        description,
+        userId: userId!,
+        metadata
+      });
+
+      res.status(201).json(event);
+    } catch (error: any) {
+      console.error("Error creating contract event:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/sale-contracts/:id/payments - Record a payment
+  app.post("/api/sale-contracts/:id/payments", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const contract = await storage.getSaleContract(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contrato no encontrado" });
+      }
+
+      // Check ownership
+      if (!(await canAccessSaleContract(userId, contract))) {
+        return res.status(403).json({ message: "No tienes permiso para registrar pagos en este contrato" });
+      }
+
+      // Validate payment data
+      const schema = z.object({
+        date: z.string().min(1, "Se requiere fecha"),
+        amount: z.number().positive("El monto debe ser positivo"),
+        concept: z.string().min(1, "Se requiere concepto"),
+        receipt: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Datos inválidos", 
+          errors: validationResult.error.flatten().fieldErrors 
+        });
+      }
+
+      const { date, amount, concept, receipt } = validationResult.data;
+
+      const updated = await storage.recordSaleContractPayment(req.params.id, {
+        date: new Date(date),
+        amount,
+        concept,
+        receipt,
+        recordedBy: userId!
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "sale_contract_payment",
+        req.params.id,
+        `Pago registrado: ${concept} - $${amount}`
+      );
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error recording payment:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/sales-agent/stats - Get sales agent statistics
+  app.get("/api/sales-agent/stats", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      
+      // Sales agents see their own stats only - enforce RBAC
+      let agentId = userId;
+      if (["master", "admin", "admin_jr"].includes(user.role) && req.query.agentId) {
+        agentId = req.query.agentId as string;
+      }
+
+      const dateRange: { start?: Date; end?: Date } = {};
+      if (req.query.startDate) dateRange.start = new Date(req.query.startDate as string);
+      if (req.query.endDate) dateRange.end = new Date(req.query.endDate as string);
+
+      const stats = await storage.getSalesAgentStats(agentId!, Object.keys(dateRange).length > 0 ? dateRange : undefined);
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching sales agent stats:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/sale-contracts/:id - Delete a sale contract
+  app.delete("/api/sale-contracts/:id", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const contract = await storage.getSaleContract(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contrato no encontrado" });
+      }
+
+      // Only allow deletion of draft contracts
+      if (contract.status !== "draft") {
+        return res.status(400).json({ message: "Solo se pueden eliminar contratos en estado borrador" });
+      }
+
+      await storage.deleteSaleContract(req.params.id);
+      
+      await createAuditLog(
+        req,
+        "delete",
+        "sale_contract",
+        req.params.id,
+        "Contrato de compraventa eliminado"
+      );
+
+      res.json({ message: "Contrato eliminado exitosamente" });
+    } catch (error: any) {
+      console.error("Error deleting sale contract:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+
   return httpServer;
 }
-
-// =========================================================
-// SELLER & OWNER ONBOARDING APPLICATIONS - PLACEHOLDER
-// Routes to be implemented via additional file
-// =========================================================
-

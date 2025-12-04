@@ -45,6 +45,26 @@ Reusable searchable dropdown components (`SearchableSelect`, `SearchableMultiSel
 
 A deterministic public chatbot (FloatingChat) for lead capture uses a state machine architecture instead of LLM to guarantee data collection. Features include mandatory step-by-step data collection (operation type, name, phone, budget, zone, move date, bedrooms), quick reply buttons for common options, phone validation with retry logic (max 2 attempts), normalized phone storage for duplicate detection, bilingual support (Spanish), property/source context awareness (homepage vs property page), and optional appointment scheduling after lead capture with date/time selection.
 
+## Dual-Brand Architecture (TRH & Homesapp)
+The platform supports a dual-brand architecture:
+- **TRH (Tulum Rental Homes)**: Focused on rental operations (long-term and short-term rentals)
+- **Homesapp**: Focused on property sales operations
+
+Properties can have multiple listings with different brands. The `listingType` field supports: `rent_long`, `rent_short`, and `sale`. The `brand` field identifies which brand manages the listing (`TRH` or `HOMESAPP`).
+
+### Sales Module (Homesapp)
+A complete sales workflow for property sales including:
+- **Sale Offers**: Full lifecycle management (draft → pending → under_review → counter_offer → accepted/rejected/expired/withdrawn) with Zod validation and strict RBAC
+- **Sale Contracts**: Complete contract workflow (draft → pending_signature → active → in_escrow → pending_closing → closed/cancelled) with event tracking, payment recording, and document management
+- **Sales Agent Dashboard**: Pipeline visualization for offers and contracts, commission tracking, quick actions, and full i18n support (Spanish/English)
+- **Role-Based Access**: `sales_agent` role with strict per-resource ownership enforcement; agents can only access their own offers and contracts
+- **API Routes**: Complete REST API with Zod validation, ownership checks, and audit logging
+
+Database tables for sales module:
+- `sale_offers`: Purchase offers with buyer leads, pricing, conditions, and financing details
+- `sale_contracts`: Compraventa contracts with buyer/seller information, escrow tracking, and document management
+- `sale_contract_events`: Timeline events for contract status changes and milestones
+
 ## External Dependencies
 *   Google Calendar API
 *   Google OAuth 2.0

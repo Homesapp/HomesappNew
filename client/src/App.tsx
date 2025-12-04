@@ -90,6 +90,7 @@ import ExternalAppointments from "@/pages/ExternalAppointments";
 import OwnerOffers from "@/pages/OwnerOffers";
 import OwnerDashboard from "@/pages/OwnerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import SalesAgentDashboard from "@/pages/SalesAgentDashboard";
 import AdminProfile from "@/pages/AdminProfile";
 import ClientDashboard from "@/pages/ClientDashboard";
 import ClientHomeDashboard from "@/pages/ClientHomeDashboard";
@@ -441,6 +442,11 @@ function AuthenticatedApp() {
               <Route path="/owner/dashboard" component={OwnerDashboard} />
               <Route path="/admin/dashboard" component={AdminDashboard} />
               <Route path="/admin/profile" component={AdminProfile} />
+              <Route path="/sales/dashboard" component={SalesAgentDashboard} />
+              <Route path="/sales/offers" component={SalesAgentDashboard} />
+              <Route path="/sales/contracts" component={SalesAgentDashboard} />
+              <Route path="/sales/properties" component={SalesAgentDashboard} />
+              <Route path="/sales/leads" component={SalesAgentDashboard} />
               <Route path="/mis-propiedades" component={MyProperties} />
               <Route path="/my-properties" component={MyProperties} />
               <Route path="/owner/property/new" component={PropertySubmissionWizard} />
