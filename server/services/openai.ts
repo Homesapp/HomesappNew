@@ -202,9 +202,7 @@ Generate a lease renewal document in Spanish following Mexican rental law.`;
 
 Applicant Information:
 - Name: ${applicationData.applicantName}
-- Monthly Income: $${applicationData.monthlyIncome}
 - Employment: ${applicationData.employment}
-- Credit Score: ${applicationData.creditScore || "Not provided"}
 - Previous Addresses: ${JSON.stringify(applicationData.previousAddresses || [])}
 - References: ${JSON.stringify(applicationData.references || [])}
 
@@ -216,11 +214,9 @@ Provide a JSON response with:
 2. riskLevel: "low", "medium", "high", or "critical"
 3. aiAnalysis: Detailed analysis
 4. fraudDetection: Any fraud indicators found
-5. incomeVerification: Income analysis
-6. creditAnalysis: Credit assessment
-7. rentalHistory: Rental history analysis
-8. recommendations: Action recommendations
-9. flags: Array of red flags found`;
+5. rentalHistory: Rental history analysis
+6. recommendations: Action recommendations
+7. flags: Array of red flags found`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -238,8 +234,8 @@ Provide a JSON response with:
       riskLevel: result.riskLevel || "medium",
       aiAnalysis: result.aiAnalysis || {},
       fraudDetection: result.fraudDetection || {},
-      incomeVerification: result.incomeVerification || {},
-      creditAnalysis: result.creditAnalysis || {},
+      incomeVerification: {},
+      creditAnalysis: {},
       rentalHistory: result.rentalHistory || {},
       recommendations: result.recommendations || "Conduct additional verification",
       flags: result.flags || [],
