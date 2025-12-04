@@ -216,17 +216,17 @@ export default function SellerCommissions() {
                 return (
                   <div
                     key={rate.concept}
-                    className="flex items-start gap-4 p-4 border rounded-lg"
+                    className="flex items-start gap-3 p-3 sm:p-4 border rounded-lg"
                     data-testid={`rate-${rate.concept}`}
                   >
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-lg font-bold text-primary">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-base sm:text-lg font-bold text-primary">
                         {rate.rate}%
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">
+                        <span className="font-medium text-sm sm:text-base">
                           {conceptName}
                         </span>
                         <Tooltip>
@@ -243,7 +243,7 @@ export default function SellerCommissions() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
                         {conceptDesc}
                       </p>
                     </div>

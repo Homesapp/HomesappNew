@@ -69,7 +69,7 @@ export default function MyOpportunities() {
 
   if (visitedLoading && offersLoading && rentalRequestsLoading) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto px-4 py-4 sm:py-6">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -78,26 +78,26 @@ export default function MyOpportunities() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <Zap className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Mis Oportunidades</h1>
+    <div className="container mx-auto px-4 py-4 sm:py-6">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+          <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0" />
+          <h1 className="text-2xl sm:text-3xl font-bold">Mis Oportunidades</h1>
         </div>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Revisa las propiedades que has visitado y gestiona tus ofertas de renta
         </p>
       </div>
 
       <Tabs defaultValue="visited" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="visited" data-testid="tab-visited">
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Propiedades Visitadas
+        <TabsList className="grid w-full grid-cols-2 h-auto">
+          <TabsTrigger value="visited" className="min-h-[44px] text-xs sm:text-sm py-2 px-2 sm:px-4" data-testid="tab-visited">
+            <CheckCircle2 className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+            <span className="truncate">Visitadas</span>
           </TabsTrigger>
-          <TabsTrigger value="my-offers" data-testid="tab-my-offers">
-            <DollarSign className="h-4 w-4 mr-2" />
-            Mis Ofertas
+          <TabsTrigger value="my-offers" className="min-h-[44px] text-xs sm:text-sm py-2 px-2 sm:px-4" data-testid="tab-my-offers">
+            <DollarSign className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
+            <span className="truncate">Mis Ofertas</span>
           </TabsTrigger>
         </TabsList>
 
@@ -188,7 +188,7 @@ export default function MyOpportunities() {
                       <div className="flex gap-2">
                         {canRequest ? (
                           <Button 
-                            className="w-full" 
+                            className="w-full min-h-[44px] text-sm" 
                             onClick={() => createRentalRequestMutation.mutate({ propertyId: property.id, appointmentId: property.appointment.id })}
                             disabled={createRentalRequestMutation.isPending}
                             data-testid={`button-request-${property.id}`}
@@ -197,7 +197,7 @@ export default function MyOpportunities() {
                           </Button>
                         ) : request?.status === 'approved' ? (
                           <Button 
-                            className="w-full" 
+                            className="w-full min-h-[44px] text-sm" 
                             onClick={() => window.location.href = `/rental-offer/${property.id}?requestId=${request.id}`}
                             data-testid={`button-create-offer-${property.id}`}
                           >
@@ -205,13 +205,13 @@ export default function MyOpportunities() {
                           </Button>
                         ) : (
                           <Button 
-                            className="w-full" 
+                            className="w-full min-h-[44px] text-sm" 
                             variant="outline"
                             disabled
                             data-testid={`button-pending-${property.id}`}
                           >
-                            <Clock className="h-4 w-4 mr-2" />
-                            Esperando Aprobación
+                            <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">Esperando Aprobación</span>
                           </Button>
                         )}
                       </div>
@@ -334,10 +334,10 @@ export default function MyOpportunities() {
                       )}
 
                       {canAcceptReject && (
-                        <div className="flex gap-2 pt-2 border-t">
+                        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
                           <Button 
                             variant="default" 
-                            className="flex-1"
+                            className="flex-1 min-h-[44px] text-sm"
                             onClick={() => {
                               apiRequest("PATCH", `/api/client/offers/${offer.id}/accept-counter`, {})
                                 .then(() => {
@@ -350,12 +350,13 @@ export default function MyOpportunities() {
                             }}
                             data-testid={`button-accept-counter-${offer.id}`}
                           >
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            Aceptar Contraoferta
+                            <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">Aceptar Contraoferta</span>
                           </Button>
                           {canCounterOffer && (
                             <Button 
                               variant="outline"
+                              className="min-h-[44px] text-sm"
                               onClick={() => {
                                 const amount = prompt(`Contraoferta al propietario (monto actual: $${offer.counterOfferAmount || offer.offerAmount}):`);
                                 if (amount && !isNaN(Number(amount))) {
@@ -375,7 +376,7 @@ export default function MyOpportunities() {
                               }}
                               data-testid={`button-counter-${offer.id}`}
                             >
-                              Enviar Contraoferta
+                              <span className="truncate">Enviar Contraoferta</span>
                             </Button>
                           )}
                         </div>

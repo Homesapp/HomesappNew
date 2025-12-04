@@ -485,7 +485,7 @@ export default function PropertyFullDetails() {
                       {/* Favorite & Share Buttons */}
                       <div className="absolute top-4 right-4 flex gap-2">
                         <button
-                          className="h-9 w-9 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
+                          className="min-h-[44px] min-w-[44px] rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
                           onClick={() => {
                             navigator.share?.({
                               title: getPropertyTitle(property),
@@ -497,36 +497,36 @@ export default function PropertyFullDetails() {
                           }}
                           data-testid="button-share"
                         >
-                          <Share2 className="h-4 w-4" />
+                          <Share2 className="h-5 w-5" />
                         </button>
                         <button
-                          className="h-9 w-9 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
+                          className="min-h-[44px] min-w-[44px] rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
                           data-testid="button-favorite"
                         >
-                          <Heart className="h-4 w-4" />
+                          <Heart className="h-5 w-5" />
                         </button>
                       </div>
                       {/* Photo Count Badge */}
                       <button 
-                        className="absolute bottom-4 right-4 flex items-center gap-2 bg-background/80 backdrop-blur rounded-full px-3 py-1.5 text-xs font-medium hover:bg-background transition-colors"
+                        className="absolute bottom-4 right-4 flex items-center gap-2 bg-background/80 backdrop-blur rounded-full px-4 min-h-[44px] text-sm font-medium hover:bg-background transition-colors"
                         onClick={() => setShowAllPhotosDialog(true)}
                         data-testid="button-view-all-photos"
                       >
-                        <Image className="h-3.5 w-3.5" />
+                        <Image className="h-4 w-4" />
                         Ver {allImages.length} fotos
                       </button>
                       {/* Navigation Arrows */}
                       {allImages.length > 1 && (
                         <>
                           <button
-                            className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
+                            className="absolute left-4 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
                             onClick={() => setMainImageIndex(mainImageIndex === 0 ? allImages.length - 1 : mainImageIndex - 1)}
                             data-testid="button-prev-image"
                           >
                             <ChevronLeft className="h-5 w-5" />
                           </button>
                           <button
-                            className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
                             onClick={() => setMainImageIndex(mainImageIndex === allImages.length - 1 ? 0 : mainImageIndex + 1)}
                             data-testid="button-next-image"
                           >
