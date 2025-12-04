@@ -1,0 +1,97 @@
+Quiero mejorar la experiencia de onboarding para nuevos propietarios que quieren enlistar su propiedad.
+
+Actualmente tengo links para que carguen información, pero quiero un flujo guiado tipo “wizard” en varios pasos.
+
+Crea una nueva página pública (o mejora la existente) para “Soy propietario y quiero enlistar mi propiedad” con estas características:
+
+Landing de entrada
+
+Ruta sugerida: /propietarios/enlistar.
+
+Contenido:
+
+Título y subtítulo explicando brevemente el servicio.
+
+3–4 bullets de beneficios.
+
+Botón grande: “Comenzar”.
+
+Formulario en pasos (wizard)
+
+Paso 1: Datos de propietario
+
+nombre completo, email, WhatsApp, cómo nos conoció, vive en Tulum o fuera.
+
+Paso 2: Datos básicos de la propiedad
+
+condominio (autocompletar) o “propiedad independiente”,
+
+tipo de unidad,
+
+zona/ubicación (mapa o dirección),
+
+si está amueblada,
+
+si acepta mascotas.
+
+Paso 3: Detalles de renta
+
+tipo de renta (12 meses, 6 meses, vacacional),
+
+renta mensual deseada,
+
+si acepta negociación.
+
+Paso 4: Fotos y documentos (opcional)
+
+subir fotos (foto de portada + galería),
+
+posibilidad de subir archivo de escritura/contrato (opcional).
+
+Paso 5: Confirmación
+
+mostrar resumen,
+
+mensaje de gracias y próximos pasos.
+
+En cada paso:
+
+botones “Siguiente” / “Anterior”,
+
+barra de progreso (ej. 1/5, 2/5…).
+
+Persistencia y modelos
+
+Crear o usar una tabla de owner_leads donde se guarden:
+
+datos del propietario,
+
+estado del lead (nuevo, en revisión, contactado, convertido).
+
+Crear una property_draft asociada al lead, con los datos básicos de la propiedad y links a fotos.
+
+Asegúrate de que el proceso sea tolerante a errores: si se cierra el navegador a mitad, al menos se guardan pasos completados al enviar cada paso.
+
+Notificaciones internas
+
+Cuando se complete el paso final:
+
+crear un registro de lead,
+
+marcarlo como “nuevo propietario – pendiente de contacto”,
+
+opcional: disparar un correo a la casilla de administración de TRH.
+
+UX
+
+Formularios limpios, texto en español, estilo consistente con el homepage.
+
+En mobile, sin scroll horizontal, botones grandes.
+
+Al final, explícame:
+
+qué rutas nuevas creaste,
+
+qué tablas/usos de BD se usan para owner_leads y property_draft,
+
+y cómo se puede ver desde el admin qué propietarios nuevos se registraron y qué propiedades propusieron.

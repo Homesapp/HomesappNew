@@ -13,10 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { 
   Home, MapPin, Bed, Bath, DollarSign, Filter, Building2, ChevronLeft,
-  Search, SlidersHorizontal, RotateCcw, List, Eye, PawPrint, Calendar, Loader2, ChevronDown
+  Search, SlidersHorizontal, RotateCcw, List, Eye, PawPrint, Calendar, Loader2, ChevronDown,
+  Sofa, Heart, MessageCircle, Image as ImageIcon
 } from "lucide-react";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -42,6 +43,8 @@ interface MapMarker {
   condominiumLogoUrl: string | null;
   condominiumColor: string | null;
   petsAllowed: boolean;
+  furnished: boolean;
+  coverPhotoUrl: string | null;
 }
 
 interface Filters {
@@ -140,47 +143,103 @@ const PropertyCard = memo(({
   return (
     <div
       ref={cardRef}
-      className={`p-3 rounded-lg border cursor-pointer transition-all hover-elevate ${
-        isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 
-        isHovered ? 'border-primary/50 bg-muted/50' : 'hover:bg-muted/30'
+      className={`rounded-xl border overflow-hidden cursor-pointer transition-all ${
+        isSelected ? 'border-primary ring-2 ring-primary/30 shadow-lg' : 
+        isHovered ? 'border-primary/50 shadow-md' : 'hover:shadow-md hover:border-muted-foreground/30'
       }`}
       onMouseEnter={() => onHover(marker.id)}
       onMouseLeave={() => onHover(null)}
       onClick={() => onClick(marker)}
       data-testid={`card-property-${marker.id}`}
     >
-      <div className="flex gap-3">
-        {marker.condominiumLogoUrl ? (
-          <div className="w-12 h-12 rounded-full border-2 border-muted overflow-hidden bg-background flex-shrink-0">
-            <img src={marker.condominiumLogoUrl} alt={marker.condominiumName || ''} className="w-full h-full object-cover" loading="lazy" />
-          </div>
+      <div className="relative aspect-[16/10] bg-muted">
+        {marker.coverPhotoUrl ? (
+          <img 
+            src={marker.coverPhotoUrl} 
+            alt={marker.title} 
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
         ) : (
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: color }}>
-            {marker.condominiumName ? getInitials(marker.condominiumName) : marker.propertyType?.[0]?.toUpperCase() || 'P'}
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
+            <img src={logoIcon} alt="HomesApp" className="h-10 w-auto opacity-40" />
           </div>
         )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="font-semibold text-sm line-clamp-1" data-testid={`text-title-${marker.id}`}>{marker.title}</h3>
-              {marker.condominiumName && <p className="text-xs text-muted-foreground line-clamp-1">{marker.condominiumName}</p>}
+        <div className="absolute top-2 left-2">
+          <Badge className="bg-background/90 backdrop-blur text-foreground border-0 shadow-sm text-xs font-medium">
+            {getListingTypeBadge(marker.listingType)}
+          </Badge>
+        </div>
+        {marker.condominiumLogoUrl && (
+          <div className="absolute top-2 right-2">
+            <div className="w-8 h-8 rounded-full bg-background/90 backdrop-blur shadow-sm overflow-hidden border border-white/50">
+              <img src={marker.condominiumLogoUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
             </div>
-            <Badge variant="secondary" className="text-[10px] px-1.5 flex-shrink-0">{getListingTypeBadge(marker.listingType)}</Badge>
           </div>
-          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Bed className="h-3 w-3" />{marker.bedrooms}</span>
-            <span className="flex items-center gap-1"><Bath className="h-3 w-3" />{marker.bathrooms}</span>
-            {marker.petsAllowed && <span className="flex items-center gap-1 text-green-600"><PawPrint className="h-3 w-3" /></span>}
-            <span className="flex items-center gap-1 ml-auto"><MapPin className="h-3 w-3" />{marker.zone}</span>
+        )}
+      </div>
+      
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-sm line-clamp-1" data-testid={`text-title-${marker.id}`}>
+              {marker.title}
+            </h3>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+              <MapPin className="h-3 w-3 flex-shrink-0" />
+              <span className="line-clamp-1">
+                {marker.condominiumName ? `${marker.condominiumName} · ${marker.zone}` : marker.zone}
+              </span>
+            </div>
           </div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="font-bold text-primary" data-testid={`text-price-${marker.id}`}>
-              {formatPrice(marker.price, marker.currency)}<span className="text-xs font-normal text-muted-foreground">/mes</span>
+        </div>
+        
+        <div className="flex flex-wrap gap-1.5 my-2">
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 gap-1 font-normal">
+            <Bed className="h-3 w-3" />{marker.bedrooms} {language === "es" ? "rec" : "bed"}
+          </Badge>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 gap-1 font-normal">
+            <Bath className="h-3 w-3" />{marker.bathrooms} {language === "es" ? "baños" : "bath"}
+          </Badge>
+          {marker.petsAllowed && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 gap-1 font-normal text-green-600 border-green-200 dark:border-green-800">
+              <PawPrint className="h-3 w-3" />{language === "es" ? "Mascotas" : "Pets"}
+            </Badge>
+          )}
+          {marker.furnished && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 gap-1 font-normal text-blue-600 border-blue-200 dark:border-blue-800">
+              <Sofa className="h-3 w-3" />{language === "es" ? "Amueblado" : "Furnished"}
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div data-testid={`text-price-${marker.id}`}>
+            <span className="text-lg font-bold text-primary">
+              {formatPrice(marker.price, marker.currency)}
             </span>
-            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" asChild>
-              <a href={getPropertyLink(marker)} data-testid={`link-view-${marker.id}`}><Eye className="h-3 w-3" />{language === "es" ? "Ver" : "View"}</a>
-            </Button>
+            <span className="text-xs text-muted-foreground">/mes</span>
+            {marker.salePrice && (
+              <div className="text-xs text-muted-foreground">
+                {language === "es" ? "Venta: " : "Sale: "}{formatPrice(marker.salePrice, marker.saleCurrency)}
+              </div>
+            )}
           </div>
+        </div>
+        
+        <div className="flex gap-2 mt-3">
+          <Button size="sm" className="flex-1 h-9 text-xs gap-1.5" asChild onClick={(e) => e.stopPropagation()}>
+            <a href={getPropertyLink(marker)} data-testid={`link-view-${marker.id}`}>
+              <Eye className="h-3.5 w-3.5" />
+              {language === "es" ? "Ver detalles" : "View details"}
+            </a>
+          </Button>
+          <Button size="sm" variant="outline" className="h-9 text-xs gap-1.5" asChild onClick={(e) => e.stopPropagation()}>
+            <a href={`${getPropertyLink(marker)}#contact`} data-testid={`link-contact-${marker.id}`}>
+              <MessageCircle className="h-3.5 w-3.5" />
+              {language === "es" ? "Contactar" : "Contact"}
+            </a>
+          </Button>
         </div>
       </div>
     </div>
@@ -520,36 +579,95 @@ export default function InteractiveMap() {
 
   const DetailPanel = () => {
     if (!detailProperty) return null;
-    const color = detailProperty.condominiumColor || generateMarkerColor(detailProperty.condominiumName || detailProperty.title || 'default');
     return (
       <Dialog open={showDetailPanel} onOpenChange={setShowDetailPanel}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: color }}>
-                {detailProperty.condominiumName ? getInitials(detailProperty.condominiumName) : detailProperty.propertyType?.[0]?.toUpperCase() || 'P'}
+        <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
+          <div className="relative aspect-[16/9] bg-muted">
+            {detailProperty.coverPhotoUrl ? (
+              <img 
+                src={detailProperty.coverPhotoUrl} 
+                alt={detailProperty.title} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
+                <img src={logoIcon} alt="HomesApp" className="h-12 w-auto opacity-40" />
               </div>
-              <div>
-                <span className="line-clamp-1">{detailProperty.title}</span>
-                {detailProperty.condominiumName && <p className="text-sm font-normal text-muted-foreground">{detailProperty.condominiumName}</p>}
+            )}
+            <div className="absolute top-3 left-3">
+              <Badge className="bg-background/90 backdrop-blur text-foreground border-0 shadow-sm text-sm font-medium">
+                {getListingTypeBadge(detailProperty.listingType)}
+              </Badge>
+            </div>
+            {detailProperty.condominiumLogoUrl && (
+              <div className="absolute top-3 right-3">
+                <div className="w-10 h-10 rounded-full bg-background/90 backdrop-blur shadow-sm overflow-hidden border-2 border-white/50">
+                  <img src={detailProperty.condominiumLogoUrl} alt="" className="w-full h-full object-cover" />
+                </div>
               </div>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+            )}
+          </div>
+          
+          <div className="p-5 space-y-4">
+            <div>
+              <DialogHeader className="p-0">
+                <DialogTitle className="text-xl line-clamp-2">{detailProperty.title}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  {language === "es" ? "Detalles de la propiedad" : "Property details"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex items-center gap-2 text-muted-foreground mt-1">
+                <MapPin className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm">
+                  {detailProperty.condominiumName ? `${detailProperty.condominiumName} · ${detailProperty.zone}` : detailProperty.zone}
+                </span>
+              </div>
+            </div>
+            
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{getListingTypeBadge(detailProperty.listingType)}</Badge>
-              <Badge variant="outline" className="gap-1"><Bed className="h-3 w-3" />{detailProperty.bedrooms} {language === "es" ? "rec" : "bed"}</Badge>
-              <Badge variant="outline" className="gap-1"><Bath className="h-3 w-3" />{detailProperty.bathrooms} {language === "es" ? "baños" : "bath"}</Badge>
-              {detailProperty.petsAllowed && <Badge variant="outline" className="gap-1 text-green-600 border-green-200"><PawPrint className="h-3 w-3" />{language === "es" ? "Mascotas" : "Pets OK"}</Badge>}
+              <Badge variant="outline" className="gap-1.5 py-1 px-2">
+                <Bed className="h-3.5 w-3.5" />{detailProperty.bedrooms} {language === "es" ? "recámaras" : "bedrooms"}
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 py-1 px-2">
+                <Bath className="h-3.5 w-3.5" />{detailProperty.bathrooms} {language === "es" ? "baños" : "bathrooms"}
+              </Badge>
+              {detailProperty.petsAllowed && (
+                <Badge variant="outline" className="gap-1.5 py-1 px-2 text-green-600 border-green-200 dark:border-green-800">
+                  <PawPrint className="h-3.5 w-3.5" />{language === "es" ? "Mascotas" : "Pets OK"}
+                </Badge>
+              )}
+              {detailProperty.furnished && (
+                <Badge variant="outline" className="gap-1.5 py-1 px-2 text-blue-600 border-blue-200 dark:border-blue-800">
+                  <Sofa className="h-3.5 w-3.5" />{language === "es" ? "Amueblado" : "Furnished"}
+                </Badge>
+              )}
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground"><MapPin className="h-4 w-4" /><span>{detailProperty.zone}</span></div>
+            
             <div className="border-t pt-4">
-              <div className="text-2xl font-bold text-primary">{formatPrice(detailProperty.price, detailProperty.currency)}<span className="text-sm font-normal text-muted-foreground">/mes</span></div>
-              {detailProperty.salePrice && <div className="text-lg font-semibold text-muted-foreground mt-1">{language === "es" ? "Venta: " : "Sale: "}{formatPrice(detailProperty.salePrice, detailProperty.saleCurrency)}</div>}
+              <div className="text-3xl font-bold text-primary">
+                {formatPrice(detailProperty.price, detailProperty.currency)}
+                <span className="text-base font-normal text-muted-foreground">/mes</span>
+              </div>
+              {detailProperty.salePrice && (
+                <div className="text-lg font-semibold text-muted-foreground mt-1">
+                  {language === "es" ? "Venta: " : "Sale: "}{formatPrice(detailProperty.salePrice, detailProperty.saleCurrency)}
+                </div>
+              )}
             </div>
-            <div className="flex gap-2 pt-2">
-              <Button className="flex-1 gap-2" asChild><a href={getPropertyLink(detailProperty)} data-testid="button-view-detail"><Eye className="h-4 w-4" />{language === "es" ? "Ver detalles" : "View details"}</a></Button>
-              <Button variant="outline" className="gap-2" asChild><a href={`${getPropertyLink(detailProperty)}#contact`} data-testid="button-contact"><Calendar className="h-4 w-4" />{language === "es" ? "Agendar" : "Schedule"}</a></Button>
+            
+            <div className="flex gap-3 pt-2">
+              <Button size="lg" className="flex-1 gap-2" asChild>
+                <a href={getPropertyLink(detailProperty)} data-testid="button-view-detail">
+                  <Eye className="h-4 w-4" />
+                  {language === "es" ? "Ver detalles" : "View details"}
+                </a>
+              </Button>
+              <Button size="lg" variant="outline" className="flex-1 gap-2" asChild>
+                <a href={`${getPropertyLink(detailProperty)}#contact`} data-testid="button-contact">
+                  <MessageCircle className="h-4 w-4" />
+                  {language === "es" ? "Contactar" : "Contact"}
+                </a>
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -557,7 +675,31 @@ export default function InteractiveMap() {
     );
   };
 
-  const LoadingSkeleton = () => (<div className="space-y-3">{[1, 2, 3, 4, 5].map((i) => (<div key={i} className="p-3 rounded-lg border"><div className="flex gap-3"><Skeleton className="w-12 h-12 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /><div className="flex gap-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-3 w-16" /></div><Skeleton className="h-5 w-24" /></div></div></div>))}</div>);
+  const LoadingSkeleton = () => (
+    <div className="space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="rounded-xl border overflow-hidden">
+          <Skeleton className="aspect-[16/10] w-full" />
+          <div className="p-3 space-y-3">
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-6 w-32" />
+            <div className="flex gap-2 pt-2">
+              <Skeleton className="h-9 flex-1" />
+              <Skeleton className="h-9 flex-1" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   const MapSkeleton = () => (<div className="w-full h-full bg-muted animate-pulse flex items-center justify-center"><div className="text-center space-y-4"><img src={logoIcon} alt="HomesApp" className="h-16 w-auto mx-auto opacity-50" /><div className="flex items-center justify-center gap-2"><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div></div><p className="text-sm text-muted-foreground">{language === "es" ? "Cargando mapa..." : "Loading map..."}</p></div></div>);
 
@@ -618,7 +760,7 @@ export default function InteractiveMap() {
               <Badge variant="outline">{visibleCount < filteredMarkers.length ? `${visibleCount}/${filteredMarkers.length}` : filteredMarkers.length}</Badge>
             </div>
             <ScrollArea className="flex-1">
-              <div className="p-4 space-y-3">
+              <div className="p-4 space-y-4">
                 {isLoading ? (<LoadingSkeleton />) : filteredMarkers.length === 0 ? (
                   <div className="text-center py-8">
                     <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
@@ -647,7 +789,7 @@ export default function InteractiveMap() {
         <SheetContent side="bottom" className="h-[70vh] rounded-t-xl">
           <SheetHeader className="pb-2 border-b"><SheetTitle className="flex items-center gap-2"><Home className="h-5 w-5" />{language === "es" ? "Propiedades" : "Properties"}<Badge variant="outline" className="ml-1">{filteredMarkers.length}</Badge></SheetTitle></SheetHeader>
           <ScrollArea className="h-[calc(70vh-80px)] mt-4">
-            <div className="space-y-3 pb-6">
+            <div className="space-y-4 pb-6">
               {isLoading ? (<LoadingSkeleton />) : filteredMarkers.length === 0 ? (
                 <div className="text-center py-8"><MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" /><p className="text-sm text-muted-foreground">{language === "es" ? "No se encontraron propiedades" : "No properties found"}</p><Button variant="link" size="sm" onClick={resetFilters} className="mt-2">{language === "es" ? "Limpiar filtros" : "Clear filters"}</Button></div>
               ) : (
