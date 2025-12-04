@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { DollarSign, TrendingUp, Clock, CheckCircle2, FileText, Upload, AlertTriangle, BookOpen, Info, CheckCircle, CreditCard, Building, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, CheckCircle2, FileText, Upload, AlertTriangle, BookOpen, Info, CheckCircle, CreditCard, Building, Wallet, ChevronLeft, ChevronRight } from "lucide-react";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -46,6 +46,13 @@ interface IncomeSummary {
   byCategory: Record<string, { count: number; total: number }>;
 }
 
+interface PaginatedTransactionsResponse {
+  transactions: IncomeTransaction[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export default function MyIncome() {
   const { language } = useLanguage();
   const { user } = useAuth();
@@ -55,6 +62,8 @@ export default function MyIncome() {
   const [termsAccepted, setTermsAccepted] = useState(user?.commissionTermsAccepted || false);
   const [documentType, setDocumentType] = useState<"passport" | "ine">("ine");
   const [documentPreview, setDocumentPreview] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(0);
+  const pageSize = 20;
 
   const bankForm = useForm<UpdateBankInfo>({
     resolver: zodResolver(updateBankInfoSchema),
@@ -88,9 +97,15 @@ export default function MyIncome() {
     queryKey: ["/api/income/my-summary"],
   });
 
-  const { data: transactions, isLoading: transactionsLoading } = useQuery<IncomeTransaction[]>({
-    queryKey: ["/api/income/my-transactions"],
+  const transactionsQueryUrl = `/api/income/my-transactions?limit=${pageSize}&offset=${currentPage * pageSize}`;
+  
+  const { data: transactionsData, isLoading: transactionsLoading } = useQuery<PaginatedTransactionsResponse>({
+    queryKey: [transactionsQueryUrl],
   });
+
+  const transactions = transactionsData?.transactions || [];
+  const totalTransactions = transactionsData?.total ?? 0;
+  const totalPages = totalTransactions > 0 ? Math.ceil(totalTransactions / pageSize) : 0;
 
   const acceptTermsMutation = useMutation({
     mutationFn: async (accepted: boolean) => {
@@ -474,8 +489,13 @@ export default function MyIncome() {
 
           <Card data-testid="card-transactions">
             <CardHeader>
-              <CardTitle>
-                {language === "es" ? "Historial de Transacciones" : "Transaction History"}
+              <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
+                <span>{language === "es" ? "Historial de Transacciones" : "Transaction History"}</span>
+                {totalTransactions > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground" data-testid="text-total-count">
+                    {totalTransactions} {language === "es" ? "transacciones" : "transactions"}
+                  </span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -486,46 +506,80 @@ export default function MyIncome() {
                     : "You don't have any income transactions yet"}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{language === "es" ? "Fecha" : "Date"}</TableHead>
-                      <TableHead>{language === "es" ? "Categoría" : "Category"}</TableHead>
-                      <TableHead>{language === "es" ? "Descripción" : "Description"}</TableHead>
-                      <TableHead>{language === "es" ? "Monto" : "Amount"}</TableHead>
-                      <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
-                      <TableHead>{language === "es" ? "Fecha de Pago" : "Payment Date"}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((transaction) => (
-                      <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
-                        <TableCell>
-                          {format(new Date(transaction.createdAt), "PP", {
-                            locale: language === "es" ? es : undefined,
-                          })}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" data-testid={`badge-category-${transaction.id}`}>
-                            {getCategoryLabel(transaction.category)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{transaction.description}</TableCell>
-                        <TableCell className="font-semibold">
-                          ${transaction.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                        <TableCell>
-                          {transaction.paidAt
-                            ? format(new Date(transaction.paidAt), "PP", {
-                                locale: language === "es" ? es : undefined,
-                              })
-                            : "-"}
-                        </TableCell>
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{language === "es" ? "Fecha" : "Date"}</TableHead>
+                        <TableHead>{language === "es" ? "Categoría" : "Category"}</TableHead>
+                        <TableHead>{language === "es" ? "Descripción" : "Description"}</TableHead>
+                        <TableHead>{language === "es" ? "Monto" : "Amount"}</TableHead>
+                        <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
+                        <TableHead>{language === "es" ? "Fecha de Pago" : "Payment Date"}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.map((transaction) => (
+                        <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
+                          <TableCell>
+                            {format(new Date(transaction.createdAt), "PP", {
+                              locale: language === "es" ? es : undefined,
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" data-testid={`badge-category-${transaction.id}`}>
+                              {getCategoryLabel(transaction.category)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{transaction.description}</TableCell>
+                          <TableCell className="font-semibold">
+                            ${transaction.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                          <TableCell>
+                            {transaction.paidAt
+                              ? format(new Date(transaction.paidAt), "PP", {
+                                  locale: language === "es" ? es : undefined,
+                                })
+                              : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t" data-testid="pagination-controls">
+                      <div className="text-sm text-muted-foreground" data-testid="text-page-info">
+                        {language === "es" 
+                          ? `Página ${currentPage + 1} de ${totalPages}` 
+                          : `Page ${currentPage + 1} of ${totalPages}`}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                          disabled={currentPage === 0}
+                          data-testid="button-prev-page"
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          {language === "es" ? "Anterior" : "Previous"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                          disabled={currentPage >= totalPages - 1}
+                          data-testid="button-next-page"
+                        >
+                          {language === "es" ? "Siguiente" : "Next"}
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

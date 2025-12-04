@@ -18877,7 +18877,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sortOrder: (sortOrder === 'asc' || sortOrder === 'desc') ? sortOrder : 'desc',
       });
 
-      res.json(result);
+      res.json({
+        transactions: result.data,
+        total: result.total,
+        limit: result.limit,
+        offset: result.offset,
+        hasMore: result.hasMore,
+      });
     } catch (error: any) {
       console.error("Error fetching user income transactions:", error);
       res.status(500).json({ message: "Failed to fetch income transactions" });
