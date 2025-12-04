@@ -1,0 +1,84 @@
+El mapa interactivo sigue muy lento, incluso después de las optimizaciones anteriores.
+
+Revisando el código que les pasé:
+
+En client/src/pages/InteractiveMap.tsx sigo viendo que:
+
+const { data: markersResponse } = useQuery({
+  queryKey: ["/api/public/map-markers"],
+});
+const allMarkers = markersResponse?.markers || [];
+const filteredMarkers = useMemo(() => allMarkers.filter(...), [allMarkers, filters]);
+const mapProperties = filteredMarkers.map(...)
+
+
+Es decir: siempre trae TODOS los markers y los filtra del lado del cliente.
+
+En client/src/components/external/PropertyMap.tsx:
+
+Recibe properties={mapProperties} y dibuja un <Marker> de Google por cada propiedad/cluster calculado en el cliente.
+
+Con casi 1 000 unidades esto sigue siendo pesado.
+
+Les pido una optimización más agresiva:
+
+Bounds + filtros en el servidor de verdad
+
+Modifiquen /api/public/map-markers para aceptar:
+
+north, south, east, west (bounds del mapa),
+
+y los filtros principales (status = rent/sale, propertyType, zone, price range, pets).
+
+En InteractiveMap.tsx, agreguen un estado mapBounds y un callback onBoundsChanged que venga de PropertyMap:
+
+const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
+// ...
+<PropertyMap
+  properties={mapProperties}
+  onBoundsChanged={setMapBounds}
+  ...
+/>
+
+
+Actualicen useQuery para usar un queryFn que llame a:
+/api/public/map-markers?north=...&south=...&east=...&west=...&status=...&type=...
+y que el servidor devuelva solo los markers dentro del viewport y con esos filtros.
+
+Importante: usen staleTime y quizá un pequeño debounce (300–500ms) antes de pedir nuevo set al mover el mapa para no spamear la API.
+
+Menos markers a la vez (clustering de verdad)
+
+Aun con bounds, si hay muchas unidades en la zona, debemos usar clustering de Google:
+
+Integrar MarkerClusterer de @react-google-maps/api en lugar de renderizar un <Marker> por cada propiedad individual.
+
+El cluster debe agrupar por proximidad (no solo por lat/lng exacto) para que en zoom lejano haya decenas de clusters, no cientos de pins.
+
+Solo cuando el usuario haga suficiente zoom en un área, se muestran los marcadores individuales.
+
+Evitar recomputar todo en cada render
+
+Revisen los useMemo de validProperties y locationClusters en PropertyMap.tsx y asegúrense de que:
+
+las dependencias sean correctas,
+
+no se recalculen si solo cambian estados que no afectan el mapa (por ejemplo, abrir/cerrar panel lateral).
+
+Lista lateral con paginación / virtualización
+
+En la lista de propiedades a la derecha del mapa:
+
+limiten la cantidad de tarjetas renderizadas (por ejemplo, 50 por página, con “Cargar más”),
+
+o usen una lista virtualizada para no tener 900 tarjetas en el DOM.
+
+El objetivo es que, con ~1 000 propiedades:
+
+el mapa se pueda mover y hacer zoom sin congelarse,
+
+los filtros respondan rápido,
+
+y en mobile también se sienta fluido.
+
+Por favor, cuando hagan estos cambios, describan qué parte del código actualizaron (endpoint, InteractiveMap, PropertyMap) y qué reducción de markers promedio se está viendo en el cliente.
