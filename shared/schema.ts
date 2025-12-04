@@ -10571,6 +10571,59 @@ export const insertSellerSocialMediaReminderSchema = createInsertSchema(sellerSo
 export type InsertSellerSocialMediaReminder = z.infer<typeof insertSellerSocialMediaReminderSchema>;
 export type SellerSocialMediaReminder = typeof sellerSocialMediaReminders.$inferSelect;
 
+// Social Media Template Tone Enum
+export const socialMediaToneEnum = pgEnum("social_media_tone", [
+  "neutral",    // Neutral/Profesional
+  "premium",    // Premium/Lujo
+  "casual",     // Casual/Amigable
+]);
+
+// Social Media Publication History - Track all publications for a property
+export const sellerSocialMediaPublications = pgTable("seller_social_media_publications", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  unitId: varchar("unit_id").references(() => externalUnits.id, { onDelete: "cascade" }),
+  templateId: varchar("template_id").references(() => sellerSocialMediaTemplates.id, { onDelete: "set null" }),
+  
+  platform: socialMediaPlatformEnum("platform").notNull(),
+  content: text("content").notNull(),
+  hashtags: text("hashtags"),
+  tone: socialMediaToneEnum("tone").default("neutral"),
+  language: varchar("language", { length: 5 }).default("es"),
+  
+  propertyTitle: varchar("property_title", { length: 200 }),
+  propertyZone: varchar("property_zone", { length: 100 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_social_publications_agency").on(table.agencyId),
+  index("idx_social_publications_seller").on(table.sellerId),
+  index("idx_social_publications_unit").on(table.unitId),
+  index("idx_social_publications_created").on(table.createdAt),
+]);
+
+export const insertSellerSocialMediaPublicationSchema = createInsertSchema(sellerSocialMediaPublications).omit({
+  id: true, createdAt: true,
+});
+export type InsertSellerSocialMediaPublication = z.infer<typeof insertSellerSocialMediaPublicationSchema>;
+export type SellerSocialMediaPublication = typeof sellerSocialMediaPublications.$inferSelect;
+
+// Social Media Template Favorites - Track favorite templates per seller
+export const sellerSocialMediaFavorites = pgTable("seller_social_media_favorites", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  templateId: varchar("template_id").notNull().references(() => sellerSocialMediaTemplates.id, { onDelete: "cascade" }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_social_favorites_seller").on(table.sellerId),
+  uniqueIndex("idx_social_favorites_unique").on(table.sellerId, table.templateId),
+]);
+
+export type SellerSocialMediaFavorite = typeof sellerSocialMediaFavorites.$inferSelect;
+
 // ============================================
 // PORTAL 2.0 - ENHANCED TENANT/OWNER PORTAL
 // ============================================

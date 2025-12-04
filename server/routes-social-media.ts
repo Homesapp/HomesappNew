@@ -1250,4 +1250,419 @@ Generate ONLY the post content, no additional explanation.`;
       res.status(500).send('Error processing link');
     }
   });
+  
+  // ============================================
+  // PUBLICATION HISTORY ROUTES
+  // ============================================
+  
+  // GET /api/external-seller/social-publications - Get publication history
+  app.get("/api/external-seller/social-publications", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { limit = 50, offset = 0, platform, unitId } = req.query;
+      
+      // Import table (dynamic import to avoid circular deps if needed)
+      const { sellerSocialMediaPublications } = await import("@shared/schema");
+      
+      const conditions = [
+        eq(sellerSocialMediaPublications.agencyId, agencyId),
+        eq(sellerSocialMediaPublications.sellerId, userId),
+      ];
+      
+      if (platform && platform !== "all") {
+        conditions.push(eq(sellerSocialMediaPublications.platform, platform as any));
+      }
+      
+      if (unitId) {
+        conditions.push(eq(sellerSocialMediaPublications.unitId, unitId as string));
+      }
+      
+      const publications = await db
+        .select()
+        .from(sellerSocialMediaPublications)
+        .where(and(...conditions))
+        .orderBy(desc(sellerSocialMediaPublications.createdAt))
+        .limit(Number(limit))
+        .offset(Number(offset));
+      
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(sellerSocialMediaPublications)
+        .where(and(...conditions));
+      
+      res.json({
+        data: publications,
+        total: Number(count),
+        limit: Number(limit),
+        offset: Number(offset),
+        hasMore: Number(offset) + publications.length < Number(count),
+      });
+    } catch (error: any) {
+      console.error("Error fetching publication history:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // POST /api/external-seller/social-publications - Record a publication
+  app.post("/api/external-seller/social-publications", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      const { sellerSocialMediaPublications, insertSellerSocialMediaPublicationSchema } = await import("@shared/schema");
+      
+      const validatedData = insertSellerSocialMediaPublicationSchema.parse({
+        ...req.body,
+        agencyId,
+        sellerId: userId,
+      });
+      
+      const [publication] = await db
+        .insert(sellerSocialMediaPublications)
+        .values(validatedData)
+        .returning();
+      
+      res.json(publication);
+    } catch (error: any) {
+      console.error("Error recording publication:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ============================================
+  // TEMPLATE FAVORITES ROUTES
+  // ============================================
+  
+  // GET /api/external-seller/social-favorites - Get favorite template IDs
+  app.get("/api/external-seller/social-favorites", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      
+      const { sellerSocialMediaFavorites } = await import("@shared/schema");
+      
+      const favorites = await db
+        .select({ templateId: sellerSocialMediaFavorites.templateId })
+        .from(sellerSocialMediaFavorites)
+        .where(and(
+          eq(sellerSocialMediaFavorites.agencyId, agencyId),
+          eq(sellerSocialMediaFavorites.sellerId, userId)
+        ));
+      
+      res.json(favorites.map(f => f.templateId));
+    } catch (error: any) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // POST /api/external-seller/social-favorites/:templateId - Add template to favorites
+  app.post("/api/external-seller/social-favorites/:templateId", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { templateId } = req.params;
+      
+      const { sellerSocialMediaFavorites } = await import("@shared/schema");
+      
+      // Check if already favorited
+      const [existing] = await db
+        .select()
+        .from(sellerSocialMediaFavorites)
+        .where(and(
+          eq(sellerSocialMediaFavorites.sellerId, userId),
+          eq(sellerSocialMediaFavorites.templateId, templateId)
+        ));
+      
+      if (existing) {
+        return res.json({ success: true, message: "Already favorited" });
+      }
+      
+      await db.insert(sellerSocialMediaFavorites).values({
+        agencyId,
+        sellerId: userId,
+        templateId,
+      });
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error adding favorite:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // DELETE /api/external-seller/social-favorites/:templateId - Remove template from favorites
+  app.delete("/api/external-seller/social-favorites/:templateId", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) return res.status(403).json({ message: "No agency access" });
+      
+      const userId = req.user?.claims?.sub || req.user?.id;
+      const { templateId } = req.params;
+      
+      const { sellerSocialMediaFavorites } = await import("@shared/schema");
+      
+      await db
+        .delete(sellerSocialMediaFavorites)
+        .where(and(
+          eq(sellerSocialMediaFavorites.sellerId, userId),
+          eq(sellerSocialMediaFavorites.templateId, templateId)
+        ));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ============================================
+  // QUICK TEMPLATES (PRE-BUILT BY CHANNEL)
+  // ============================================
+  
+  // GET /api/external-seller/quick-templates - Get pre-built templates by channel
+  app.get("/api/external-seller/quick-templates", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const { platform, tone = "neutral", language = "es" } = req.query;
+      
+      // Quick templates - pre-built content for each channel
+      const quickTemplates = getQuickTemplates(language as string, tone as string);
+      
+      if (platform && platform !== "all") {
+        return res.json(quickTemplates.filter(t => t.platform === platform));
+      }
+      
+      res.json(quickTemplates);
+    } catch (error: any) {
+      console.error("Error fetching quick templates:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // ============================================
+  // HASHTAG SUGGESTIONS
+  // ============================================
+  
+  // GET /api/external-seller/hashtag-suggestions - Get hashtag suggestions by zone/operation
+  app.get("/api/external-seller/hashtag-suggestions", isAuthenticated, requireRole(SELLER_ROLES), async (req: any, res) => {
+    try {
+      const { zone, operationType, language = "es" } = req.query;
+      
+      const hashtags = getHashtagSuggestions(zone as string, operationType as string, language as string);
+      
+      res.json(hashtags);
+    } catch (error: any) {
+      console.error("Error fetching hashtag suggestions:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+}
+
+// ============================================
+// QUICK TEMPLATES DATA
+// ============================================
+
+interface QuickTemplate {
+  id: string;
+  platform: "instagram" | "facebook" | "whatsapp";
+  subtype?: "post" | "story" | "reel";
+  title: string;
+  content: string;
+  hashtags?: string;
+  category: string;
+  tone: string;
+}
+
+function getQuickTemplates(language: string, tone: string): QuickTemplate[] {
+  const isSpanish = language === "es";
+  const isPremium = tone === "premium";
+  const isCasual = tone === "casual";
+  
+  const templates: QuickTemplate[] = [
+    // Instagram Post
+    {
+      id: "ig-post-new-listing",
+      platform: "instagram",
+      subtype: "post",
+      title: isSpanish ? "Nueva Propiedad" : "New Listing",
+      content: isPremium
+        ? (isSpanish 
+            ? "✨ Exclusiva propiedad disponible\n\n{{property.name}} en {{property.location}}\n\n🛏️ {{property.bedrooms}} recámaras\n🚿 {{property.bathrooms}} baños\n📐 {{property.area}} m²\n\n💎 Precio: {{property.price}}\n\n📩 Agenda tu visita privada"
+            : "✨ Exclusive property available\n\n{{property.name}} in {{property.location}}\n\n🛏️ {{property.bedrooms}} bedrooms\n🚿 {{property.bathrooms}} baths\n📐 {{property.area}} sqft\n\n💎 Price: {{property.price}}\n\n📩 Schedule your private tour")
+        : isCasual
+        ? (isSpanish
+            ? "¡Mira esta increíble propiedad! 🏠✨\n\n📍 {{property.location}}\n🛏️ {{property.bedrooms}} recámaras\n💰 {{property.price}}\n\n¡Escríbeme para más info! 📲"
+            : "Check out this amazing property! 🏠✨\n\n📍 {{property.location}}\n🛏️ {{property.bedrooms}} bedrooms\n💰 {{property.price}}\n\nDM me for more info! 📲")
+        : (isSpanish
+            ? "Nueva propiedad en {{property.location}} 🏠\n\n{{property.bedrooms}} recámaras | {{property.bathrooms}} baños\n📐 {{property.area}} m²\n💵 {{property.price}}\n\n📩 Contáctanos para agendar una visita"
+            : "New property in {{property.location}} 🏠\n\n{{property.bedrooms}} beds | {{property.bathrooms}} baths\n📐 {{property.area}} sqft\n💵 {{property.price}}\n\n📩 Contact us to schedule a viewing"),
+      hashtags: isSpanish 
+        ? "#InmobiliariaTulum #PropiedadEnVenta #RealEstateMexico #TulumRealEstate #InversionInmobiliaria"
+        : "#TulumRealEstate #PropertyForSale #MexicoRealEstate #InvestmentProperty #BeachLife",
+      category: "new_listing",
+      tone,
+    },
+    {
+      id: "ig-post-rental",
+      platform: "instagram",
+      subtype: "post",
+      title: isSpanish ? "Propiedad en Renta" : "Rental Property",
+      content: isPremium
+        ? (isSpanish 
+            ? "🌴 Vive la experiencia Tulum\n\nDisponible para renta: {{property.name}}\n📍 {{property.location}}\n\n🛏️ {{property.bedrooms}} recámaras de ensueño\n✨ Amenidades premium\n\n💰 Renta: {{property.price}}/mes\n\n📞 Reserva ahora"
+            : "🌴 Live the Tulum experience\n\nAvailable for rent: {{property.name}}\n📍 {{property.location}}\n\n🛏️ {{property.bedrooms}} dreamy bedrooms\n✨ Premium amenities\n\n💰 Rent: {{property.price}}/month\n\n📞 Book now")
+        : (isSpanish
+            ? "🏠 Disponible para renta\n\n{{property.name}} en {{property.location}}\n{{property.bedrooms}} recámaras | {{property.bathrooms}} baños\n\n💰 {{property.price}}/mes\n\n📩 Agenda tu visita"
+            : "🏠 Available for rent\n\n{{property.name}} in {{property.location}}\n{{property.bedrooms}} beds | {{property.bathrooms}} baths\n\n💰 {{property.price}}/month\n\n📩 Schedule a viewing"),
+      hashtags: isSpanish 
+        ? "#RentaEnTulum #DepartamentoEnRenta #TulumMexico #ViveTulum"
+        : "#TulumRental #ApartmentForRent #TulumMexico #LiveInTulum",
+      category: "rental",
+      tone,
+    },
+    // Instagram Story
+    {
+      id: "ig-story-just-listed",
+      platform: "instagram",
+      subtype: "story",
+      title: isSpanish ? "Recién Publicada" : "Just Listed",
+      content: isSpanish
+        ? "🔥 RECIÉN PUBLICADA\n\n{{property.name}}\n📍 {{property.location}}\n\n🛏️ {{property.bedrooms}} | 🚿 {{property.bathrooms}}\n💰 {{property.price}}\n\n⬆️ Desliza para más"
+        : "🔥 JUST LISTED\n\n{{property.name}}\n📍 {{property.location}}\n\n🛏️ {{property.bedrooms}} | 🚿 {{property.bathrooms}}\n💰 {{property.price}}\n\n⬆️ Swipe up for more",
+      category: "new_listing",
+      tone,
+    },
+    {
+      id: "ig-story-open-house",
+      platform: "instagram",
+      subtype: "story",
+      title: isSpanish ? "Open House" : "Open House",
+      content: isSpanish
+        ? "🏠 OPEN HOUSE\n\n📅 {{date}}\n⏰ {{time}}\n📍 {{property.location}}\n\n¡Te esperamos!"
+        : "🏠 OPEN HOUSE\n\n📅 {{date}}\n⏰ {{time}}\n📍 {{property.location}}\n\nSee you there!",
+      category: "open_house",
+      tone,
+    },
+    // Facebook
+    {
+      id: "fb-new-listing",
+      platform: "facebook",
+      title: isSpanish ? "Nueva Propiedad" : "New Property Listing",
+      content: isPremium
+        ? (isSpanish 
+            ? "✨ PROPIEDAD EXCLUSIVA EN TULUM ✨\n\nTenemos el placer de presentar esta excepcional propiedad:\n\n📍 Ubicación: {{property.location}}\n🏠 {{property.name}}\n\nCaracterísticas:\n🛏️ {{property.bedrooms}} recámaras\n🚿 {{property.bathrooms}} baños\n📐 {{property.area}} m² de construcción\n\n💎 Precio: {{property.price}}\n\n¿Interesado en conocer más? Envíanos un mensaje privado o comenta para recibir información completa.\n\n#TulumRealEstate #PropiedadExclusiva"
+            : "✨ EXCLUSIVE TULUM PROPERTY ✨\n\nWe're pleased to present this exceptional property:\n\n📍 Location: {{property.location}}\n🏠 {{property.name}}\n\nFeatures:\n🛏️ {{property.bedrooms}} bedrooms\n🚿 {{property.bathrooms}} bathrooms\n📐 {{property.area}} sqft\n\n💎 Price: {{property.price}}\n\nInterested in learning more? Send us a private message or comment to receive complete information.\n\n#TulumRealEstate #ExclusiveProperty")
+        : (isSpanish
+            ? "🏠 NUEVA PROPIEDAD DISPONIBLE\n\n📍 {{property.location}}\n{{property.name}}\n\n• {{property.bedrooms}} recámaras\n• {{property.bathrooms}} baños\n• {{property.area}} m²\n\n💰 Precio: {{property.price}}\n\n¿Te interesa? Envíanos un mensaje para más información.\n\n#InmobiliariaTulum #PropiedadEnVenta"
+            : "🏠 NEW PROPERTY AVAILABLE\n\n📍 {{property.location}}\n{{property.name}}\n\n• {{property.bedrooms}} bedrooms\n• {{property.bathrooms}} bathrooms\n• {{property.area}} sqft\n\n💰 Price: {{property.price}}\n\nInterested? Send us a message for more information.\n\n#TulumRealEstate #PropertyForSale"),
+      category: "new_listing",
+      tone,
+    },
+    {
+      id: "fb-price-reduction",
+      platform: "facebook",
+      title: isSpanish ? "Reducción de Precio" : "Price Reduction",
+      content: isSpanish
+        ? "📉 ¡PRECIO REDUCIDO!\n\n{{property.name}} en {{property.location}}\n\n🏷️ Nuevo precio: {{property.price}}\n\nNo dejes pasar esta oportunidad.\n📩 Contáctanos hoy."
+        : "📉 PRICE REDUCED!\n\n{{property.name}} in {{property.location}}\n\n🏷️ New price: {{property.price}}\n\nDon't miss this opportunity.\n📩 Contact us today.",
+      category: "price_update",
+      tone,
+    },
+    // WhatsApp
+    {
+      id: "wa-new-listing",
+      platform: "whatsapp",
+      title: isSpanish ? "Nueva Propiedad" : "New Property",
+      content: isSpanish
+        ? "¡Hola! 👋\n\nTe comparto esta propiedad que podría interesarte:\n\n🏠 *{{property.name}}*\n📍 {{property.location}}\n\n• {{property.bedrooms}} recámaras\n• {{property.bathrooms}} baños\n• {{property.area}} m²\n\n💰 *{{property.price}}*\n\n¿Te gustaría agendar una visita?"
+        : "Hello! 👋\n\nI'm sharing this property that might interest you:\n\n🏠 *{{property.name}}*\n📍 {{property.location}}\n\n• {{property.bedrooms}} bedrooms\n• {{property.bathrooms}} bathrooms\n• {{property.area}} sqft\n\n💰 *{{property.price}}*\n\nWould you like to schedule a viewing?",
+      category: "new_listing",
+      tone,
+    },
+    {
+      id: "wa-follow-up",
+      platform: "whatsapp",
+      title: isSpanish ? "Seguimiento" : "Follow-up",
+      content: isSpanish
+        ? "¡Hola! 👋\n\n¿Qué te pareció la propiedad {{property.name}} que te compartí?\n\n¿Tienes alguna pregunta o te gustaría ver otras opciones?"
+        : "Hello! 👋\n\nWhat did you think of the property {{property.name}} I shared with you?\n\nDo you have any questions or would you like to see other options?",
+      category: "featured",
+      tone,
+    },
+    {
+      id: "wa-open-house-invite",
+      platform: "whatsapp",
+      title: isSpanish ? "Invitación Open House" : "Open House Invite",
+      content: isSpanish
+        ? "🏠 *Te invitamos a nuestro Open House*\n\n📍 {{property.location}}\n📅 {{date}}\n⏰ {{time}}\n\n¡Te esperamos! Confirma tu asistencia."
+        : "🏠 *You're invited to our Open House*\n\n📍 {{property.location}}\n📅 {{date}}\n⏰ {{time}}\n\nSee you there! Please confirm your attendance.",
+      category: "open_house",
+      tone,
+    },
+  ];
+  
+  return templates;
+}
+
+function getHashtagSuggestions(zone?: string, operationType?: string, language?: string): string[] {
+  const isSpanish = language === "es";
+  const hashtags: string[] = [];
+  
+  // Base hashtags
+  hashtags.push("#TulumRealEstate", "#RealEstateTulum");
+  
+  if (isSpanish) {
+    hashtags.push("#InmobiliariaTulum", "#PropiedadesEnTulum");
+  }
+  
+  // Zone-specific hashtags
+  if (zone) {
+    const zoneLower = zone.toLowerCase();
+    if (zoneLower.includes("aldea")) {
+      hashtags.push("#AldeaZama", "#AldeaZamaTulum");
+    } else if (zoneLower.includes("la veleta")) {
+      hashtags.push("#LaVeleta", "#LaVeletaTulum");
+    } else if (zoneLower.includes("region 15")) {
+      hashtags.push("#Region15Tulum", "#Region15");
+    } else if (zoneLower.includes("holistika")) {
+      hashtags.push("#Holistika", "#HolistikaTulum");
+    } else if (zoneLower.includes("downtown") || zoneLower.includes("centro")) {
+      hashtags.push("#TulumDowntown", "#CentroTulum");
+    }
+  }
+  
+  // Operation type hashtags
+  if (operationType === "sale" || operationType === "venta") {
+    hashtags.push(
+      isSpanish ? "#PropiedadEnVenta" : "#PropertyForSale",
+      isSpanish ? "#InversionInmobiliaria" : "#RealEstateInvestment",
+      "#TulumInvestment"
+    );
+  } else if (operationType === "rent" || operationType === "renta") {
+    hashtags.push(
+      isSpanish ? "#RentaEnTulum" : "#TulumRental",
+      isSpanish ? "#DepartamentoEnRenta" : "#ApartmentForRent",
+      "#TulumLiving"
+    );
+  }
+  
+  // General trending hashtags
+  hashtags.push(
+    "#MexicoRealEstate",
+    "#RivieraMaya",
+    "#CaribeMexicano",
+    "#BeachLife",
+    "#TulumLifestyle"
+  );
+  
+  return [...new Set(hashtags)]; // Remove duplicates
 }
