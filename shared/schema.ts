@@ -2960,6 +2960,169 @@ export const insertSaleContractEventSchema = createInsertSchema(saleContractEven
 export type InsertSaleContractEvent = z.infer<typeof insertSaleContractEventSchema>;
 export type SaleContractEvent = typeof saleContractEvents.$inferSelect;
 
+// ==========================================
+// PROPERTY VALUATIONS - Valuaciones de propiedades (CMA interno)
+// ==========================================
+export const valuationTypeEnum = pgEnum("valuation_type", ["sale", "rent_long", "rent_short"]);
+export const valuationStatusEnum = pgEnum("valuation_status", ["draft", "pending_review", "completed", "expired"]);
+export const valuationRequestStatusEnum = pgEnum("valuation_request_status", ["pending", "in_progress", "completed", "cancelled"]);
+
+export const valuations = pgTable("valuations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  createdByUserId: varchar("created_by_user_id").notNull().references(() => users.id),
+  
+  // Tipo de valuación
+  type: valuationTypeEnum("type").notNull().default("sale"),
+  status: valuationStatusEnum("status").notNull().default("draft"),
+  
+  // Datos de entrada de la propiedad (capturados al momento de la valuación)
+  squareMeters: decimal("square_meters", { precision: 10, scale: 2 }),
+  bedrooms: integer("bedrooms"),
+  bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
+  parkingSpaces: integer("parking_spaces"),
+  floor: integer("floor"),
+  propertyCondition: varchar("property_condition"), // new, excellent, good, regular, needs_repair
+  isFurnished: boolean("is_furnished").default(false),
+  hasView: boolean("has_view").default(false),
+  viewType: varchar("view_type"), // ocean, jungle, pool, garden, city
+  amenities: text("amenities").array().default(sql`ARRAY[]::text[]`),
+  yearBuilt: integer("year_built"),
+  
+  // Resultados de la valuación
+  priceMin: decimal("price_min", { precision: 14, scale: 2 }),
+  priceTarget: decimal("price_target", { precision: 14, scale: 2 }),
+  priceMax: decimal("price_max", { precision: 14, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  pricePerSquareMeter: decimal("price_per_square_meter", { precision: 10, scale: 2 }),
+  
+  // Metodología y notas
+  methodology: text("methodology"), // Descripción de la metodología usada
+  internalNotes: text("internal_notes"), // Notas internas (no visibles para propietarios)
+  publicSummary: text("public_summary"), // Resumen público para propietarios
+  
+  // Ajustes aplicados
+  adjustments: jsonb("adjustments"), // Array de ajustes: [{factor, adjustment, reason}]
+  
+  // Comparables usados (resumen)
+  comparablesCount: integer("comparables_count").default(0),
+  averageComparablePrice: decimal("average_comparable_price", { precision: 14, scale: 2 }),
+  
+  // Validez
+  validUntil: timestamp("valid_until"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_valuations_property").on(table.propertyId),
+  index("idx_valuations_created_by").on(table.createdByUserId),
+  index("idx_valuations_type").on(table.type),
+  index("idx_valuations_status").on(table.status),
+  index("idx_valuations_created").on(table.createdAt),
+]);
+
+export const insertValuationSchema = createInsertSchema(valuations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertValuation = z.infer<typeof insertValuationSchema>;
+export type Valuation = typeof valuations.$inferSelect;
+
+// ==========================================
+// VALUATION COMPARABLES - Propiedades comparables usadas en valuaciones
+// ==========================================
+export const valuationComparables = pgTable("valuation_comparables", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  valuationId: varchar("valuation_id").notNull().references(() => valuations.id, { onDelete: "cascade" }),
+  
+  // Referencia a propiedad comparable (puede ser interna o externa)
+  comparablePropertyId: varchar("comparable_property_id").references(() => properties.id),
+  externalReference: varchar("external_reference"), // Si es propiedad externa
+  
+  // Datos del comparable
+  address: text("address"),
+  squareMeters: decimal("square_meters", { precision: 10, scale: 2 }),
+  bedrooms: integer("bedrooms"),
+  bathrooms: decimal("bathrooms", { precision: 3, scale: 1 }),
+  
+  // Precios
+  listingPrice: decimal("listing_price", { precision: 14, scale: 2 }),
+  soldPrice: decimal("sold_price", { precision: 14, scale: 2 }),
+  pricePerSquareMeter: decimal("price_per_square_meter", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  
+  // Tipo de transacción
+  transactionType: varchar("transaction_type"), // sale, rent_long, rent_short
+  transactionDate: timestamp("transaction_date"), // Fecha de venta/renta
+  
+  // Ajustes aplicados a este comparable
+  adjustments: jsonb("adjustments"), // Array: [{factor, percentAdjustment, reason}]
+  adjustedPrice: decimal("adjusted_price", { precision: 14, scale: 2 }),
+  
+  // Si se incluye o excluye del cálculo
+  isIncluded: boolean("is_included").default(true),
+  exclusionReason: text("exclusion_reason"),
+  
+  // Notas
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_valuation_comparables_valuation").on(table.valuationId),
+  index("idx_valuation_comparables_property").on(table.comparablePropertyId),
+]);
+
+export const insertValuationComparableSchema = createInsertSchema(valuationComparables).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertValuationComparable = z.infer<typeof insertValuationComparableSchema>;
+export type ValuationComparable = typeof valuationComparables.$inferSelect;
+
+// ==========================================
+// VALUATION REQUESTS - Solicitudes de valuación (de propietarios)
+// ==========================================
+export const valuationRequests = pgTable("valuation_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  requestedByUserId: varchar("requested_by_user_id").notNull().references(() => users.id),
+  assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
+  
+  // Tipo de valuación solicitada
+  type: valuationTypeEnum("type").notNull().default("sale"),
+  status: valuationRequestStatusEnum("status").notNull().default("pending"),
+  
+  // Referencia a la valuación completada (si existe)
+  valuationId: varchar("valuation_id").references(() => valuations.id),
+  
+  // Notas del propietario
+  ownerNotes: text("owner_notes"),
+  
+  // Respuesta/notas del agente
+  agentNotes: text("agent_notes"),
+  
+  // Fechas
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  assignedAt: timestamp("assigned_at"),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_valuation_requests_property").on(table.propertyId),
+  index("idx_valuation_requests_requested_by").on(table.requestedByUserId),
+  index("idx_valuation_requests_assigned_to").on(table.assignedAgentId),
+  index("idx_valuation_requests_status").on(table.status),
+]);
+
+export const insertValuationRequestSchema = createInsertSchema(valuationRequests).omit({
+  id: true,
+  requestedAt: true,
+});
+
+export type InsertValuationRequest = z.infer<typeof insertValuationRequestSchema>;
+export type ValuationRequest = typeof valuationRequests.$inferSelect;
+
 // Budgets/Quotes table (presupuestos y cotizaciones)
 export const budgets = pgTable("budgets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
