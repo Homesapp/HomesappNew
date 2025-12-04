@@ -27071,11 +27071,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const sellerId = req.user.claims?.sub || req.user.id;
-      const { leadId, unitId, notes } = req.body;
-
-      if (!leadId || !unitId) {
-        return res.status(400).json({ message: "leadId and unitId are required" });
+      
+      // Validate request body with Zod schema
+      const parseResult = insertExternalLeadPropertyFavoriteSchema.pick({
+        leadId: true,
+        unitId: true,
+        notes: true,
+      }).safeParse(req.body);
+      
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid request body",
+          errors: parseResult.error.flatten().fieldErrors
+        });
       }
+      
+      const { leadId, unitId, notes } = parseResult.data;
 
       // Verify lead belongs to agency
       const [lead] = await db.select().from(externalLeads)
@@ -27123,6 +27134,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const sellerId = req.user.claims?.sub || req.user.id;
       const { leadId, unitId } = req.params;
+
+      // Validate required params
+      if (!leadId || typeof leadId !== 'string' || !unitId || typeof unitId !== 'string') {
+        return res.status(400).json({ message: "Valid leadId and unitId are required" });
+      }
 
       await db.delete(externalLeadPropertyFavorites).where(and(
         eq(externalLeadPropertyFavorites.leadId, leadId),
