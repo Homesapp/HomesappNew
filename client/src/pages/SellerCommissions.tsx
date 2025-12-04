@@ -118,56 +118,68 @@ export default function SellerCommissions() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Mis Comisiones</h1>
-        <p className="text-muted-foreground text-sm sm:text-base">
-          Gestiona tus comisiones por rentas realizadas
-        </p>
+    <div className="container mx-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
+      {/* Header con mejor jerarquía tipográfica */}
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
+          <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
+        </div>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Mis Comisiones</h1>
+          <p className="text-sm text-muted-foreground">
+            Ingresos por rentas realizadas
+          </p>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Ganado</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600" data-testid="text-total-earned">
+      {/* Stats Cards con mejor diseño */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="hover-elevate">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-muted-foreground">Total Ganado</span>
+              <div className="h-9 w-9 rounded-full bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
+                <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400 tracking-tight" data-testid="text-total-earned">
               {formatCurrency(totalEarned)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1.5">
               Comisiones pagadas
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Por Cobrar</CardTitle>
-            <Clock className="h-4 w-4 text-amber-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600" data-testid="text-pending-amount">
+        <Card className="hover-elevate">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-muted-foreground">Por Cobrar</span>
+              <div className="h-9 w-9 rounded-full bg-amber-500/10 dark:bg-amber-500/20 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400 tracking-tight" data-testid="text-pending-amount">
               {formatCurrency(pendingAmount)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1.5">
               Pendientes de pago
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Operaciones</CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-operations">
+        <Card className="hover-elevate">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-muted-foreground">Operaciones</span>
+              <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-total-operations">
               {totalCommissions}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1.5">
               Rentas realizadas
             </p>
           </CardContent>

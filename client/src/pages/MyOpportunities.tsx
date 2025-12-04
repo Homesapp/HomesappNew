@@ -78,26 +78,31 @@ export default function MyOpportunities() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-4 sm:py-6">
-      <div className="mb-4 sm:mb-6">
-        <div className="flex items-center gap-2 sm:gap-3 mb-2">
-          <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0" />
-          <h1 className="text-2xl sm:text-3xl font-bold">Mis Oportunidades</h1>
+    <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-6">
+      {/* Header con mejor jerarquía tipográfica */}
+      <div className="mb-5 sm:mb-6">
+        <div className="flex items-center gap-3 mb-1.5">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Mis Oportunidades</h1>
+            <p className="text-sm text-muted-foreground">
+              Propiedades visitadas y ofertas
+            </p>
+          </div>
         </div>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          Revisa las propiedades que has visitado y gestiona tus ofertas de renta
-        </p>
       </div>
 
       <Tabs defaultValue="visited" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-auto">
-          <TabsTrigger value="visited" className="min-h-[44px] text-xs sm:text-sm py-2 px-2 sm:px-4" data-testid="tab-visited">
-            <CheckCircle2 className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
-            <span className="truncate">Visitadas</span>
+        <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-muted/50">
+          <TabsTrigger value="visited" className="min-h-[48px] text-sm font-medium py-2.5 px-3 sm:px-4 gap-2" data-testid="tab-visited">
+            <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+            <span>Visitadas</span>
           </TabsTrigger>
-          <TabsTrigger value="my-offers" className="min-h-[44px] text-xs sm:text-sm py-2 px-2 sm:px-4" data-testid="tab-my-offers">
-            <DollarSign className="h-4 w-4 mr-1 sm:mr-2 flex-shrink-0" />
-            <span className="truncate">Mis Ofertas</span>
+          <TabsTrigger value="my-offers" className="min-h-[48px] text-sm font-medium py-2.5 px-3 sm:px-4 gap-2" data-testid="tab-my-offers">
+            <DollarSign className="h-4 w-4 flex-shrink-0" />
+            <span>Mis Ofertas</span>
           </TabsTrigger>
         </TabsList>
 
