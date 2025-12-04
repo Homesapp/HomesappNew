@@ -26,6 +26,7 @@ import { Loader2, Copy, Check, MessageCircle, ExternalLink } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 
 const emailFormSchema = z.object({
   clientEmail: z.string().email("Email inválido"),
@@ -87,10 +88,11 @@ export default function GenerateRentalFormLinkDialog({
         description: "Ahora puedes compartir el link para completar el formato de renta.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("GenerateRentalFormLinkDialog.generateTokenMutation", error);
       toast({
         title: "Error al generar link",
-        description: error.message,
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },
@@ -108,10 +110,11 @@ export default function GenerateRentalFormLinkDialog({
       form.reset();
       handleClose();
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("GenerateRentalFormLinkDialog.sendEmailMutation", error);
       toast({
         title: "Error al enviar email",
-        description: error.message,
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },
@@ -150,9 +153,10 @@ export default function GenerateRentalFormLinkDialog({
         description: type === "link" ? "Link copiado" : "Mensaje de WhatsApp copiado",
       });
     } catch (err) {
+      logError("GenerateRentalFormLinkDialog.copyToClipboard", err);
       toast({
         title: "Error al copiar",
-        description: "No se pudo copiar al portapapeles",
+        description: getErrorMessage(err, "es"),
         variant: "destructive",
       });
     }

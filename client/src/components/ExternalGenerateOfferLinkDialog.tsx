@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import type { ExternalUnitWithCondominium, ExternalClient, PaginatedResponse } from "@shared/schema";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 
 const emailFormSchema = z.object({
   clientEmail: z.string().email("Email inválido"),
@@ -176,10 +177,11 @@ export default function ExternalGenerateOfferLinkDialog({
           : "You can now share the link or send it by email.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalGenerateOfferLinkDialog.generateTokenMutation", error);
       toast({
         title: language === "es" ? "Error al generar link" : "Error generating link",
-        description: error.message,
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -199,10 +201,11 @@ export default function ExternalGenerateOfferLinkDialog({
       form.reset();
       handleClose();
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalGenerateOfferLinkDialog.sendEmailMutation", error);
       toast({
         title: language === "es" ? "Error al enviar email" : "Error sending email",
-        description: error.message,
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -265,11 +268,10 @@ export default function ExternalGenerateOfferLinkDialog({
           : language === "es" ? "Mensaje de WhatsApp copiado" : "WhatsApp message copied",
       });
     } catch (err) {
+      logError("ExternalGenerateOfferLinkDialog.copyToClipboard", err);
       toast({
         title: language === "es" ? "Error al copiar" : "Error copying",
-        description: language === "es" 
-          ? "No se pudo copiar al portapapeles"
-          : "Could not copy to clipboard",
+        description: getErrorMessage(err, language),
         variant: "destructive",
       });
     }

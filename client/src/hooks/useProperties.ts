@@ -2,6 +2,7 @@ import { useQuery, useMutation, type UseQueryResult } from "@tanstack/react-quer
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Property, InsertProperty } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 
 interface PropertyFilters {
   status?: string;
@@ -79,10 +80,11 @@ export function useCreateProperty() {
         description: "La propiedad ha sido creada exitosamente",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("useCreateProperty", error);
       toast({
-        title: "Error",
-        description: error.message || "No se pudo crear la propiedad",
+        title: "Error al crear propiedad",
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },
@@ -105,10 +107,11 @@ export function useUpdateProperty() {
         description: "La propiedad ha sido actualizada exitosamente",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("useUpdateProperty", error);
       toast({
-        title: "Error",
-        description: error.message || "No se pudo actualizar la propiedad",
+        title: "Error al actualizar propiedad",
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },
@@ -129,10 +132,11 @@ export function useDeleteProperty() {
         description: "La propiedad ha sido eliminada exitosamente",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("useDeleteProperty", error);
       toast({
-        title: "Error",
-        description: error.message || "No se pudo eliminar la propiedad",
+        title: "Error al eliminar propiedad",
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },

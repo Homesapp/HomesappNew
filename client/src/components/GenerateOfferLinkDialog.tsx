@@ -27,6 +27,7 @@ import { Loader2, Link as LinkIcon, Mail, MessageCircle, Copy, Check, ExternalLi
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 
 const emailFormSchema = z.object({
   clientEmail: z.string().email("Email inválido"),
@@ -87,10 +88,11 @@ export default function GenerateOfferLinkDialog({ trigger, open: externalOpen, o
         description: "Ahora puedes compartir el link o enviarlo por email.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("GenerateOfferLinkDialog.generateTokenMutation", error);
       toast({
         title: "Error al generar link",
-        description: error.message,
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },
@@ -108,10 +110,11 @@ export default function GenerateOfferLinkDialog({ trigger, open: externalOpen, o
       form.reset();
       handleClose();
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("GenerateOfferLinkDialog.sendEmailMutation", error);
       toast({
         title: "Error al enviar email",
-        description: error.message,
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },
@@ -150,9 +153,10 @@ export default function GenerateOfferLinkDialog({ trigger, open: externalOpen, o
         description: type === "link" ? "Link copiado" : "Mensaje de WhatsApp copiado",
       });
     } catch (err) {
+      logError("GenerateOfferLinkDialog.copyToClipboard", err);
       toast({
         title: "Error al copiar",
-        description: "No se pudo copiar al portapapeles",
+        description: getErrorMessage(err, "es"),
         variant: "destructive",
       });
     }

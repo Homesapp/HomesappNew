@@ -47,6 +47,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 
 const formSchema = z.object({
   propertyId: z.string().min(1, "Propiedad es requerida"),
@@ -232,10 +233,11 @@ export function AppointmentSchedulingDialog({
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      logError("AppointmentSchedulingDialog.createAppointmentMutation", error);
       toast({
         title: "Error al agendar cita",
-        description: error.message || "Ocurrió un error al procesar tu solicitud",
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },

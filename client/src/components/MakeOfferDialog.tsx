@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { DollarSign, FileText } from "lucide-react";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 
 const makeOfferSchema = z.object({
   offerAmount: z.string().min(1, "El monto es requerido"),
@@ -72,10 +73,11 @@ export function MakeOfferDialog({
       onOpenChange(false);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      logError("MakeOfferDialog.makeOfferMutation", error);
       toast({
         title: "Error al enviar oferta",
-        description: error.message || "Ocurrió un error al enviar tu oferta",
+        description: getErrorMessage(error, "es"),
         variant: "destructive",
       });
     },

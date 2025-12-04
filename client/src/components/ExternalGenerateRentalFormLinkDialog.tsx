@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { ExternalUnitWithCondominium, ExternalClient, PaginatedResponse } from "@shared/schema";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 
 const emailFormSchema = z.object({
   clientEmail: z.string().email("Email inválido"),
@@ -212,10 +213,11 @@ export default function ExternalGenerateRentalFormLinkDialog({
           : "You can now share the link to complete the rental form.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalGenerateRentalFormLinkDialog.generateTokenMutation", error);
       toast({
         title: language === "es" ? "Error al generar link" : "Error generating link",
-        description: error.message,
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -238,10 +240,11 @@ export default function ExternalGenerateRentalFormLinkDialog({
       form.reset();
       handleClose();
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalGenerateRentalFormLinkDialog.sendEmailMutation", error);
       toast({
         title: language === "es" ? "Error al enviar email" : "Error sending email",
-        description: error.message,
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -349,11 +352,10 @@ export default function ExternalGenerateRentalFormLinkDialog({
           : language === "es" ? "Mensaje copiado al portapapeles" : "Message copied to clipboard",
       });
     } catch (err) {
+      logError("ExternalGenerateRentalFormLinkDialog.copyToClipboard", err);
       toast({
         title: language === "es" ? "Error al copiar" : "Error copying",
-        description: language === "es" 
-          ? "No se pudo copiar al portapapeles"
-          : "Could not copy to clipboard",
+        description: getErrorMessage(err, language),
         variant: "destructive",
       });
     }

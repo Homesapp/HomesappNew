@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, ArrowUpDown, FileSpreadsheet, Target, UserCheck, Clock, Phone, Mail, MapPin, Calendar, Globe, Clock4, MoreHorizontal, Eye } from "lucide-react";
+import { logError, getErrorMessage } from "@/lib/errorHandling";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -347,10 +348,11 @@ export default function ExternalCondominiums() {
         description: language === "es" ? "El condominio se creó exitosamente" : "The condominium was created successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalCondominiums.createCondoMutation", error);
       toast({
-        title: language === "es" ? "Error" : "Error",
-        description: error.message,
+        title: language === "es" ? "Error al crear condominio" : "Error creating condominium",
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -370,10 +372,11 @@ export default function ExternalCondominiums() {
         description: language === "es" ? "El condominio se actualizó exitosamente" : "The condominium was updated successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalCondominiums.updateCondoMutation", error);
       toast({
-        title: language === "es" ? "Error" : "Error",
-        description: error.message,
+        title: language === "es" ? "Error al actualizar condominio" : "Error updating condominium",
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -393,10 +396,11 @@ export default function ExternalCondominiums() {
         description: language === "es" ? "La unidad se creó exitosamente" : "The unit was created successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalCondominiums.createUnitMutation", error);
       toast({
-        title: language === "es" ? "Error" : "Error",
-        description: error.message,
+        title: language === "es" ? "Error al crear unidad" : "Error creating unit",
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -417,10 +421,11 @@ export default function ExternalCondominiums() {
         description: language === "es" ? "La unidad se actualizó exitosamente" : "The unit was updated successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalCondominiums.updateUnitMutation", error);
       toast({
-        title: language === "es" ? "Error" : "Error",
-        description: error.message,
+        title: language === "es" ? "Error al actualizar unidad" : "Error updating unit",
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -437,10 +442,11 @@ export default function ExternalCondominiums() {
         description: language === "es" ? "El estado de la unidad se actualizó exitosamente" : "The unit status was updated successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalCondominiums.toggleUnitStatusMutation", error);
       toast({
-        title: language === "es" ? "Error" : "Error",
-        description: error.message,
+        title: language === "es" ? "Error al cambiar estado" : "Error changing status",
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
@@ -460,11 +466,12 @@ export default function ExternalCondominiums() {
         description: language === "es" ? "El condominio se eliminó exitosamente" : "The condominium was deleted successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
+      logError("ExternalCondominiums.deleteCondoMutation", error);
       setShowDeleteCondoDialog(false);
       toast({
-        title: language === "es" ? "Error" : "Error",
-        description: error.message,
+        title: language === "es" ? "Error al eliminar condominio" : "Error deleting condominium",
+        description: getErrorMessage(error, language),
         variant: "destructive",
       });
     },
