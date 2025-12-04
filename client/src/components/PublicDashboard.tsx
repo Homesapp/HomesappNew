@@ -1,18 +1,172 @@
-import { useState } from "react";
+import { useState, lazy, Suspense, memo } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Map, Home, Heart, SlidersHorizontal, Building2, Users, Star, Clock, ChevronRight, MessageCircle, Bed, Bath, Square, Calendar, Phone } from "lucide-react";
+import { Search, MapPin, Map, Heart, SlidersHorizontal, Building2, Star, ChevronRight, Bed, Bath, Square, Calendar, Phone, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { type Property, type Colony, type Condominium } from "@shared/schema";
+import { type Colony, type Condominium } from "@shared/schema";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { getPropertyTitle } from "@/lib/propertyHelpers";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
-import { FloatingChat } from "@/components/FloatingChat";
+
+const FloatingChat = lazy(() => import("@/components/FloatingChat").then(m => ({ default: m.FloatingChat })));
+
+const PropertyCardSkeleton = memo(function PropertyCardSkeleton() {
+  return (
+    <div className="rounded-2xl overflow-hidden border bg-card">
+      <Skeleton className="aspect-[4/3] w-full" />
+      <div className="p-4 space-y-3">
+        <Skeleton className="h-5 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+        <div className="flex gap-2">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <Skeleton className="h-6 w-1/3" />
+        <div className="flex gap-2">
+          <Skeleton className="h-8 flex-1" />
+          <Skeleton className="h-8 flex-1" />
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const PropertyCard = memo(function PropertyCard({ 
+  property, 
+  compact = false,
+  onNavigate 
+}: { 
+  property: any; 
+  compact?: boolean;
+  onNavigate: (url: string) => void;
+}) {
+  const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
+    ? `/${property.agencySlug}/${property.unitSlug}` 
+    : property.isExternal 
+      ? `/propiedad-externa/${property.id}` 
+      : `/propiedad/${property.id}/completo`;
+
+  const getFormattedTitle = () => {
+    const types: Record<string, string> = {
+      departamento: "Departamento",
+      apartment: "Departamento",
+      casa: "Casa",
+      house: "Casa",
+      estudio: "Estudio",
+      studio: "Estudio",
+      penthouse: "Penthouse",
+      villa: "Villa",
+    };
+    const typeLabel = types[property.propertyType?.toLowerCase() || ''] || property.propertyType || "Propiedad";
+    const condoName = property.condominiumName || '';
+    const unitNum = property.unitNumber || '';
+    
+    if (condoName && unitNum) return `${typeLabel} en ${condoName} #${unitNum}`;
+    if (condoName) return `${typeLabel} en ${condoName}`;
+    if (unitNum) return `${typeLabel} #${unitNum}`;
+    return property.title || typeLabel;
+  };
+
+  return (
+    <div
+      className={`group ${compact ? 'rounded-xl sm:rounded-2xl' : 'rounded-2xl'} overflow-hidden border bg-card hover-elevate cursor-pointer`}
+      onClick={() => onNavigate(propertyUrl)}
+      data-testid={`card-property-${property.id}`}
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        {property.primaryImages?.[0] ? (
+          <img
+            src={property.primaryImages[0]}
+            alt={getFormattedTitle()}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+            decoding="async"
+            data-testid={`img-property-${property.id}`}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-muted">
+            <Building2 className={`${compact ? 'h-8 w-8 sm:h-12 sm:w-12' : 'h-10 w-10'} text-muted-foreground`} />
+          </div>
+        )}
+        <Badge className={`absolute ${compact ? 'top-2 left-2 sm:top-3 sm:left-3 text-[9px] sm:text-[10px] px-1.5 sm:px-2' : 'top-3 left-3 text-[10px] px-2'} bg-foreground text-background rounded-full`}>
+          {property.status === "rent" ? "Renta" : property.status === "sale" ? "Venta" : "Renta/Venta"}
+        </Badge>
+        {!compact && (
+          <button 
+            className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Heart className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+      <div className={compact ? 'p-2.5 sm:p-4' : 'p-3 sm:p-4'}>
+        <h3 
+          className={`font-semibold ${compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'} mb-1 line-clamp-2`}
+          data-testid={`text-title-${property.id}`}
+        >
+          {getFormattedTitle()}
+        </h3>
+        <p className={`${compact ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'} text-muted-foreground mb-2 truncate flex items-center gap-1`}>
+          <MapPin className={`${compact ? 'h-2.5 w-2.5 sm:h-3 sm:w-3' : 'h-3 w-3'} shrink-0`} />
+          {property.location}
+        </p>
+        <div className={`flex flex-wrap items-center gap-2 ${compact ? 'text-[10px] sm:text-xs' : 'text-xs'} text-muted-foreground mb-3`}>
+          {property.bedrooms > 0 && (
+            <span className="flex items-center gap-1">
+              <Bed className="h-3 w-3" />
+              {property.bedrooms} Rec
+            </span>
+          )}
+          {property.bathrooms > 0 && (
+            <span className="flex items-center gap-1">
+              <Bath className="h-3 w-3" />
+              {property.bathrooms} Baños
+            </span>
+          )}
+          {property.area > 0 && (
+            <span className="flex items-center gap-1">
+              <Square className="h-3 w-3" />
+              {property.area} m²
+            </span>
+          )}
+        </div>
+        <div className={`flex items-center justify-between ${compact ? 'mb-2 sm:mb-3' : 'mb-3'} pt-2 border-t`}>
+          <p className={`font-bold ${compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} text-primary`}>
+            ${(property.price || 0).toLocaleString()} 
+            <span className={`font-normal ${compact ? 'text-[9px] sm:text-[10px]' : 'text-xs'} text-muted-foreground ml-1`}>
+              MXN{property.status === "rent" ? "/mes" : ""}
+            </span>
+          </p>
+        </div>
+        <div className="flex gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
+          <Button 
+            size="sm" 
+            className={`flex-1 rounded-full ${compact ? 'text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3' : 'text-xs'}`}
+            onClick={() => onNavigate(propertyUrl)}
+          >
+            <Calendar className="h-3 w-3 mr-1 hidden sm:inline" />
+            Consultar
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline"
+            className={`flex-1 rounded-full ${compact ? 'text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3' : 'text-xs'}`}
+            onClick={() => onNavigate(propertyUrl)}
+          >
+            <Phone className="h-3 w-3 mr-1 hidden sm:inline" />
+            Contactar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function PublicDashboard() {
   const [, setLocation] = useLocation();
@@ -24,72 +178,35 @@ export default function PublicDashboard() {
   const [allowsSubleasing, setAllowsSubleasing] = useState(false);
   const { t } = useLanguage();
 
-  // Load external approved properties for homepage
-  const { data: externalPropertiesResponse } = useQuery<{ data: any[]; totalCount: number }>({
+  const { data: externalPropertiesResponse, isLoading: propertiesLoading } = useQuery<{ data: any[]; totalCount: number }>({
     queryKey: ["/api/public/external-properties?limit=12"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
   const externalProperties = externalPropertiesResponse?.data || [];
 
   const { data: colonies = [] } = useQuery<Colony[]>({
     queryKey: ["/api/colonies/approved"],
     enabled: showFilters,
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: condominiums = [] } = useQuery<Condominium[]>({
     queryKey: ["/api/condominiums/approved"],
     enabled: showFilters,
+    staleTime: 10 * 60 * 1000,
   });
 
   const featuredProperties = externalProperties.slice(0, 4);
   const popularProperties = externalProperties.slice(0, 9);
 
-  const getPropertyTypeLabel = (type: string | null) => {
-    const types: Record<string, string> = {
-      departamento: "Departamento",
-      apartment: "Departamento",
-      casa: "Casa",
-      house: "Casa",
-      estudio: "Estudio",
-      studio: "Estudio",
-      penthouse: "Penthouse",
-      villa: "Villa",
-    };
-    return types[type?.toLowerCase() || ''] || type || "Propiedad";
-  };
-
-  const getFormattedTitle = (property: any) => {
-    const typeLabel = getPropertyTypeLabel(property.propertyType);
-    const condoName = property.condominiumName || '';
-    const unitNum = property.unitNumber || '';
-    
-    if (condoName && unitNum) {
-      return `${typeLabel} en ${condoName} #${unitNum}`;
-    } else if (condoName) {
-      return `${typeLabel} en ${condoName}`;
-    } else if (unitNum) {
-      return `${typeLabel} #${unitNum}`;
-    }
-    return property.title || typeLabel;
-  };
-
   const handleSearch = () => {
     const params = new URLSearchParams();
-    
-    if (searchQuery.trim()) {
-      params.append("q", searchQuery);
-    }
-    if (propertyType && propertyType !== "all") {
-      params.append("propertyType", propertyType);
-    }
-    if (colonyName && colonyName !== "all") {
-      params.append("colonyName", colonyName);
-    }
-    if (condoName && condoName !== "all") {
-      params.append("condoName", condoName);
-    }
-    if (allowsSubleasing) {
-      params.append("allowsSubleasing", "true");
-    }
+    if (searchQuery.trim()) params.append("q", searchQuery);
+    if (propertyType && propertyType !== "all") params.append("propertyType", propertyType);
+    if (colonyName && colonyName !== "all") params.append("colonyName", colonyName);
+    if (condoName && condoName !== "all") params.append("condoName", condoName);
+    if (allowsSubleasing) params.append("allowsSubleasing", "true");
     
     const queryString = params.toString();
     setLocation(queryString ? `/buscar-propiedades?${queryString}` : "/buscar-propiedades");
@@ -97,7 +214,6 @@ export default function PublicDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimalist Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocation("/")}>
@@ -136,7 +252,6 @@ export default function PublicDashboard() {
         </div>
       </header>
 
-      {/* Hero Section - Ultra Clean */}
       <div className="bg-gradient-to-b from-muted/30 to-background py-8 sm:py-12 md:py-14">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
@@ -146,7 +261,6 @@ export default function PublicDashboard() {
             {t("public.hero.subtitle") || "Propiedades en Tulum, Riviera Maya"}
           </p>
           
-          {/* Minimalist Search Bar */}
           <div className="max-w-xl mx-auto">
             <div className="flex items-center gap-2 p-2 sm:p-3 bg-background rounded-full border shadow-sm">
               <Search className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground ml-2 sm:ml-3" />
@@ -177,7 +291,6 @@ export default function PublicDashboard() {
               </Button>
             </div>
 
-            {/* Advanced Filters - Minimalist */}
             {showFilters && (
               <div className="mt-4 p-4 sm:p-6 bg-background border rounded-2xl shadow-sm text-left">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -270,7 +383,6 @@ export default function PublicDashboard() {
               </div>
             )}
             
-            {/* Quick Filter Buttons - Centered */}
             <div className="mt-4 flex justify-center gap-3">
               <Button
                 variant="outline"
@@ -302,128 +414,43 @@ export default function PublicDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-4 sm:py-6">
-        {/* Featured Properties - Clean Cards */}
-        {featuredProperties.length > 0 && (
-          <div className="mb-10 sm:mb-14">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-xl sm:text-2xl font-semibold">{t("public.featured.title") || "Destacadas"}</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground gap-1"
-                onClick={() => setLocation("/buscar-propiedades?featured=true")}
-                data-testid="button-view-all-featured"
-              >
-                Ver más <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {featuredProperties.map((property) => {
-                const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
-                  ? `/${property.agencySlug}/${property.unitSlug}` 
-                  : property.isExternal 
-                    ? `/propiedad-externa/${property.id}` 
-                    : `/propiedad/${property.id}/completo`;
-                return (
-                <div
-                  key={property.id}
-                  className="group rounded-2xl overflow-hidden border bg-card hover-elevate cursor-pointer"
-                  onClick={() => setLocation(propertyUrl)}
-                  data-testid={`card-property-${property.id}`}
-                >
-                  <div 
-                    className="relative aspect-[4/3] overflow-hidden bg-muted"
-                  >
-                    {property.primaryImages && property.primaryImages[0] ? (
-                      <img
-                        src={property.primaryImages[0]}
-                        alt={getFormattedTitle(property)}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        data-testid={`img-property-${property.id}`}
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center bg-muted">
-                        <Building2 className="h-10 w-10 text-muted-foreground" />
-                      </div>
-                    )}
-                    <Badge className="absolute top-3 left-3 bg-foreground text-background text-[10px] rounded-full px-2">
-                      {property.status === "rent" ? "Renta" : property.status === "sale" ? "Venta" : "Renta/Venta"}
-                    </Badge>
-                    <button 
-                      className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Heart className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </div>
-                  <div className="p-3 sm:p-4">
-                    <h3 
-                      className="font-semibold text-sm sm:text-base mb-1 line-clamp-2" 
-                      data-testid={`text-title-${property.id}`}
-                    >
-                      {getFormattedTitle(property)}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2 truncate flex items-center gap-1" data-testid={`text-location-${property.id}`}>
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      {property.location}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-3">
-                      {property.bedrooms > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Bed className="h-3 w-3" />
-                          {property.bedrooms} Rec
-                        </span>
-                      )}
-                      {property.bathrooms > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Bath className="h-3 w-3" />
-                          {property.bathrooms} Baños
-                        </span>
-                      )}
-                      {property.area > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Square className="h-3 w-3" />
-                          {property.area} m²
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between mb-3 pt-2 border-t">
-                      <p className="font-bold text-base sm:text-lg text-primary" data-testid={`text-price-${property.id}`}>
-                        ${(property.price || 0).toLocaleString()} 
-                        <span className="font-normal text-xs text-muted-foreground ml-1">
-                          MXN{property.status === "rent" ? "/mes" : ""}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button 
-                        size="sm" 
-                        className="flex-1 rounded-full text-xs"
-                        onClick={() => setLocation(propertyUrl)}
-                        data-testid={`button-consult-${property.id}`}
-                      >
-                        <Calendar className="h-3 w-3 mr-1" />
-                        Consultar
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="flex-1 rounded-full text-xs"
-                        onClick={() => setLocation(propertyUrl)}
-                        data-testid={`button-contact-${property.id}`}
-                      >
-                        <Phone className="h-3 w-3 mr-1" />
-                        Contactar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )})}
-            </div>
+        <div className="mb-10 sm:mb-14">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-semibold">{t("public.featured.title") || "Destacadas"}</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground gap-1"
+              onClick={() => setLocation("/buscar-propiedades?featured=true")}
+              data-testid="button-view-all-featured"
+            >
+              Ver más <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-        )}
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {propertiesLoading ? (
+              <>
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+              </>
+            ) : featuredProperties.length > 0 ? (
+              featuredProperties.map((property) => (
+                <PropertyCard 
+                  key={property.id} 
+                  property={property} 
+                  onNavigate={setLocation}
+                />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No hay propiedades destacadas disponibles
+              </div>
+            )}
+          </div>
+        </div>
 
-        {/* Interactive Map CTA Banner */}
         <div className="mb-10 sm:mb-14">
           <div 
             className="relative rounded-2xl overflow-hidden border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover-elevate"
@@ -437,10 +464,10 @@ export default function PublicDashboard() {
                 </div>
                 <div>
                   <h3 className="text-lg sm:text-xl font-semibold mb-1">
-                    {t("public.map.title")}
+                    {t("public.map.title") || "Explora en el mapa"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {t("public.map.subtitle")}
+                    {t("public.map.subtitle") || "Encuentra propiedades por ubicación"}
                   </p>
                 </div>
               </div>
@@ -457,7 +484,6 @@ export default function PublicDashboard() {
           </div>
         </div>
 
-        {/* Explora Propiedades - Responsive Grid */}
         <div className="mb-6 sm:mb-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg sm:text-2xl font-semibold">{t("public.explore.title") || "Explora Propiedades"}</h2>
@@ -472,111 +498,32 @@ export default function PublicDashboard() {
             </Button>
           </div>
           <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-3">
-            {popularProperties.map((property) => {
-              const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
-                ? `/${property.agencySlug}/${property.unitSlug}` 
-                : property.isExternal 
-                  ? `/propiedad-externa/${property.id}` 
-                  : `/propiedad/${property.id}/completo`;
-              return (
-              <div
-                key={property.id}
-                className="group rounded-xl sm:rounded-2xl overflow-hidden border bg-card hover-elevate cursor-pointer"
-                onClick={() => setLocation(propertyUrl)}
-                data-testid={`card-all-property-${property.id}`}
-              >
-                <div 
-                  className="relative aspect-[4/3] overflow-hidden bg-muted"
-                >
-                  {property.primaryImages && property.primaryImages[0] ? (
-                    <img
-                      src={property.primaryImages[0]}
-                      alt={getFormattedTitle(property)}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      data-testid={`img-all-property-${property.id}`}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center bg-muted">
-                      <Building2 className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
-                    </div>
-                  )}
-                  <Badge className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-foreground text-background text-[9px] sm:text-[10px] rounded-full px-1.5 sm:px-2">
-                    {property.status === "rent" ? "Renta" : "Venta"}
-                  </Badge>
-                  <button 
-                    className="absolute top-2 right-2 sm:top-3 sm:right-3 h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Heart className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                  </button>
-                </div>
-                <div className="p-2.5 sm:p-4">
-                  <h3 
-                    className="font-semibold text-xs sm:text-base mb-0.5 sm:mb-1 line-clamp-2" 
-                    data-testid={`text-all-title-${property.id}`}
-                  >
-                    {getFormattedTitle(property)}
-                  </h3>
-                  <p className="text-[10px] sm:text-sm text-muted-foreground mb-1.5 sm:mb-2 truncate flex items-center gap-0.5 sm:gap-1" data-testid={`text-all-location-${property.id}`}>
-                    <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
-                    {property.location}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[9px] sm:text-xs text-muted-foreground mb-2 sm:mb-3">
-                    {property.bedrooms > 0 && (
-                      <span className="flex items-center gap-0.5">
-                        <Bed className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {property.bedrooms} Rec
-                      </span>
-                    )}
-                    {property.bathrooms > 0 && (
-                      <span className="flex items-center gap-0.5">
-                        <Bath className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {property.bathrooms} Baños
-                      </span>
-                    )}
-                    {property.area > 0 && (
-                      <span className="flex items-center gap-0.5">
-                        <Square className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {property.area} m²
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between mb-2 sm:mb-3 pt-2 border-t">
-                    <p className="font-bold text-xs sm:text-base text-primary" data-testid={`text-all-price-${property.id}`}>
-                      ${(property.price || 0).toLocaleString()} 
-                      <span className="font-normal text-[9px] sm:text-xs text-muted-foreground ml-0.5 sm:ml-1">
-                        MXN{property.status === "rent" ? "/mes" : ""}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      size="sm" 
-                      className="flex-1 rounded-full text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
-                      onClick={() => setLocation(propertyUrl)}
-                      data-testid={`button-all-consult-${property.id}`}
-                    >
-                      <Calendar className="h-3 w-3 mr-1 hidden sm:inline" />
-                      Consultar
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="flex-1 rounded-full text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
-                      onClick={() => setLocation(propertyUrl)}
-                      data-testid={`button-all-contact-${property.id}`}
-                    >
-                      <Phone className="h-3 w-3 mr-1 hidden sm:inline" />
-                      Contactar
-                    </Button>
-                  </div>
-                </div>
+            {propertiesLoading ? (
+              <>
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+                <PropertyCardSkeleton />
+              </>
+            ) : popularProperties.length > 0 ? (
+              popularProperties.map((property) => (
+                <PropertyCard 
+                  key={property.id} 
+                  property={property}
+                  compact
+                  onNavigate={setLocation}
+                />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No hay propiedades disponibles
               </div>
-            )})}
+            )}
           </div>
         </div>
 
-        {/* Stats - Clean and Simple */}
         <div className="py-6 sm:py-10 border-t border-b">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 text-center">
             <div>
@@ -600,10 +547,8 @@ export default function PublicDashboard() {
           </div>
         </div>
 
-        {/* CTA Sections - Clean Cards */}
         <div className="py-10 sm:py-14">
           <div className="grid md:grid-cols-2 gap-6">
-            {/* For Renters */}
             <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border">
               <div className="h-12 w-12 rounded-full bg-foreground flex items-center justify-center mb-4">
                 <Home className="h-5 w-5 text-background" />
@@ -631,114 +576,102 @@ export default function PublicDashboard() {
               </Button>
             </div>
 
-            {/* For Owners */}
             <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border">
               <div className="h-12 w-12 rounded-full bg-foreground flex items-center justify-center mb-4">
                 <Building2 className="h-5 w-5 text-background" />
               </div>
               <h3 className="text-xl sm:text-2xl font-semibold mb-2">{t("public.ownerBenefits.title") || "¿Tienes una propiedad?"}</h3>
               <p className="text-muted-foreground mb-4 text-sm sm:text-base">
-                {t("public.ownerBenefits.subtitle") || "Publica y administra tu propiedad con nosotros"}
+                {t("public.ownerBenefits.subtitle") || "Renta tu propiedad con nosotros"}
               </p>
               <ul className="space-y-2 mb-6">
                 <li className="flex items-center gap-2 text-sm">
                   <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.ownerBenefits.benefit1") || "Administración profesional"}
+                  {t("public.ownerBenefits.benefit1") || "Máxima exposición"}
                 </li>
                 <li className="flex items-center gap-2 text-sm">
                   <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.ownerBenefits.benefit2") || "Inquilinos verificados"}
+                  {t("public.ownerBenefits.benefit2") || "Gestión profesional"}
                 </li>
                 <li className="flex items-center gap-2 text-sm">
                   <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.ownerBenefits.benefit3") || "Reportes financieros"}
+                  {t("public.ownerBenefits.benefit3") || "Contratos seguros"}
                 </li>
               </ul>
-              <Button className="rounded-full" onClick={() => setLocation("/register")}>
-                Publicar propiedad
+              <Button variant="outline" className="rounded-full" onClick={() => setLocation("/register")}>
+                Registrar propiedad
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Footer - Minimalist Mobile-First */}
-      <footer className="border-t bg-muted/30">
-        <div className="container mx-auto px-4 py-8 sm:py-12">
-          {/* Mobile: Stack vertically, Desktop: Grid */}
-          <div className="flex flex-col space-y-6 sm:space-y-0 sm:grid sm:grid-cols-4 sm:gap-8">
-            {/* Brand - Full width on mobile */}
-            <div className="text-center sm:text-left">
-              <div className="flex items-center justify-center sm:justify-start gap-2 mb-3 cursor-pointer" onClick={() => setLocation("/")}>
-                <img src={logoIcon} alt="HomesApp" className="h-12 w-auto" data-testid="img-logo-footer" />
-              </div>
-              <p className="text-xs text-muted-foreground max-w-[200px] mx-auto sm:mx-0">
-                La mejor plataforma inmobiliaria en Tulum, Riviera Maya.
+      <footer className="border-t bg-muted/30 py-8 sm:py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+            <div className="col-span-2 sm:col-span-1">
+              <img src={logoIcon} alt="HomesApp" className="h-10 w-auto mb-3 sm:mb-4" loading="lazy" />
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Tu socio inmobiliario en Tulum
               </p>
             </div>
-
-            {/* Mobile: 3 columns for links, Desktop: individual columns */}
-            <div className="grid grid-cols-3 gap-4 sm:contents">
-              {/* Links */}
-              <div className="text-center sm:text-left">
-                <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Explorar</h4>
-                <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-                  <button 
-                    onClick={() => setLocation("/buscar-propiedades")}
-                    className="block w-full text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Propiedades
-                  </button>
-                  <button 
-                    onClick={() => setLocation("/buscar-propiedades?status=rent")}
-                    className="block w-full text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    En Renta
-                  </button>
-                  <button 
-                    onClick={() => setLocation("/buscar-propiedades?status=sale")}
-                    className="block w-full text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    En Venta
-                  </button>
-                </div>
+            <div>
+              <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Propiedades</h4>
+              <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
+                <button 
+                  onClick={() => setLocation("/buscar-propiedades?status=rent")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  En Renta
+                </button>
+                <button 
+                  onClick={() => setLocation("/buscar-propiedades?status=sale")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  En Venta
+                </button>
               </div>
-
-              {/* Contact */}
-              <div className="text-center sm:text-left">
-                <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Contacto</h4>
-                <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-muted-foreground">
-                  <p>+52 984 321 3385</p>
-                  <p className="break-all text-[10px] sm:text-xs">admin@trh.mx</p>
-                </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Empresa</h4>
+              <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
+                <button 
+                  onClick={() => setLocation("/login")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Iniciar sesión
+                </button>
+                <button 
+                  onClick={() => setLocation("/aplicar")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Trabaja con nosotros
+                </button>
               </div>
-
-              {/* Social */}
-              <div className="text-center sm:text-left">
-                <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Síguenos</h4>
-                <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-                  <a 
-                    href="https://www.facebook.com/share/1B5kd6EAnQ/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Facebook
-                  </a>
-                  <a 
-                    href="https://www.instagram.com/tulum.rental.homes" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Instagram
-                  </a>
-                </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Síguenos</h4>
+              <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
+                <a 
+                  href="https://www.facebook.com/share/1B5kd6EAnQ/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Facebook
+                </a>
+                <a 
+                  href="https://www.instagram.com/tulum.rental.homes" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Instagram
+                </a>
               </div>
             </div>
           </div>
 
-          {/* Bottom bar */}
           <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-3">
             <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
               © {new Date().getFullYear()} Tulum Rental Homes
@@ -761,7 +694,9 @@ export default function PublicDashboard() {
         </div>
       </footer>
 
-      <FloatingChat />
+      <Suspense fallback={null}>
+        <FloatingChat />
+      </Suspense>
     </div>
   );
 }

@@ -1,0 +1,242 @@
+Prompt para Replit Agent – Chatbot de HomesApp (Tulum Rental Homes)
+
+Quiero que diseñes y dejes funcionando el chatbot de HomesApp con un objetivo claro:
+
+👉 Siempre que alguien hable con el bot, el flujo debe llevarlo a completar sus datos y convertirse en un lead, y opcionalmente a coordinar una cita en alguna propiedad.
+La captura del lead es obligatoria; la cita es opcional.
+
+A continuación te detallo cómo debe funcionar.
+
+1. Alcance del chatbot
+
+El chatbot debe estar disponible en:
+
+Homepage pública.
+
+Vista pública de propiedades / ofertas compartidas por link.
+
+(Opcional más adelante) Dentro del panel de agencias externas.
+
+Debe responder en español sencillo, con mensajes cortos y amables.
+
+2. Flujo general del chatbot
+
+Quiero un flujo muy guiado, NO un bot que se ponga a conversar infinito.
+
+Saludo inicial
+
+Mensaje tipo:
+
+“👋 Hola, soy el asistente de Tulum Rental Homes.
+¿Me cuentas qué estás buscando para ayudarte mejor?”
+
+Ofrece botones de opciones rápidas, por ejemplo:
+
+“Quiero rentar”
+
+“Quiero comprar”
+
+“Soy propietario y quiero enlistar mi propiedad”
+
+“Solo estoy viendo / tengo una duda”
+
+Respuesta breve + empezar captura de lead
+
+Si el usuario hace una pregunta general (ej. “¿tienen departamentos en Aldea Zama?”), el bot:
+
+Responde con una explicación corta (1–2 frases, nada largo).
+
+Inmediatamente después dice algo tipo:
+
+“Para ayudarte mejor, necesito unos datos rápidos 🙏”
+
+Y pasa al formulario conversacional de lead.
+
+Formulario conversacional de LEAD (obligatorio)
+El bot debe pedir, en pasos, como diálogo, estos campos (en este orden o similar):
+
+Nombre
+“¿Cuál es tu nombre?”
+
+WhatsApp / teléfono (obligatorio)
+“¿Me compartes tu número de WhatsApp para contactarte?”
+
+Tipo de operación (si no quedó claro antes):
+
+Rentar 6–12 meses
+
+Rentar por temporada corta
+
+Comprar
+
+Presupuesto
+“¿Cuál es tu presupuesto aproximado mensual (o de compra)?”
+
+Zona preferida
+“¿En qué zona te gustaría? (ej. Aldea Zama, La Veleta, Región 15…)”
+
+Fecha estimada de ingreso
+“¿Para cuándo estás buscando mudarte?”
+
+Número de personas / recámaras
+“¿Cuántas personas vivirán? ¿Cuántas recámaras necesitas?”
+
+Reglas:
+
+El bot no sigue a la siguiente pregunta si la respuesta a un campo obligatorio está vacía o demasiado rara (por ejemplo, teléfono vacío).
+
+Siempre que falte algo importante, pide confirmación o reformula.
+
+Creación del LEAD en la base de datos
+
+Una vez recopilados los datos:
+
+Crea un registro en la tabla de leads (o estructura equivalente), con campos mínimos:
+
+name
+
+phone
+
+email (si lo pides también)
+
+operation_type (renta larga, renta corta, compra)
+
+budget
+
+preferred_zone
+
+move_in_date
+
+people_count / bedrooms
+
+source = "chatbot_homesapp"
+
+source_page (homepage, mapa, ficha de propiedad, etc.)
+
+Si el chat viene desde una propiedad concreta:
+
+property_id o condominium_id asociado.
+
+Si ya existe un lead con el mismo teléfono, actualiza el lead existente o relaciona este nuevo interés con ese lead (no lo dupliques sin sentido).
+
+IMPORTANTE:
+
+No quiero chats “anónimos”: si el usuario no da al menos nombre + teléfono, el lead se marca como incompleto y el bot debe intentar insistir amablemente una vez más para conseguir esos datos.
+
+Confirmación al usuario
+
+Después de guardar el lead:
+
+Mensaje tipo:
+
+“Perfecto, muchas gracias, [Nombre] 🙌
+Ya tenemos tus datos y un asesor de Tulum Rental Homes te contactará por WhatsApp.”
+
+Si el chat viene desde una propiedad específica:
+
+“Esta solicitud queda ligada a la propiedad [Nombre/ID de la propiedad].”
+
+3. Flujo opcional de cita / visita
+
+Después de crear el lead correctamente:
+
+El bot pregunta:
+
+“¿Te gustaría agendar una visita a alguna propiedad ❓”
+
+Botones:
+
+“Sí, agendar visita”
+
+“No por ahora”
+
+Si elige Sí, agendar visita:
+
+Pide:
+
+Rango de fecha deseado (ej. “¿En qué día te gustaría?”)
+
+Franja horaria (mañana/tarde/noche)
+
+Crea un registro de cita pendiente asociado al lead y, si aplica, a una propiedad concreta:
+
+lead_id
+
+property_id (si hay)
+
+preferred_date_range
+
+preferred_time_range
+
+status = "pending_confirmation"
+
+Mensaje al usuario:
+
+“Listo 🎉 He registrado tu solicitud de visita.
+Un asesor te confirmará la fecha y hora exacta por WhatsApp.”
+
+Si elige No por ahora:
+
+Simplemente agradece y cierra el flujo:
+
+“Perfecto, [Nombre]. Cualquier duda extra me puedes escribir aquí y un asesor te contactará con opciones.”
+
+4. Reglas de UX del chatbot
+
+Respuestas cortas
+
+Nada de párrafos gigantes. Máximo 2–3 frases por mensaje.
+
+Siempre que dé información general, remata con una pregunta que acerque al formulario de lead.
+
+Botones rápidos
+
+Usa quick replies / botones siempre que sea posible:
+
+Tipo de operación,
+
+Presupuesto por rangos,
+
+Zona sugerida,
+
+Respuesta Sí/No para agendar visita.
+
+Manejo de preguntas “raras”
+
+Si el usuario se sale del tema (“hola”, “gracias”, “ok”, etc.), el bot responde corto y regresa al flujo:
+
+“Con gusto 😊 Para ayudarte mejor, seguimos con tus datos…”
+
+Asignación interna
+
+El lead que crea el chatbot debe quedar:
+
+Asignado por defecto a Tulum Rental Homes como agencia principal.
+
+Si el chat se origina desde una propiedad de una agencia externa, guarda también el external_agency_id para que se pueda derivar al vendedor correcto.
+
+5. Lo que quiero que me devuelvas
+
+Al terminar, explícame:
+
+Qué componente(s) del chatbot creaste o modificaste.
+
+En qué tabla/estructura se guardan los leads y qué campos estás llenando.
+
+Cómo se asocia un lead de chatbot con:
+
+una propiedad concreta (si aplica),
+
+una agencia externa (si aplica),
+
+y con Tulum Rental Homes como agencia principal.
+
+Qué pruebas hiciste:
+
+Caso desde homepage,
+
+Caso desde ficha de propiedad,
+
+Caso donde el usuario acepta agendar visita,
+
+Caso donde se niega pero igual deja sus datos.
