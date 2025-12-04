@@ -1,0 +1,76 @@
+El Mapa Interactivo sigue sin mostrar propiedades.
+En consola veo esto:
+
+queryClient.ts:62  GET /api/auth/user 401 (Unauthorized)
+...
+InteractiveMap.tsx:296  
+GET https://494d677d-3a58-4e76-90ea-1cfa1a47ce84-00-1k6gm61wiotx8.riker.replit.dev/api/public/map-markers?north=20.290089857010415&south=20.13367083888252&east=-87.32653151245115&west=-87.53286848754881 500 (Internal Server Error)
+
+
+O sea:
+
+La URL de /api/public/map-markers ya está bien construida (con ?north=...&south=...),
+
+pero el servidor responde 500 cuando intento cargar los markers.
+
+Necesito que revisen específicamente el handler del backend para /api/public/map-markers, que fue el que modificaron para agregar el filtrado por bounds.
+
+Cosas a revisar:
+
+Logs del servidor para ese 500
+
+Miren el stack trace completo de la excepción cuando se llama a /api/public/map-markers con esos parámetros.
+
+Si es posible, logueen los valores de north, south, east, west y la query a la base de datos antes de ejecutarla.
+
+Parseo de parámetros
+
+Verifiquen cómo están leyendo los query params:
+
+req.query.north, south, east, west → parseFloat.
+
+Asegúrense de:
+
+manejar el caso en que falte algún parámetro (no lanzar error),
+
+no pasar NaN a la capa de base de datos.
+
+Query a la base de datos
+
+Revisen la condición de bounds que agregaron, algo tipo:
+
+where(
+  between(properties.lat, south, north),
+  between(properties.lng, west, east),
+  // más filtros (publishToMain, publishStatus, isActive, agencyId, etc.)
+)
+
+
+Es muy probable que el 500 sea por:
+
+usar operadores con valores undefined o NaN,
+
+o por alguna combinación de filtros que el ORM no acepta.
+
+Pueden probar la misma query directamente en la consola de la BD con números fijos (los de Tulum del log) para ver si devuelve filas.
+
+Respuesta controlada
+
+Si por alguna razón no hay propiedades que cumplan los filtros, el endpoint debe devolver 200 con markers: [], no lanzar un 500.
+
+Por favor manejen las excepciones con un try/catch en el handler y devuelvan un mensaje legible en el JSON (para poder ver rápidamente el error desde el front).
+
+Verificación final
+
+Una vez arreglado el 500:
+
+llamen al endpoint manualmente con la misma URL:
+
+/api/public/map-markers?north=20.290089857010415&south=20.13367083888252&east=-87.32653151245115&west=-87.53286848754881
+
+
+confirmen cuántos markers regresa,
+
+y que el mapa ya muestre ese número de propiedades (y deje de aparecer el texto “0 propiedades / No se encontraron propiedades”).
+
+El problema ahora ya no es de front ni de la URL, sino del Internal Server Error en /api/public/map-markers. Necesito que revisen el código del backend de ese endpoint hasta que deje de lanzar 500 y vuelva a devolver markers correctamente.
