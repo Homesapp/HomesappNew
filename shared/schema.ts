@@ -6609,6 +6609,10 @@ export const externalLeads = pgTable("external_leads", {
   index("idx_external_leads_valid_until").on(table.validUntil),
   index("idx_external_leads_converted").on(table.convertedToClientId),
   index("idx_external_leads_broker").on(table.brokerId),
+  index("idx_external_leads_seller").on(table.sellerId),
+  index("idx_external_leads_agency_seller").on(table.agencyId, table.sellerId),
+  index("idx_external_leads_agency_status").on(table.agencyId, table.status),
+  index("idx_external_leads_created_at").on(table.createdAt),
 ]);
 
 const baseExternalLeadSchema = createInsertSchema(externalLeads).omit({

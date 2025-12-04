@@ -18855,8 +18855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update income transaction status" });
     }
   });
-
-  // Get my income transactions (for clients and owners)
+  // Get my income transactions (for clients and owners) - Optimized with pagination
   app.get("/api/income/my-transactions", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || req.session?.userId;
@@ -18864,25 +18863,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const { category, status, fromDate, toDate } = req.query;
+      const { category, status, fromDate, toDate, limit, offset, sortField, sortOrder } = req.query;
 
-      const transactions = await storage.getIncomeTransactions({
+      const result = await storage.getIncomeTransactionsPaginated({
         beneficiaryId: userId,
         category: category as string,
-        excludeCategories: excludeCategories ? (excludeCategories as string).split(",") : undefined,
         status: status as string,
         fromDate: fromDate ? new Date(fromDate as string) : undefined,
         toDate: toDate ? new Date(toDate as string) : undefined,
+        limit: limit ? parseInt(limit as string, 10) : 20,
+        offset: offset ? parseInt(offset as string, 10) : 0,
+        sortField: sortField as string,
+        sortOrder: (sortOrder === 'asc' || sortOrder === 'desc') ? sortOrder : 'desc',
       });
 
-      res.json(transactions);
+      res.json(result);
     } catch (error: any) {
       console.error("Error fetching user income transactions:", error);
       res.status(500).json({ message: "Failed to fetch income transactions" });
     }
   });
 
-  // Get my income summary (for clients and owners)
+  // Get my income summary (for clients and owners) - Optimized with SQL aggregation
   app.get("/api/income/my-summary", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.claims?.sub || req.session?.userId;
@@ -18890,34 +18892,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const transactions = await storage.getIncomeTransactions({
-        beneficiaryId: userId,
-      });
-
-      const totalEarnings = transactions.reduce((sum, t) => sum + t.amount, 0);
-      const paidAmount = transactions
-        .filter(t => t.status === "paid")
-        .reduce((sum, t) => sum + t.amount, 0);
-      const pendingAmount = transactions
-        .filter(t => t.status === "pending")
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      const byCategory = transactions.reduce((acc, t) => {
-        if (!acc[t.category]) {
-          acc[t.category] = { count: 0, total: 0 };
-        }
-        acc[t.category].count++;
-        acc[t.category].total += t.amount;
-        return acc;
-      }, {} as Record<string, { count: number; total: number }>);
-
-      res.json({
-        totalEarnings,
-        paidAmount,
-        pendingAmount,
-        transactionCount: transactions.length,
-        byCategory,
-      });
+      const summary = await storage.getIncomeSummaryByBeneficiary(userId);
+      res.json(summary);
     } catch (error: any) {
       console.error("Error fetching user income summary:", error);
       res.status(500).json({ message: "Failed to fetch income summary" });

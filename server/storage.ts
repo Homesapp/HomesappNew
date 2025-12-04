@@ -1047,6 +1047,30 @@ export interface IStorage {
     count: number;
     avgAmount: string;
   }>>;
+  getIncomeSummaryByBeneficiary(beneficiaryId: string): Promise<{
+    totalEarnings: number;
+    paidAmount: number;
+    pendingAmount: number;
+    transactionCount: number;
+    byCategory: Record<string, { count: number; total: number }>;
+  }>;
+  getIncomeTransactionsPaginated(filters?: {
+    beneficiaryId?: string;
+    category?: string;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    limit?: number;
+    offset?: number;
+    sortField?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{
+    data: IncomeTransaction[];
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  }>;
 
   // Changelog operations
   getChangelog(id: string): Promise<Changelog | undefined>;
@@ -6424,6 +6448,129 @@ export class DatabaseStorage implements IStorage {
       count: Number(r.count) || 0,
       avgAmount: r.avgAmount || '0',
     }));
+  }
+
+  async getIncomeSummaryByBeneficiary(beneficiaryId: string): Promise<{
+    totalEarnings: number;
+    paidAmount: number;
+    pendingAmount: number;
+    transactionCount: number;
+    byCategory: Record<string, { count: number; total: number }>;
+  }> {
+    const [totals] = await db
+      .select({
+        totalEarnings: sql<string>`COALESCE(SUM(${incomeTransactions.amount}), 0)`,
+        paidAmount: sql<string>`COALESCE(SUM(CASE WHEN ${incomeTransactions.status} = 'paid' THEN ${incomeTransactions.amount} ELSE 0 END), 0)`,
+        pendingAmount: sql<string>`COALESCE(SUM(CASE WHEN ${incomeTransactions.status} = 'pending' THEN ${incomeTransactions.amount} ELSE 0 END), 0)`,
+        transactionCount: sql<number>`COUNT(*)`,
+      })
+      .from(incomeTransactions)
+      .where(eq(incomeTransactions.beneficiaryId, beneficiaryId));
+
+    const categoryResults = await db
+      .select({
+        category: incomeTransactions.category,
+        count: sql<number>`COUNT(*)`,
+        total: sql<string>`COALESCE(SUM(${incomeTransactions.amount}), 0)`,
+      })
+      .from(incomeTransactions)
+      .where(eq(incomeTransactions.beneficiaryId, beneficiaryId))
+      .groupBy(incomeTransactions.category);
+
+    const byCategory: Record<string, { count: number; total: number }> = {};
+    for (const row of categoryResults) {
+      byCategory[row.category] = {
+        count: Number(row.count),
+        total: parseFloat(row.total) || 0,
+      };
+    }
+
+    return {
+      totalEarnings: parseFloat(totals?.totalEarnings || '0'),
+      paidAmount: parseFloat(totals?.paidAmount || '0'),
+      pendingAmount: parseFloat(totals?.pendingAmount || '0'),
+      transactionCount: Number(totals?.transactionCount) || 0,
+      byCategory,
+    };
+  }
+
+  async getIncomeTransactionsPaginated(filters?: {
+    beneficiaryId?: string;
+    category?: string;
+    status?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    limit?: number;
+    offset?: number;
+    sortField?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{
+    data: IncomeTransaction[];
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  }> {
+    const conditions = [];
+    
+    if (filters?.beneficiaryId) {
+      conditions.push(eq(incomeTransactions.beneficiaryId, filters.beneficiaryId));
+    }
+    if (filters?.category) {
+      conditions.push(eq(incomeTransactions.category, filters.category as any));
+    }
+    if (filters?.status) {
+      conditions.push(eq(incomeTransactions.status, filters.status as any));
+    }
+    if (filters?.fromDate) {
+      conditions.push(gte(incomeTransactions.createdAt, filters.fromDate));
+    }
+    if (filters?.toDate) {
+      conditions.push(lte(incomeTransactions.createdAt, filters.toDate));
+    }
+
+    const limitNum = filters?.limit || 20;
+    const offsetNum = filters?.offset || 0;
+
+    const [countResult] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(incomeTransactions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    const total = Number(countResult?.count) || 0;
+
+    let query = db.select().from(incomeTransactions);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const sortOrder = filters?.sortOrder || 'desc';
+    const sortFn = sortOrder === 'asc' ? asc : desc;
+
+    switch (filters?.sortField) {
+      case 'amount':
+        query = query.orderBy(sortFn(incomeTransactions.amount)) as any;
+        break;
+      case 'status':
+        query = query.orderBy(sortFn(incomeTransactions.status)) as any;
+        break;
+      case 'category':
+        query = query.orderBy(sortFn(incomeTransactions.category)) as any;
+        break;
+      default:
+        query = query.orderBy(desc(incomeTransactions.createdAt)) as any;
+    }
+
+    const data = await query.limit(limitNum).offset(offsetNum);
+
+    return {
+      data,
+      total,
+      limit: limitNum,
+      offset: offsetNum,
+      hasMore: offsetNum + data.length < total,
+    };
   }
 
   // Changelog operations
