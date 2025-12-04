@@ -123,15 +123,28 @@ export default function BrokerManagementTab() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedBroker, setSelectedBroker] = useState<ExternalBroker | null>(null);
 
+  // Build query string for the API request
+  const buildBrokerQueryUrl = () => {
+    const params = new URLSearchParams();
+    if (debouncedSearchTerm) params.append("search", debouncedSearchTerm);
+    if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
+    params.append("sortBy", sortBy);
+    params.append("sortOrder", sortOrder);
+    params.append("page", currentPage.toString());
+    params.append("limit", pageSize.toString());
+    return `/api/external-brokers?${params.toString()}`;
+  };
+
   const { data: brokersData, isLoading, error } = useQuery<BrokersResponse>({
-    queryKey: ["/api/external-brokers", { 
-      search: debouncedSearchTerm, 
-      status: statusFilter,
-      sortBy,
-      sortOrder,
-      page: currentPage,
-      limit: pageSize
-    }],
+    queryKey: ["/api/external-brokers", debouncedSearchTerm, statusFilter, sortBy, sortOrder, currentPage, pageSize],
+    queryFn: async () => {
+      const response = await fetch(buildBrokerQueryUrl(), { credentials: "include" });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Error loading brokers");
+      }
+      return response.json();
+    },
   });
 
   const brokers = brokersData?.brokers || [];

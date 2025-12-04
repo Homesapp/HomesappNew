@@ -1,0 +1,92 @@
+Quiero que te enfoques exclusivamente en optimizar el performance de la homepage pública de Homesapp.
+
+Objetivo:
+Que la homepage cargue muy rápido en navegadores de escritorio y móvil, incluso con conexión normal (no fibra). Prioriza tiempo hasta que se ve el contenido principal y peso del bundle de JavaScript.
+
+1) Identificar la homepage pública
+
+Indica explícitamente:
+
+Qué ruta es la homepage pública (por ejemplo /, /home, etc.).
+
+Qué componente de React la renderiza (archivo y nombre del componente).
+
+2) Reducir JavaScript inicial (bundle)
+
+Asegúrate de que la homepage solo cargue el código estrictamente necesario:
+
+Usa code splitting / dynamic import para secciones no críticas (por ejemplo testimonios, secciones muy abajo del scroll, etc.).
+
+Evita que se importen módulos pesados del panel interno (dashboards, vistas de admin, etc.) en el bundle de la homepage.
+
+Comprueba el tamaño del bundle de la homepage y redúcelo lo más posible:
+
+Extrae lógica pesada a otros bundles que solo se carguen cuando el usuario navegue dentro de la app.
+
+3) Eliminar / reducir llamadas a la API al entrar
+
+Revisa qué llamadas a la API se hacen cuando se carga la homepage.
+
+Para la homepage pública:
+
+Si hay datos dinámicos no críticos (estadísticas, contadores, etc.), cárgalos de forma diferida (después de mostrar el contenido principal) o conviértelos en texto estático de momento.
+
+La homepage debe poder renderizar un contenido útil sin depender de que el backend responda rápido.
+
+Evita bloqueos:
+
+Ningún await en el path de render inicial de la homepage que bloquee la carga visual de los textos principales y el CTA.
+
+4) Optimizar imágenes de la homepage
+
+Revisa todas las imágenes usadas en la homepage:
+
+Convierte a formatos más ligeros (WebP o similares) donde sea posible.
+
+Asegúrate de que se usen tamaños ajustados (no cargar una imagen gigante para mostrarla pequeña).
+
+Implementa:
+
+loading="lazy" para imágenes que quedan debajo del primer scroll.
+
+Un tamaño y relación adecuados para evitar “saltos” de layout.
+
+5) Fuentes y scripts externos
+
+Revisa fuentes y scripts externos usados en la homepage:
+
+Carga las fuentes de forma optimizada (preload o display=swap).
+
+Mueve scripts no críticos (analytics, chat, etc.) a carga diferida (defer, async o carga después de load).
+
+No bloquees el renderizado de la homepage con scripts de terceros.
+
+6) Percepción de velocidad
+
+Si hay algo que deba cargar después (ej. una sección con datos dinámicos):
+
+Muestra skeletons o placeholders ligeros.
+
+La parte hero (logo, título, subtítulo, botón principal) debe verse casi instantáneamente.
+
+Evita spinners generales de “cargando” para toda la homepage. Solo usa indicadores locales donde sea necesario.
+
+7) Resumen de cambios
+
+Al final, explícame:
+
+Qué ruta/componente define la homepage pública.
+
+Qué cambios hiciste para:
+
+Reducir el peso del bundle inicial.
+
+Eliminar o diferir llamadas a la API.
+
+Optimizar imágenes y fuentes.
+
+Idealmente, dame antes y después de:
+
+Tamaño del bundle de la homepage.
+
+Número de requests en la carga inicial.
