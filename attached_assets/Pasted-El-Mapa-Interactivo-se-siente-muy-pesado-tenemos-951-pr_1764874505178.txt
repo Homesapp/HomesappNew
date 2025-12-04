@@ -1,0 +1,39 @@
+El Mapa Interactivo se siente muy pesado: tenemos ~951 propiedades y al mover el mapa o cambiar filtros se congela.
+
+Revisen el código de client/src/pages/InteractiveMap.tsx y client/src/components/external/PropertyMap.tsx y hagan estas optimizaciones:
+
+Cargar sólo lo que se ve en el mapa (bounds):
+
+Modifiquen /api/public/map-markers para que acepte parámetros de bounds (norte, sur, este, oeste) y filtros básicos.
+
+Usen los eventos onIdle o onBoundsChanged del GoogleMap para pedir solo los marcadores dentro del viewport, no todos los de la base.
+
+Mantengan un pequeño margen para que al mover ligeramente el mapa no tenga que recargar todo.
+
+Usar clustering real de Google Maps:
+
+Reemplacen el render actual de un Marker por propiedad por una solución con MarkerClusterer o el clusterer de @react-google-maps/api.
+
+El cluster debe agrupar propiedades cercanas (no solo con la misma lat/lng) y mostrar un círculo con el número de propiedades.
+
+Solo cuando el usuario haga zoom suficiente o clic en el cluster se muestran los marcadores individuales.
+
+Reducir trabajo por render:
+
+Asegúrense de que las funciones que calculan iconos (getClusterIcon, etc.) estén memoizadas o definidas fuera del componente para no recrear objetos en cada render.
+
+Eviten recalcular todos los locationClusters cuando cambian estados que no afectan al mapa (por ejemplo, selección de una tarjeta en la lista).
+
+Verifiquen que el useMemo de filteredMarkers en InteractiveMap tenga una lista de dependencias correcta y no se vuelva a ejecutar más veces de las necesarias.
+
+Limitar marcadores en la lista lateral:
+
+En la lista de propiedades a la derecha, usen paginación o un límite (ej. 50 resultados visibles, con “Cargar más”) para que el DOM no tenga 900 tarjetas al mismo tiempo.
+
+Medir después del cambio:
+
+Comparen performance antes y después (tiempo en cargar mapa, fluidez del zoom y drag) y dejen anotado qué mejoró.
+
+El objetivo es que con ~1 000 propiedades el mapa se sienta fluido, sin congelarse, tanto en desktop como en móvil.
+
+Con eso los empujas directamente a atacar el problema real: demasiados markers + demasiados cálculos en el cliente.

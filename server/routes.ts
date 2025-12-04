@@ -488,6 +488,91 @@ function normalizePresentationCardFromLead(lead: any, agencyId: string, createdB
   };
 }
 
+// Helper function to automatically create portal access tokens when contract becomes active
+async function createPortalTokensForContract(
+  contractId: string,
+  agencyId: string,
+  createdBy: string | null,
+  tenantInfo?: { email?: string; phone?: string; name?: string },
+  ownerInfo?: { email?: string; phone?: string; name?: string }
+): Promise<{
+  tenantToken?: { accessCode: string; password: string; tokenId: string };
+  ownerToken?: { accessCode: string; password: string; tokenId: string };
+}> {
+  const result: {
+    tenantToken?: { accessCode: string; password: string; tokenId: string };
+    ownerToken?: { accessCode: string; password: string; tokenId: string };
+  } = {};
+
+  const contract = await storage.getExternalRentalContract(contractId);
+  if (!contract) {
+    throw new Error("Contract not found");
+  }
+
+  const expiresAt = contract.endDate ? new Date(contract.endDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+  // Check if tokens already exist for this contract
+  const existingTokens = await storage.getExternalPortalAccessTokensByContract(contractId);
+  const existingTenantToken = existingTokens.find(t => t.role === 'tenant' && t.status === 'active');
+  const existingOwnerToken = existingTokens.find(t => t.role === 'owner' && t.status === 'active');
+
+  // Create tenant token if not exists
+  if (!existingTenantToken) {
+    const tenantAccessCode = `TEN-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const tenantPlainPassword = crypto.randomBytes(6).toString('hex').toUpperCase();
+    const tenantHashedSecret = await bcrypt.hash(tenantPlainPassword, 10);
+
+    const tenantToken = await storage.createExternalPortalAccessToken({
+      contractId,
+      agencyId,
+      role: 'tenant',
+      accessCode: tenantAccessCode,
+      hashedSecret: tenantHashedSecret,
+      expiresAt,
+      status: 'active',
+      email: tenantInfo?.email || null,
+      phone: tenantInfo?.phone || null,
+      recipientName: tenantInfo?.name || null,
+      createdBy,
+    });
+
+    result.tenantToken = {
+      accessCode: tenantAccessCode,
+      password: tenantPlainPassword,
+      tokenId: tenantToken.id,
+    };
+  }
+
+  // Create owner token if not exists
+  if (!existingOwnerToken) {
+    const ownerAccessCode = `OWN-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const ownerPlainPassword = crypto.randomBytes(6).toString('hex').toUpperCase();
+    const ownerHashedSecret = await bcrypt.hash(ownerPlainPassword, 10);
+
+    const ownerToken = await storage.createExternalPortalAccessToken({
+      contractId,
+      agencyId,
+      role: 'owner',
+      accessCode: ownerAccessCode,
+      hashedSecret: ownerHashedSecret,
+      expiresAt,
+      status: 'active',
+      email: ownerInfo?.email || null,
+      phone: ownerInfo?.phone || null,
+      recipientName: ownerInfo?.name || null,
+      createdBy,
+    });
+
+    result.ownerToken = {
+      accessCode: ownerAccessCode,
+      password: ownerPlainPassword,
+      tokenId: ownerToken.id,
+    };
+  }
+
+  return result;
+}
+
 // Middleware to require full admin privileges
 async function requireFullAdmin(req: any, res: any, next: any) {
   const user = req.user;
@@ -38461,10 +38546,77 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       delete (updateData as any).agencyId;
       delete (updateData as any).createdBy;
       
+      // Check if status is changing to 'active' (contract activation)
+      const statusChangingToActive = 
+        updateData.status === 'active' && 
+        existing.status !== 'active';
+      
       const contract = await storage.updateExternalRentalContract(id, updateData);
       
+      // If contract just became active, automatically create portal access tokens
+      let portalTokens = null;
+      if (statusChangingToActive) {
+        try {
+          const userId = req.user?.claims?.sub || null;
+          
+          // Get tenant and owner info from contract if available
+          const tenantInfo = contract.tenantName ? {
+            name: contract.tenantName,
+            email: contract.tenantEmail || undefined,
+            phone: contract.tenantPhone || undefined,
+          } : undefined;
+          
+          const ownerInfo = contract.ownerName ? {
+            name: contract.ownerName,
+            email: contract.ownerEmail || undefined,
+            phone: contract.ownerPhone || undefined,
+          } : undefined;
+          
+          portalTokens = await createPortalTokensForContract(
+            id,
+            existing.agencyId,
+            userId,
+            tenantInfo,
+            ownerInfo
+          );
+          
+          await createAuditLog(
+            req, 
+            "create", 
+            "external_portal_access_token", 
+            id, 
+            `Automatically generated portal access tokens for activated contract`
+          );
+        } catch (tokenError: any) {
+          console.error("Error creating portal tokens:", tokenError);
+          // Don't fail the contract update, just log the error
+        }
+      }
+      
       await createAuditLog(req, "update", "external_rental_contract", id, "Updated external rental contract");
-      res.json(contract);
+      
+      // Return contract with portal credentials if tokens were created
+      if (portalTokens && (portalTokens.tenantToken || portalTokens.ownerToken)) {
+        res.json({
+          ...contract,
+          _portalCredentials: {
+            message: "Portal access tokens were automatically created for this contract",
+            message_es: "Los tokens de acceso al portal fueron creados automáticamente para este contrato",
+            tenant: portalTokens.tenantToken ? {
+              accessCode: portalTokens.tenantToken.accessCode,
+              password: portalTokens.tenantToken.password,
+              portalUrl: '/portal/tenant',
+            } : null,
+            owner: portalTokens.ownerToken ? {
+              accessCode: portalTokens.ownerToken.accessCode,
+              password: portalTokens.ownerToken.password,
+              portalUrl: '/portal/owner',
+            } : null,
+          },
+        });
+      } else {
+        res.json(contract);
+      }
     } catch (error: any) {
       console.error("Error updating rental contract:", error);
       if (error.name === "ZodError") {
@@ -38472,6 +38624,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       }
       handleGenericError(res, error);
     }
+  });
   });
 
   app.delete("/api/external-rental-contracts/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {

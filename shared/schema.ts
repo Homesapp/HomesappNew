@@ -8470,6 +8470,33 @@ export const insertExternalPortalSessionSchema = createInsertSchema(externalPort
 export type InsertExternalPortalSession = z.infer<typeof insertExternalPortalSessionSchema>;
 export type ExternalPortalSession = typeof externalPortalSessions.$inferSelect;
 
+// Portal Login Logs - Track login attempts for security
+export const externalPortalLoginLogs = pgTable("external_portal_login_logs", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  tokenId: varchar("token_id").references(() => externalPortalAccessTokens.id, { onDelete: "cascade" }),
+  accessCodeAttempted: varchar("access_code_attempted", { length: 20 }),
+  
+  success: boolean("success").notNull(),
+  failureReason: varchar("failure_reason", { length: 100 }), // 'invalid_code', 'invalid_password', 'expired', 'revoked'
+  
+  ipHash: varchar("ip_hash", { length: 64 }), // Hashed IP for privacy
+  userAgent: text("user_agent"),
+  deviceInfo: jsonb("device_info"), // {browser, os, device}
+  
+  attemptedAt: timestamp("attempted_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_login_logs_token").on(table.tokenId),
+  index("idx_portal_login_logs_access_code").on(table.accessCodeAttempted),
+  index("idx_portal_login_logs_attempted_at").on(table.attemptedAt),
+]);
+
+export const insertExternalPortalLoginLogSchema = createInsertSchema(externalPortalLoginLogs).omit({
+  id: true, attemptedAt: true,
+});
+export type InsertExternalPortalLoginLog = z.infer<typeof insertExternalPortalLoginLogSchema>;
+export type ExternalPortalLoginLog = typeof externalPortalLoginLogs.$inferSelect;
+
+
 // Payment Receipts - Tenant uploads, owner verifies
 export const externalPaymentReceipts = pgTable("external_payment_receipts", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

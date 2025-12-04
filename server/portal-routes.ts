@@ -40,7 +40,7 @@ export function registerPortalRoutes(
         });
       }
 
-      const passwordValid = await bcrypt.compare(password, token.accessCodeHash);
+      const passwordValid = await bcrypt.compare(password, token.hashedSecret);
       if (!passwordValid) {
         return res.status(401).json({ 
           message: "Invalid access code or password",
@@ -536,7 +536,7 @@ export function registerPortalRoutes(
       
       const accessCode = `${role.toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       const plainPassword = crypto.randomBytes(6).toString('hex').toUpperCase();
-      const accessCodeHash = await bcrypt.hash(plainPassword, 10);
+      const hashedSecret = await bcrypt.hash(plainPassword, 10);
       const expiresAt = contract.endDate ? new Date(contract.endDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
       
       const token = await storage.createExternalPortalAccessToken({
@@ -544,7 +544,7 @@ export function registerPortalRoutes(
         agencyId,
         role: role as 'tenant' | 'owner',
         accessCode,
-        accessCodeHash,
+        hashedSecret,
         expiresAt,
         status: 'active',
       });
@@ -666,9 +666,9 @@ export function registerPortalRoutes(
       }
 
       const plainPassword = crypto.randomBytes(6).toString('hex').toUpperCase();
-      const accessCodeHash = await bcrypt.hash(plainPassword, 10);
+      const hashedSecret = await bcrypt.hash(plainPassword, 10);
 
-      await storage.updateExternalPortalAccessToken(id, { accessCodeHash });
+      await storage.updateExternalPortalAccessToken(id, { hashedSecret });
       await createAuditLog(req, "update", "external_portal_access_token", id, `Reset password for portal token`);
 
       res.json({
