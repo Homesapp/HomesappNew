@@ -373,14 +373,18 @@ export default function OwnerPortal() {
   const verifyPaymentMutation = useMutation({
     mutationFn: ({ id, ownerNotes }: { id: string; ownerNotes?: string }) => 
       post(`/api/portal/payments/${id}/verify`, { ownerNotes }),
-    onSuccess: () => {
+    onMutate: ({ id }) => {
+      setProcessingPaymentId(id);
+    },
+    onSettled: () => {
       setProcessingPaymentId(null);
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments/summary"] });
       toast({ title: t("owner.paymentVerified", "Payment verified successfully") });
     },
     onError: (error: Error) => {
-      setProcessingPaymentId(null);
       toast({ title: t("common.error", "Error"), description: error.message, variant: "destructive" });
     },
   });
@@ -388,14 +392,18 @@ export default function OwnerPortal() {
   const rejectPaymentMutation = useMutation({
     mutationFn: ({ id, ownerNotes }: { id: string; ownerNotes?: string }) => 
       post(`/api/portal/payments/${id}/reject`, { ownerNotes }),
-    onSuccess: () => {
+    onMutate: ({ id }) => {
+      setProcessingPaymentId(id);
+    },
+    onSettled: () => {
       setProcessingPaymentId(null);
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments/summary"] });
       toast({ title: t("owner.paymentRejected", "Payment rejected") });
     },
     onError: (error: Error) => {
-      setProcessingPaymentId(null);
       toast({ title: t("common.error", "Error"), description: error.message, variant: "destructive" });
     },
   });
@@ -992,28 +1000,22 @@ export default function OwnerPortal() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => {
-                                    setProcessingPaymentId(payment.id);
-                                    rejectPaymentMutation.mutate({ id: payment.id });
-                                  }}
+                                  onClick={() => rejectPaymentMutation.mutate({ id: payment.id })}
                                   disabled={processingPaymentId !== null}
                                   data-testid={`button-reject-payment-${payment.id}`}
                                 >
-                                  {processingPaymentId === payment.id && rejectPaymentMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                                  {!(processingPaymentId === payment.id && rejectPaymentMutation.isPending) && <XCircle className="h-4 w-4 mr-1" />}
+                                  {processingPaymentId === payment.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                  {processingPaymentId !== payment.id && <XCircle className="h-4 w-4 mr-1" />}
                                   {t("owner.rejectPayment", "Reject")}
                                 </Button>
                                 <Button
                                   size="sm"
-                                  onClick={() => {
-                                    setProcessingPaymentId(payment.id);
-                                    verifyPaymentMutation.mutate({ id: payment.id });
-                                  }}
+                                  onClick={() => verifyPaymentMutation.mutate({ id: payment.id })}
                                   disabled={processingPaymentId !== null}
                                   data-testid={`button-verify-payment-${payment.id}`}
                                 >
-                                  {processingPaymentId === payment.id && verifyPaymentMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                                  {!(processingPaymentId === payment.id && verifyPaymentMutation.isPending) && <Check className="h-4 w-4 mr-1" />}
+                                  {processingPaymentId === payment.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                  {processingPaymentId !== payment.id && <Check className="h-4 w-4 mr-1" />}
                                   {t("owner.verifyPayment", "Verify")}
                                 </Button>
                               </div>
