@@ -22237,9 +22237,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching available units" });
     }
   });
-
-
   // External Agencies Routes
+  
+  // GET /api/external-agencies/summary - Optimized paginated summary endpoint
+  app.get("/api/external-agencies/summary", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+      const isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : undefined;
+      const search = req.query.search as string | undefined;
+      
+      const options: {
+        page: number;
+        limit: number;
+        isActive?: boolean;
+        createdBy?: string;
+        search?: string;
+      } = { page, limit };
+      
+      if (isActive !== undefined) {
+        options.isActive = isActive;
+      }
+      
+      if (search) {
+        options.search = search;
+      }
+      
+      if (req.user?.role === "external_agency_admin") {
+        options.createdBy = req.user.id;
+      }
+      
+      const result = await storage.getExternalAgenciesSummary(options);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching external agencies summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
   app.get("/api/external-agencies", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { isActive } = req.query;

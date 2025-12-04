@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,9 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExternalAgencySchema } from "@shared/schema";
-import type { ExternalAgency } from "@shared/schema";
+import type { ExternalAgency, ExternalAgencySummary, ExternalAgencyListResponse } from "@shared/schema";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Building2, Search, Key, Copy, Upload, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Search, Key, Copy, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -71,6 +71,9 @@ export default function AdminExternalAgencies() {
   const { language } = useLanguage();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(25);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -81,9 +84,37 @@ export default function AdminExternalAgencies() {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const { data: agencies = [], isLoading: isLoadingAgencies } = useQuery<ExternalAgency[]>({
-    queryKey: ['/api/external-agencies'],
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const { data: agencyResponse, isLoading: isLoadingAgencies } = useQuery<ExternalAgencyListResponse>({
+    queryKey: ['/api/external-agencies/summary', { page, limit, search: debouncedSearch }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+      if (debouncedSearch) {
+        params.append('search', debouncedSearch);
+      }
+      const response = await fetch(`/api/external-agencies/summary?${params.toString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch agencies');
+      }
+      return response.json();
+    },
   });
+
+  const agencies = agencyResponse?.agencies ?? [];
+  const totalPages = agencyResponse?.totalPages ?? 1;
+  const totalAgencies = agencyResponse?.total ?? 0;
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -174,6 +205,7 @@ export default function AdminExternalAgencies() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-agencies/summary'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setIsCreateDialogOpen(false);
@@ -206,6 +238,7 @@ export default function AdminExternalAgencies() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-agencies/summary'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
       setIsEditDialogOpen(false);
       setSelectedAgency(null);
@@ -232,6 +265,7 @@ export default function AdminExternalAgencies() {
       return await apiRequest("DELETE", `/api/external-agencies/${id}`, {});
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-agencies/summary'] });
       queryClient.invalidateQueries({ queryKey: ['/api/external-agencies'] });
       setIsDeleteDialogOpen(false);
       setSelectedAgency(null);
@@ -316,36 +350,44 @@ export default function AdminExternalAgencies() {
     updateMutation.mutate(data);
   };
 
-  const handleEdit = (agency: ExternalAgency) => {
-    setSelectedAgency(agency);
-    setLogoPreview(agency.agencyLogoUrl || null);
-    form.reset({
-      name: agency.name,
-      description: agency.description || "",
-      contactName: agency.contactName || "",
-      contactEmail: agency.contactEmail || "",
-      contactPhone: agency.contactPhone || "",
-      agencyLogoUrl: agency.agencyLogoUrl || "",
-      isActive: agency.isActive,
-      autoApprovePublications: agency.autoApprovePublications ?? false,
-      assignedUserId: agency.createdBy || "",
-    });
-    setIsEditDialogOpen(true);
+  const handleEdit = async (agencySummary: ExternalAgencySummary) => {
+    try {
+      const response = await fetch(`/api/external-agencies/${agencySummary.id}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch agency details');
+      }
+      const agency: ExternalAgency = await response.json();
+      setSelectedAgency(agency);
+      setLogoPreview(agency.agencyLogoUrl || null);
+      form.reset({
+        name: agency.name,
+        description: agency.description || "",
+        contactName: agency.contactName || "",
+        contactEmail: agency.contactEmail || "",
+        contactPhone: agency.contactPhone || "",
+        agencyLogoUrl: agency.agencyLogoUrl || "",
+        isActive: agency.isActive,
+        autoApprovePublications: agency.autoApprovePublications ?? false,
+        assignedUserId: agency.createdBy || "",
+      });
+      setIsEditDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching agency details:", error);
+      toast({
+        title: language === "es" ? "Error" : "Error",
+        description: language === "es"
+          ? "No se pudieron cargar los detalles de la agencia"
+          : "Could not load agency details",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDelete = (agency: ExternalAgency) => {
-    setSelectedAgency(agency);
+  const handleDelete = (agencySummary: ExternalAgencySummary) => {
+    setSelectedAgency({ id: agencySummary.id, name: agencySummary.name } as ExternalAgency);
     setIsDeleteDialogOpen(true);
-  };
-
-  const filteredAgencies = agencies.filter(agency =>
-    agency.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agency.contactEmail?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getAssignedUser = (createdBy: string | null) => {
-    if (!createdBy) return null;
-    return users.find(u => u.id === createdBy);
   };
 
   if (isLoadingAgencies) {
@@ -635,7 +677,7 @@ export default function AdminExternalAgencies() {
           />
         </div>
         <Badge variant="outline" data-testid="badge-agency-count">
-          {filteredAgencies.length} {language === "es" ? "agencias" : "agencies"}
+          {totalAgencies} {language === "es" ? "agencias" : "agencies"}
         </Badge>
       </div>
 
@@ -652,7 +694,7 @@ export default function AdminExternalAgencies() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredAgencies.length === 0 ? (
+          {agencies.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground" data-testid="div-no-agencies">
               {language === "es" 
                 ? "No hay agencias externas registradas"
@@ -671,8 +713,8 @@ export default function AdminExternalAgencies() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAgencies.map((agency) => {
-                  const assignedUser = getAssignedUser(agency.createdBy);
+                {agencies.map((agency) => {
+                  const assignedUser = agency.assignedUser;
                   return (
                     <TableRow key={agency.id} data-testid={`row-agency-${agency.id}`}>
                       <TableCell className="font-medium">{agency.name}</TableCell>
@@ -747,6 +789,38 @@ export default function AdminExternalAgencies() {
                 })}
               </TableBody>
             </Table>
+          )}
+          
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                {language === "es" 
+                  ? `Página ${page} de ${totalPages} (${totalAgencies} agencias)`
+                  : `Page ${page} of ${totalPages} (${totalAgencies} agencies)`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  data-testid="button-prev-page"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  {language === "es" ? "Anterior" : "Previous"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  data-testid="button-next-page"
+                >
+                  {language === "es" ? "Siguiente" : "Next"}
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
