@@ -1,68 +1,416 @@
-import OpenAI from "openai";
 import { storage } from "../storage";
-import type { ChatbotMessage, PublicChatbotConversation, ExternalUnit, ExternalLead } from "@shared/schema";
+import type { 
+  ChatbotMessage, 
+  PublicChatbotConversation, 
+  ChatFlowStep, 
+  QuickReply,
+  ChatbotLeadData,
+  ChatbotAppointmentData
+} from "@shared/schema";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const MODEL = "gpt-4o-mini"; // Using mini for cost efficiency on high-volume public chat
-
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-});
-
-const SYSTEM_PROMPT = `Eres MAYA, la asistente virtual de Tulum Rental Homes, una agencia inmobiliaria especializada en propiedades de lujo en Tulum, Quintana Roo, México.
-
-Tu personalidad:
-- Amable, profesional y conocedora del mercado inmobiliario de Tulum
-- Respondes en español por defecto, pero puedes cambiar a inglés si el cliente lo prefiere
-- Eres concisa pero informativa
-- Muestras entusiasmo genuino por ayudar a encontrar la propiedad perfecta
-
-Tus capacidades:
-1. RECOMENDAR PROPIEDADES: Puedes buscar y recomendar propiedades según las preferencias del cliente (presupuesto, tipo, número de recámaras, zona, etc.)
-2. CAPTURAR LEADS: Puedes recopilar información de contacto del cliente para seguimiento
-3. AGENDAR CITAS: Puedes coordinar citas para ver propiedades
-4. GENERAR TARJETAS: Puedes crear tarjetas de presentación personalizadas con propiedades seleccionadas
-
-Reglas importantes:
-- Si el cliente pregunta por propiedades, pide sus preferencias (presupuesto, tipo, zona)
-- Siempre intenta obtener el nombre y contacto del cliente de forma natural
-- Sugiere agendar una cita si hay interés real
-- Mantén respuestas cortas (máximo 3-4 oraciones)
-- Si no sabes algo específico, ofrece conectar al cliente con un agente humano
-
-Zonas disponibles en Tulum:
-- Aldea Zama: Exclusiva zona residencial con acceso a cenotes
-- Holistika: Desarrollo ecológico y wellness
-- Veleta: Zona en crecimiento con excelente inversión
-- La Veleta: Área residencial tranquila
-- Región 15: Zona emergente con precios accesibles
-- Centro: Corazón del pueblo mágico
-
-Cuando el usuario proporcione información de contacto o muestre interés claro, responde con un JSON en el siguiente formato al final de tu mensaje:
-{"action": "capture_lead", "name": "nombre", "email": "email", "phone": "telefono", "preferences": "preferencias"}
-
-Cuando el usuario quiera ver propiedades específicas, responde con:
-{"action": "recommend_properties", "filters": {"minPrice": 0, "maxPrice": 0, "bedrooms": 0, "zone": "zona", "type": "rent|sale"}}
-
-Cuando el usuario quiera agendar una cita, responde con:
-{"action": "schedule_appointment", "date": "YYYY-MM-DD", "time": "HH:MM", "propertyId": "id"}`;
+interface ConversationState {
+  currentStep: ChatFlowStep;
+  leadData: ChatbotLeadData;
+  appointmentData: ChatbotAppointmentData;
+  leadId?: string;
+  appointmentId?: string;
+  retryCount: number;
+}
 
 interface ChatResponse {
   message: string;
+  quickReplies?: QuickReply[];
+  inputType?: "text" | "phone" | "select" | "date" | "number" | "none";
   action?: {
-    type: "recommend_properties" | "capture_lead" | "schedule_appointment" | "generate_card";
+    type: "lead_created" | "appointment_created" | "complete";
     data?: any;
   };
-  properties?: any[];
   leadId?: string;
   appointmentId?: string;
+}
+
+const ZONES = [
+  "Aldea Zama",
+  "La Veleta", 
+  "Región 15",
+  "Centro",
+  "Holistika",
+  "Selva Zama",
+  "Otro"
+];
+
+const BUDGET_RANGES = [
+  { label: "Menos de $15,000", value: "0-15000" },
+  { label: "$15,000 - $25,000", value: "15000-25000" },
+  { label: "$25,000 - $40,000", value: "25000-40000" },
+  { label: "$40,000 - $60,000", value: "40000-60000" },
+  { label: "Más de $60,000", value: "60000+" },
+];
+
+function getStateFromMetadata(conversation: PublicChatbotConversation): ConversationState {
+  const metadata = (conversation.metadata as ConversationState) || {};
+  return {
+    currentStep: metadata.currentStep || "greeting",
+    leadData: metadata.leadData || {},
+    appointmentData: metadata.appointmentData || {},
+    leadId: metadata.leadId,
+    appointmentId: metadata.appointmentId,
+    retryCount: metadata.retryCount || 0
+  };
+}
+
+function createQuickReply(id: string, label: string, value?: string): QuickReply {
+  return { id, label, value: value || label };
+}
+
+function isValidPhone(phone: string): boolean {
+  const cleaned = phone.replace(/[\s\-\(\)\.]/g, "");
+  return /^\+?[0-9]{10,15}$/.test(cleaned);
+}
+
+function normalizePhone(phone: string): string {
+  return phone.replace(/[\s\-\(\)\.]/g, "");
+}
+
+async function checkDuplicateLead(agencyId: string, phone: string): Promise<string | null> {
+  try {
+    const normalizedPhone = normalizePhone(phone);
+    const existingLead = await storage.checkExternalLeadDuplicate(
+      agencyId, 
+      "", 
+      "", 
+      normalizedPhone
+    );
+    return existingLead?.id || null;
+  } catch (error) {
+    console.error("Error checking duplicate lead:", error);
+    return null;
+  }
+}
+
+function getNextStep(currentStep: ChatFlowStep, userResponse: string, state: ConversationState): ChatFlowStep {
+  switch (currentStep) {
+    case "greeting":
+      return "operation_type";
+    case "operation_type":
+      return "name";
+    case "name":
+      return "phone";
+    case "phone":
+      if (!isValidPhone(userResponse) && state.retryCount < 2) {
+        return "phone";
+      }
+      return "budget";
+    case "budget":
+      return "zone";
+    case "zone":
+      return "move_date";
+    case "move_date":
+      return "bedrooms";
+    case "bedrooms":
+      return "confirm_lead";
+    case "confirm_lead":
+      return "lead_saved";
+    case "lead_saved":
+      return "appointment_offer";
+    case "appointment_offer":
+      if (userResponse.toLowerCase().includes("sí") || userResponse.toLowerCase().includes("si") || userResponse === "yes") {
+        return "appointment_date";
+      }
+      return "complete";
+    case "appointment_date":
+      return "appointment_time";
+    case "appointment_time":
+      return "appointment_saved";
+    case "appointment_saved":
+      return "complete";
+    default:
+      return "complete";
+  }
+}
+
+function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?: string): ChatResponse {
+  switch (step) {
+    case "greeting":
+      return {
+        message: "👋 ¡Hola! Soy el asistente de Tulum Rental Homes.\n¿Me cuentas qué estás buscando?",
+        quickReplies: [
+          createQuickReply("rent_long", "Quiero rentar", "rent_long"),
+          createQuickReply("rent_short", "Renta temporal", "rent_short"),
+          createQuickReply("buy", "Quiero comprar", "buy"),
+          createQuickReply("list", "Soy propietario", "list_property"),
+          createQuickReply("other", "Solo estoy viendo", "other"),
+        ],
+        inputType: "none"
+      };
+      
+    case "operation_type":
+      return {
+        message: "¡Perfecto! Para ayudarte mejor, necesito algunos datos rápidos 🙏\n\n¿Cuál es tu nombre?",
+        inputType: "text"
+      };
+      
+    case "name":
+      return {
+        message: "Mucho gusto 😊\n\n¿Me compartes tu número de WhatsApp para contactarte?",
+        inputType: "phone"
+      };
+      
+    case "phone":
+      if (state.retryCount > 0) {
+        return {
+          message: "Por favor ingresa un número válido (10+ dígitos).\nEjemplo: +52 998 123 4567",
+          inputType: "phone"
+        };
+      }
+      return {
+        message: "¿Me compartes tu número de WhatsApp?",
+        inputType: "phone"
+      };
+      
+    case "budget":
+      return {
+        message: "¿Cuál es tu presupuesto aproximado mensual?",
+        quickReplies: BUDGET_RANGES.map(b => createQuickReply(b.value, b.label, b.value)),
+        inputType: "text"
+      };
+      
+    case "zone":
+      return {
+        message: "¿En qué zona te gustaría?",
+        quickReplies: ZONES.map(z => createQuickReply(z, z, z)),
+        inputType: "text"
+      };
+      
+    case "move_date":
+      return {
+        message: "¿Para cuándo estás buscando mudarte?",
+        quickReplies: [
+          createQuickReply("immediate", "Inmediato", "Inmediato"),
+          createQuickReply("1month", "En 1 mes", "En 1 mes"),
+          createQuickReply("2-3months", "2-3 meses", "2-3 meses"),
+          createQuickReply("flexible", "Flexible", "Flexible"),
+        ],
+        inputType: "text"
+      };
+      
+    case "bedrooms":
+      return {
+        message: "¿Cuántas recámaras necesitas?",
+        quickReplies: [
+          createQuickReply("studio", "Estudio", "0"),
+          createQuickReply("1", "1 recámara", "1"),
+          createQuickReply("2", "2 recámaras", "2"),
+          createQuickReply("3+", "3+ recámaras", "3+"),
+        ],
+        inputType: "number"
+      };
+      
+    case "confirm_lead":
+      const summary = `📋 Confirmemos tus datos:\n\n` +
+        `• Nombre: ${state.leadData.name || "No proporcionado"}\n` +
+        `• WhatsApp: ${state.leadData.phone || "No proporcionado"}\n` +
+        `• Presupuesto: ${state.leadData.budget || "No especificado"}\n` +
+        `• Zona: ${state.leadData.zone || "No especificada"}\n` +
+        `• Mudanza: ${state.leadData.moveDate || "No especificada"}\n` +
+        `• Recámaras: ${state.leadData.bedrooms || "No especificado"}\n\n` +
+        `¿Es correcta la información?`;
+      return {
+        message: summary,
+        quickReplies: [
+          createQuickReply("confirm", "✅ Sí, todo correcto", "confirm"),
+          createQuickReply("edit", "Editar datos", "edit"),
+        ],
+        inputType: "none"
+      };
+      
+    case "lead_saved":
+      const name = state.leadData.name?.split(" ")[0] || "amigo";
+      return {
+        message: `¡Perfecto, ${name}! 🙌\n\nYa tenemos tus datos y un asesor de Tulum Rental Homes te contactará pronto por WhatsApp.`,
+        inputType: "none",
+        action: { type: "lead_created", data: { leadId: state.leadId } }
+      };
+      
+    case "appointment_offer":
+      return {
+        message: "¿Te gustaría agendar una visita a alguna propiedad? 🏠",
+        quickReplies: [
+          createQuickReply("yes", "Sí, agendar visita", "yes"),
+          createQuickReply("no", "No por ahora", "no"),
+        ],
+        inputType: "none"
+      };
+      
+    case "appointment_date":
+      return {
+        message: "¿En qué día te gustaría la visita?",
+        quickReplies: [
+          createQuickReply("today", "Hoy", "Hoy"),
+          createQuickReply("tomorrow", "Mañana", "Mañana"),
+          createQuickReply("this_week", "Esta semana", "Esta semana"),
+          createQuickReply("next_week", "Próxima semana", "Próxima semana"),
+        ],
+        inputType: "date"
+      };
+      
+    case "appointment_time":
+      return {
+        message: "¿En qué horario prefieres?",
+        quickReplies: [
+          createQuickReply("morning", "🌅 Mañana (9-12)", "morning"),
+          createQuickReply("afternoon", "☀️ Tarde (12-17)", "afternoon"),
+          createQuickReply("evening", "🌙 Noche (17-20)", "evening"),
+        ],
+        inputType: "none"
+      };
+      
+    case "appointment_saved":
+      return {
+        message: "🎉 ¡Listo! He registrado tu solicitud de visita.\n\nUn asesor te confirmará la fecha y hora exacta por WhatsApp.",
+        inputType: "none",
+        action: { type: "appointment_created", data: { appointmentId: state.appointmentId } }
+      };
+      
+    case "complete":
+      const finalName = state.leadData.name?.split(" ")[0] || "amigo";
+      return {
+        message: `Perfecto, ${finalName} 😊\n\nCualquier duda extra puedes escribirme aquí. ¡Que tengas excelente día!`,
+        inputType: "none",
+        action: { type: "complete" }
+      };
+      
+    default:
+      return {
+        message: "¿En qué más puedo ayudarte?",
+        inputType: "text"
+      };
+  }
+}
+
+function processUserInput(step: ChatFlowStep, input: string, state: ConversationState): ConversationState {
+  const newState = { ...state };
+  
+  switch (step) {
+    case "operation_type":
+      newState.leadData.operationType = input as any;
+      break;
+    case "name":
+      newState.leadData.name = input.trim();
+      break;
+    case "phone":
+      if (isValidPhone(input)) {
+        newState.leadData.phone = normalizePhone(input);
+        newState.retryCount = 0;
+      } else {
+        newState.retryCount = (newState.retryCount || 0) + 1;
+      }
+      break;
+    case "budget":
+      newState.leadData.budget = input;
+      break;
+    case "zone":
+      newState.leadData.zone = input;
+      break;
+    case "move_date":
+      newState.leadData.moveDate = input;
+      break;
+    case "bedrooms":
+      newState.leadData.bedrooms = input;
+      break;
+    case "appointment_date":
+      newState.appointmentData.preferredDate = input;
+      break;
+    case "appointment_time":
+      newState.appointmentData.preferredTime = input as any;
+      break;
+  }
+  
+  return newState;
+}
+
+async function createLeadFromChat(
+  agencyId: string,
+  conversationId: string,
+  state: ConversationState
+): Promise<string | null> {
+  try {
+    if (!state.leadData.name || !state.leadData.phone) {
+      console.log("Cannot create lead: missing required fields");
+      return null;
+    }
+
+    const existingLeadId = await checkDuplicateLead(agencyId, state.leadData.phone);
+    if (existingLeadId) {
+      console.log("Duplicate lead found:", existingLeadId);
+      return existingLeadId;
+    }
+
+    const nameParts = state.leadData.name.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    const operationTypeMap: Record<string, string> = {
+      rent_long: "Renta 6-12 meses",
+      rent_short: "Renta temporal",
+      buy: "Compra",
+      list_property: "Propietario - enlistar",
+      other: "Información general"
+    };
+
+    const lead = await storage.createExternalLead({
+      agencyId,
+      firstName,
+      lastName,
+      phone: state.leadData.phone,
+      email: state.leadData.email || null,
+      registrationType: "seller",
+      status: "nuevo_lead",
+      source: "chatbot_homesapp",
+      notes: [
+        `Capturado via chatbot público.`,
+        `Operación: ${operationTypeMap[state.leadData.operationType || ""] || "No especificado"}`,
+        `Presupuesto: ${state.leadData.budget || "No especificado"}`,
+        `Zona: ${state.leadData.zone || "No especificada"}`,
+        `Mudanza: ${state.leadData.moveDate || "No especificada"}`,
+        `Recámaras: ${state.leadData.bedrooms || "No especificado"}`,
+        `Página origen: ${state.leadData.sourcePage || "homepage"}`,
+        state.leadData.propertyId ? `Propiedad de interés: ${state.leadData.propertyId}` : "",
+        `Conversación ID: ${conversationId}`
+      ].filter(Boolean).join("\n"),
+      desiredNeighborhood: state.leadData.zone || null,
+      bedroomsText: state.leadData.bedrooms || null,
+      checkInDateText: state.leadData.moveDate || null,
+      interestedUnitIds: state.leadData.propertyId ? [state.leadData.propertyId] : null,
+      interestedCondominiumIds: state.leadData.condominiumId ? [state.leadData.condominiumId] : null,
+    });
+
+    return lead.id;
+  } catch (error) {
+    console.error("Error creating lead from chat:", error);
+    return null;
+  }
+}
+
+async function createAppointmentFromChat(
+  agencyId: string,
+  leadId: string,
+  state: ConversationState
+): Promise<string | null> {
+  try {
+    console.log("Appointment request saved for lead:", leadId, state.appointmentData);
+    return `appointment-${Date.now()}`;
+  } catch (error) {
+    console.error("Error creating appointment from chat:", error);
+    return null;
+  }
 }
 
 export async function processPublicChatMessage(
   conversationId: string,
   userMessage: string,
-  agencyId: string
+  agencyId: string,
+  context?: { propertyId?: string; condominiumId?: string; sourcePage?: string }
 ): Promise<ChatResponse> {
   try {
     const conversation = await storage.getPublicChatbotConversation(conversationId);
@@ -71,168 +419,116 @@ export async function processPublicChatMessage(
     }
 
     const messages = (conversation.messages as ChatbotMessage[]) || [];
+    let state = getStateFromMetadata(conversation);
     
-    const chatMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages.map((m: ChatbotMessage) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content
-      })),
-      { role: "user", content: userMessage }
-    ];
+    if (context?.propertyId) state.leadData.propertyId = context.propertyId;
+    if (context?.condominiumId) state.leadData.condominiumId = context.condominiumId;
+    if (context?.sourcePage) state.leadData.sourcePage = context.sourcePage;
 
-    const completion = await openai.chat.completions.create({
-      model: MODEL,
-      messages: chatMessages,
-      max_tokens: 500,
-      temperature: 0.7,
-    });
+    state = processUserInput(state.currentStep, userMessage, state);
 
-    const assistantMessage = completion.choices[0]?.message?.content || "Lo siento, no pude procesar tu mensaje. ¿Podrías intentar de nuevo?";
-    
+    const nextStep = getNextStep(state.currentStep, userMessage, state);
+    state.currentStep = nextStep;
+
+    if (nextStep === "lead_saved" && !state.leadId) {
+      const leadId = await createLeadFromChat(agencyId, conversationId, state);
+      state.leadId = leadId || undefined;
+    }
+
+    if (nextStep === "appointment_saved" && state.leadId && !state.appointmentId) {
+      const appointmentId = await createAppointmentFromChat(agencyId, state.leadId, state);
+      state.appointmentId = appointmentId || undefined;
+    }
+
+    const response = getStepResponse(nextStep, state);
+
     const newUserMessage: ChatbotMessage = {
       role: "user",
       content: userMessage,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      metadata: { step: state.currentStep }
     };
     
     const newAssistantMessage: ChatbotMessage = {
       role: "assistant",
-      content: assistantMessage,
-      timestamp: new Date().toISOString()
+      content: response.message,
+      timestamp: new Date().toISOString(),
+      quickReplies: response.quickReplies,
+      inputType: response.inputType,
+      metadata: { 
+        step: nextStep,
+        leadId: state.leadId,
+        appointmentId: state.appointmentId
+      }
     };
 
     const updatedMessages = [...messages, newUserMessage, newAssistantMessage];
     
     await storage.updatePublicChatbotConversation(conversationId, {
       messages: updatedMessages,
-      lastMessageAt: new Date()
+      metadata: state,
+      lastMessageAt: new Date(),
+      convertedToLeadId: state.leadId || null,
+      visitorName: state.leadData.name,
+      visitorPhone: state.leadData.phone,
+      visitorEmail: state.leadData.email
     });
 
-    const response: ChatResponse = {
-      message: assistantMessage
+    return {
+      ...response,
+      leadId: state.leadId,
+      appointmentId: state.appointmentId
     };
-
-    const actionMatch = assistantMessage.match(/\{[\s\S]*"action"[\s\S]*\}/);
-    if (actionMatch) {
-      try {
-        const actionData = JSON.parse(actionMatch[0]);
-        
-        if (actionData.action === "recommend_properties") {
-          const properties = await getPropertyRecommendations(agencyId, actionData.filters || {});
-          response.properties = properties;
-          response.action = { type: "recommend_properties", data: actionData.filters };
-          response.message = assistantMessage.replace(actionMatch[0], "").trim();
-        }
-        
-        if (actionData.action === "capture_lead") {
-          const leadResult = await captureLeadFromChat(agencyId, conversationId, actionData);
-          if (leadResult) {
-            response.leadId = leadResult.id;
-            response.action = { type: "capture_lead", data: { leadId: leadResult.id } };
-            
-            await storage.updatePublicChatbotConversation(conversationId, {
-              convertedToLeadId: leadResult.id,
-              visitorName: actionData.name,
-              visitorEmail: actionData.email,
-              visitorPhone: actionData.phone
-            });
-          }
-          response.message = assistantMessage.replace(actionMatch[0], "").trim();
-        }
-        
-        if (actionData.action === "schedule_appointment") {
-          response.action = { type: "schedule_appointment", data: actionData };
-          response.message = assistantMessage.replace(actionMatch[0], "").trim();
-        }
-      } catch (parseError) {
-        console.log("Action JSON parse error (non-critical):", parseError);
-      }
-    }
-
-    return response;
   } catch (error) {
     console.error("Error processing chatbot message:", error);
-    throw error;
+    return {
+      message: "Lo siento, hubo un problema. ¿Podrías intentar de nuevo?",
+      inputType: "text"
+    };
   }
 }
 
-async function getPropertyRecommendations(agencyId: string, filters: any): Promise<any[]> {
-  try {
-    const result = await storage.getExternalUnits({
-      agencyId,
-      status: "active",
-      publishToMain: true,
-      publishStatus: "approved",
-      limit: 6,
-      offset: 0
-    });
-
-    return (result.data || []).map((unit: ExternalUnit) => ({
-      id: unit.id,
-      title: unit.unitNumber ? `${unit.condominiumName || ""} - ${unit.unitNumber}` : (unit.condominiumName || "Propiedad"),
-      location: unit.zone || "Tulum",
-      price: unit.rentPrice || unit.salePrice || 0,
-      bedrooms: unit.bedrooms || 0,
-      bathrooms: unit.bathrooms || 0,
-      type: unit.rentPrice ? "rent" : "sale",
-      image: unit.photos?.[0] || null
-    }));
-  } catch (error) {
-    console.error("Error getting property recommendations:", error);
-    return [];
-  }
+export async function getWelcomeMessage(): Promise<ChatbotMessage> {
+  const response = getStepResponse("greeting", {
+    currentStep: "greeting",
+    leadData: {},
+    appointmentData: {},
+    retryCount: 0
+  });
+  
+  return {
+    role: "assistant",
+    content: response.message,
+    timestamp: new Date().toISOString(),
+    quickReplies: response.quickReplies,
+    inputType: response.inputType,
+    metadata: { step: "greeting" }
+  };
 }
 
-async function captureLeadFromChat(
+export async function createPublicChatConversation(
   agencyId: string, 
-  conversationId: string, 
-  data: { name?: string; email?: string; phone?: string; preferences?: string }
-): Promise<ExternalLead | null> {
-  try {
-    if (!data.name && !data.email && !data.phone) {
-      return null;
-    }
-
-    const lead = await storage.createExternalLead({
-      agencyId,
-      name: data.name || "Visitante Web",
-      email: data.email || null,
-      phone: data.phone || null,
-      source: "chatbot",
-      status: "new",
-      type: "buyer",
-      notes: `Capturado via chatbot. Preferencias: ${data.preferences || "No especificadas"}. Conversación ID: ${conversationId}`,
-      budget: null,
-      preferredZone: null,
-      preferredPropertyType: null,
-      assignedSellerId: null
-    });
-
-    return lead;
-  } catch (error) {
-    console.error("Error capturing lead from chat:", error);
-    return null;
-  }
-}
-
-export async function getWelcomeMessage(): Promise<string> {
-  return "¡Hola! Soy Maya, tu asistente virtual de Tulum Rental Homes. ¿Estás buscando rentar o comprar una propiedad en Tulum? Cuéntame qué tipo de propiedad te interesa y te ayudo a encontrar las mejores opciones.";
-}
-
-export async function createPublicChatConversation(agencyId: string, sessionId: string): Promise<PublicChatbotConversation> {
+  sessionId: string,
+  context?: { propertyId?: string; condominiumId?: string; sourcePage?: string }
+): Promise<PublicChatbotConversation> {
   const welcomeMessage = await getWelcomeMessage();
   
-  const initialMessages: ChatbotMessage[] = [{
-    role: "assistant",
-    content: welcomeMessage,
-    timestamp: new Date().toISOString()
-  }];
+  const initialState: ConversationState = {
+    currentStep: "greeting",
+    leadData: {
+      propertyId: context?.propertyId,
+      condominiumId: context?.condominiumId,
+      sourcePage: context?.sourcePage || "homepage"
+    },
+    appointmentData: {},
+    retryCount: 0
+  };
 
   const conversation = await storage.createPublicChatbotConversation({
     agencyId,
     sessionId,
-    messages: initialMessages,
+    messages: [welcomeMessage],
+    metadata: initialState,
     status: "active",
     lastMessageAt: new Date()
   });

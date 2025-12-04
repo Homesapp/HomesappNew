@@ -35357,7 +35357,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
   // POST /api/public/chat/start - Start a new chatbot conversation
   app.post("/api/public/chat/start", async (req, res) => {
     try {
-      const { sessionId } = req.body;
+      const { sessionId, propertyId, condominiumId, sourcePage } = req.body;
       
       if (!sessionId) {
         return res.status(400).json({ message: "Session ID is required" });
@@ -35374,9 +35374,13 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       let conversation = await storage.getPublicChatbotConversationBySession(agencyId, sessionId);
       
       if (!conversation) {
-        // Create new conversation with welcome message
+        // Create new conversation with welcome message and context
         const { createPublicChatConversation } = await import("./services/publicChatbot");
-        conversation = await createPublicChatConversation(agencyId, sessionId);
+        conversation = await createPublicChatConversation(agencyId, sessionId, {
+          propertyId,
+          condominiumId,
+          sourcePage: sourcePage || "homepage"
+        });
       }
 
       res.json({
@@ -35392,7 +35396,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
   // POST /api/public/chat/message - Send a message to the chatbot
   app.post("/api/public/chat/message", async (req, res) => {
     try {
-      const { conversationId, message } = req.body;
+      const { conversationId, message, propertyId, condominiumId, sourcePage } = req.body;
 
       if (!conversationId || !message) {
         return res.status(400).json({ message: "Conversation ID and message are required" });
@@ -35406,7 +35410,11 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const agencyId = agencies[0].id;
 
       const { processPublicChatMessage } = await import("./services/publicChatbot");
-      const response = await processPublicChatMessage(conversationId, message, agencyId);
+      const response = await processPublicChatMessage(conversationId, message, agencyId, {
+        propertyId,
+        condominiumId,
+        sourcePage
+      });
 
       res.json(response);
     } catch (error: any) {

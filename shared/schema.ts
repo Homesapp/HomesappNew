@@ -8946,13 +8946,63 @@ export interface ChatbotMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
+  quickReplies?: QuickReply[];
+  inputType?: "text" | "phone" | "select" | "date" | "number" | "none";
   metadata?: {
     action?: "recommend_properties" | "capture_lead" | "schedule_appointment" | "generate_card";
     propertyIds?: number[];
     leadId?: string;
     appointmentId?: string;
     cardId?: string;
+    step?: ChatFlowStep;
   };
+}
+
+export type ChatFlowStep = 
+  | "greeting"
+  | "operation_type" 
+  | "name"
+  | "phone"
+  | "budget"
+  | "zone"
+  | "move_date"
+  | "bedrooms"
+  | "confirm_lead"
+  | "lead_saved"
+  | "appointment_offer"
+  | "appointment_date"
+  | "appointment_time"
+  | "appointment_saved"
+  | "complete"
+  | "incomplete";
+
+export interface QuickReply {
+  id: string;
+  label: string;
+  value: string;
+  icon?: string;
+}
+
+export interface ChatbotLeadData {
+  name?: string;
+  phone?: string;
+  email?: string;
+  operationType?: "rent_long" | "rent_short" | "buy" | "list_property" | "other";
+  budget?: string;
+  zone?: string;
+  moveDate?: string;
+  bedrooms?: string;
+  peopleCount?: string;
+  propertyId?: string;
+  condominiumId?: string;
+  sourcePage?: string;
+}
+
+export interface ChatbotAppointmentData {
+  preferredDate?: string;
+  preferredTime?: "morning" | "afternoon" | "evening";
+  propertyId?: string;
+  notes?: string;
 }
 
 // =====================================================
