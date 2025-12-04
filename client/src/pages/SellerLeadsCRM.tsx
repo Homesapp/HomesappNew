@@ -364,11 +364,11 @@ function LeadCardCompact({
                   Ver Perfil Completo
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleWhatsApp}>
+                <DropdownMenuItem onClick={handleWhatsApp} data-testid={`menu-whatsapp-${lead.id}`}>
                   <SiWhatsapp className="mr-2 h-4 w-4 text-green-600" />
                   WhatsApp
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleCall}>
+                <DropdownMenuItem onClick={handleCall} data-testid={`menu-call-${lead.id}`}>
                   <Phone className="mr-2 h-4 w-4" />
                   Llamar
                 </DropdownMenuItem>
