@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Search, 
   Filter, 
@@ -59,7 +60,11 @@ import {
   Droplets,
   Wifi,
   Zap,
-  Building
+  Building,
+  Heart,
+  SendHorizontal,
+  Info,
+  Percent
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 
@@ -447,6 +452,8 @@ export default function SellerPropertyCatalog() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailUnit, setDetailUnit] = useState<Unit | null>(null);
   const [detailImageIndex, setDetailImageIndex] = useState(0);
+  const [showOnlyUnshared, setShowOnlyUnshared] = useState(false);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   // Create stable filter key for useEffect dependency
   const filterKey = useMemo(() => JSON.stringify({
@@ -548,6 +555,34 @@ export default function SellerPropertyCatalog() {
     return presentationCards.find(c => c.isDefault) || presentationCards[0];
   }, [presentationCards]);
 
+  // Fetch shared properties for the selected lead
+  const { data: sharedProperties } = useQuery<{ unitId: string }[]>({
+    queryKey: ["/api/external-seller/lead-shared-properties", selectedLead?.id],
+    queryFn: async () => {
+      if (!selectedLead?.id) return [];
+      const res = await fetch(`/api/external-seller/lead-shared-properties/${selectedLead.id}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedLead?.id,
+  });
+
+  // Fetch favorites for the selected lead
+  const { data: favoriteProperties } = useQuery<{ unitId: string }[]>({
+    queryKey: ["/api/external-seller/lead-favorites", selectedLead?.id],
+    queryFn: async () => {
+      if (!selectedLead?.id) return [];
+      const res = await fetch(`/api/external-seller/lead-favorites/${selectedLead.id}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedLead?.id,
+  });
+
+  // Create sets for quick lookup
+  const sharedUnitIds = useMemo(() => new Set(sharedProperties?.map(p => p.unitId) || []), [sharedProperties]);
+  const favoriteUnitIds = useMemo(() => new Set(favoriteProperties?.map(p => p.unitId) || []), [favoriteProperties]);
+
   const sharePropertyMutation = useMutation({
     mutationFn: async (data: { leadId: string; unitId: string; message?: string }) => {
       const res = await apiRequest("POST", "/api/external-seller/share-property", data);
@@ -567,6 +602,7 @@ export default function SellerPropertyCatalog() {
       setCustomMessage("");
       setSelectedUnits(new Set());
       queryClient.invalidateQueries({ queryKey: ["/api/external-seller/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external-seller/lead-shared-properties", selectedLead?.id] });
     },
     onError: () => {
       toast({
@@ -577,9 +613,51 @@ export default function SellerPropertyCatalog() {
     },
   });
 
+  // Toggle favorite mutation with optimistic updates
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async (data: { leadId: string; unitId: string }) => {
+      const isFavorite = favoriteUnitIds.has(data.unitId);
+      if (isFavorite) {
+        const res = await apiRequest("DELETE", `/api/external-seller/lead-favorites/${data.leadId}/${data.unitId}`);
+        if (!res.ok) throw new Error("Failed to remove favorite");
+        return res.json();
+      } else {
+        const res = await apiRequest("POST", "/api/external-seller/lead-favorites", data);
+        if (!res.ok) throw new Error("Failed to add favorite");
+        return res.json();
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-seller/lead-favorites", selectedLead?.id] });
+      toast({
+        title: "Favoritos actualizado",
+        description: "La propiedad ha sido actualizada en tus favoritos",
+      });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-seller/lead-favorites", selectedLead?.id] });
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar favoritos",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filter units based on shared/favorites filters
   const displayUnits = useMemo(() => {
-    return mappedUnits;
-  }, [mappedUnits]);
+    let result = mappedUnits;
+    
+    if (selectedLead && showOnlyUnshared) {
+      result = result.filter(u => !sharedUnitIds.has(u.id));
+    }
+    
+    if (selectedLead && showOnlyFavorites) {
+      result = result.filter(u => favoriteUnitIds.has(u.id));
+    }
+    
+    return result;
+  }, [mappedUnits, selectedLead, showOnlyUnshared, showOnlyFavorites, sharedUnitIds, favoriteUnitIds]);
 
   const totalUnits = catalogData?.total || 0;
   const totalPages = Math.ceil(totalUnits / itemsPerPage);
@@ -1912,7 +1990,61 @@ export default function SellerPropertyCatalog() {
             /* ============================================
                PROFESSIONAL CARD GRID VIEW - Redesigned
                ============================================ */
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <>
+              {/* Lead Filter Banner - Shows when lead is selected */}
+              {selectedLead && (
+                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-3" data-testid="banner-lead-filter">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <User className="h-5 w-5 text-primary flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">
+                      Buscando para: <strong>{selectedLead.firstName} {selectedLead.lastName}</strong>
+                    </span>
+                    {chosenCard && (
+                      <Badge variant="secondary" className="text-xs">
+                        {chosenCard.minBedrooms || '?'}+ rec · ${chosenCard.maxBudget?.toLocaleString() || '?'}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant={showOnlyUnshared ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      onClick={() => setShowOnlyUnshared(!showOnlyUnshared)}
+                      data-testid="button-filter-unshared"
+                    >
+                      <SendHorizontal className="h-3.5 w-3.5" />
+                      Sin enviar
+                      {showOnlyUnshared && <X className="h-3 w-3" />}
+                    </Button>
+                    <Button
+                      variant={showOnlyFavorites ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                      data-testid="button-filter-favorites"
+                    >
+                      <Heart className={`h-3.5 w-3.5 ${showOnlyFavorites ? 'fill-current' : ''}`} />
+                      Favoritos
+                      {showOnlyFavorites && <X className="h-3 w-3" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => {
+                        setSelectedLead(null);
+                        setShowOnlyUnshared(false);
+                        setShowOnlyFavorites(false);
+                      }}
+                      data-testid="button-clear-lead-filter"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {units.map((unit) => {
                 const matchInfo = selectedLead ? calculateMatchScore(unit, selectedLead) : { score: 0, reasons: [] };
                 return (
@@ -1942,21 +2074,55 @@ export default function SellerPropertyCatalog() {
                       {/* Gradient Overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                       
-                      {/* Top Left: Match Score */}
+                      {/* Top Left: Match Score with Tooltip */}
                       {matchInfo.score > 0 && (
-                        <div className={`absolute left-2 top-2 flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-white ${
-                          matchInfo.score >= 70 ? "bg-green-600" : 
-                          matchInfo.score >= 40 ? "bg-amber-500" : 
-                          "bg-orange-500"
-                        }`}>
-                          <Target className="h-3 w-3" />
-                          {matchInfo.score}%
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={`absolute left-2 top-2 flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-white cursor-help ${
+                              matchInfo.score >= 70 ? "bg-green-600" : 
+                              matchInfo.score >= 40 ? "bg-amber-500" : 
+                              "bg-orange-500"
+                            }`}
+                            data-testid={`badge-match-score-${unit.id}`}
+                            >
+                              <Target className="h-3 w-3" />
+                              {matchInfo.score}%
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <p className="font-semibold mb-1">Match con {selectedLead?.firstName}</p>
+                            {matchInfo.reasons.length > 0 ? (
+                              <ul className="text-xs space-y-0.5">
+                                {matchInfo.reasons.map((reason, i) => (
+                                  <li key={i} className="flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                    {reason}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Coincidencia basada en criterios generales</p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       
-                      {/* Top Right: Image Count */}
+                      {/* Top Right: Already Shared Badge */}
+                      {selectedLead && sharedUnitIds.has(unit.id) && (
+                        <Badge 
+                          className="absolute right-2 top-2 bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs px-2 py-0.5"
+                          data-testid={`badge-shared-${unit.id}`}
+                        >
+                          <SendHorizontal className="h-3 w-3 mr-1" />
+                          Ya enviada
+                        </Badge>
+                      )}
+                      
+                      {/* Top Right: Image Count - Shifted down if shared badge is showing */}
                       {unit.images && unit.images.length > 1 && (
-                        <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-xs text-white">
+                        <div className={`absolute right-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-xs text-white ${
+                          selectedLead && sharedUnitIds.has(unit.id) ? 'top-10' : 'top-2'
+                        }`}>
                           <Maximize2 className="h-3 w-3" />
                           {unit.images.length}
                         </div>
@@ -2151,14 +2317,30 @@ export default function SellerPropertyCatalog() {
                     {/* Action Footer */}
                     <CardFooter className="p-3 pt-0 gap-2 mt-auto">
                       {selectedLead ? (
-                        <Button
-                          className="flex-1 h-11 gap-2 text-sm font-medium"
-                          onClick={() => handleDirectWhatsApp(unit, selectedLead)}
-                          data-testid={`button-whatsapp-${unit.id}`}
-                        >
-                          <SiWhatsapp className="h-4 w-4" />
-                          Enviar a {selectedLead.firstName}
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className={`h-11 w-11 flex-shrink-0 ${
+                              favoriteUnitIds.has(unit.id) 
+                                ? 'text-red-500 border-red-200 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/50' 
+                                : ''
+                            }`}
+                            onClick={() => toggleFavoriteMutation.mutate({ leadId: selectedLead.id, unitId: unit.id })}
+                            disabled={toggleFavoriteMutation.isPending}
+                            data-testid={`button-favorite-${unit.id}`}
+                          >
+                            <Heart className={`h-4 w-4 ${favoriteUnitIds.has(unit.id) ? 'fill-current' : ''}`} />
+                          </Button>
+                          <Button
+                            className="flex-1 h-11 gap-2 text-sm font-medium"
+                            onClick={() => handleDirectWhatsApp(unit, selectedLead)}
+                            data-testid={`button-whatsapp-${unit.id}`}
+                          >
+                            <SiWhatsapp className="h-4 w-4" />
+                            Enviar a {selectedLead.firstName}
+                          </Button>
+                        </>
                       ) : (
                         <>
                           <Button
@@ -2184,7 +2366,8 @@ export default function SellerPropertyCatalog() {
                   </Card>
                 );
               })}
-            </div>
+              </div>
+            </>
           ) : (
             /* ============================================
                PROFESSIONAL TABLE/LIST VIEW - Redesigned

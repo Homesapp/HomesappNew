@@ -1,0 +1,221 @@
+Quiero revisar y mejorar todo el flujo del proceso de contratos en Homesapp:
+
+ofertas,
+
+borradores de contrato,
+
+formatos / plantillas,
+
+subida de documentos,
+
+visualización,
+
+y la UI general.
+
+Es una sección clave para la elaboración de contratos y quiero que quede ordenada y fácil de usar.
+
+1) Flujo de negocio que quiero
+
+El flujo ideal sería:
+
+Oferta / Propuesta
+
+Sale de un lead o de una propiedad específica.
+
+El vendedor llena un formato de oferta con:
+
+cliente (desde la base de Clientes),
+
+propiedad,
+
+fechas,
+
+renta ofrecida,
+
+condiciones especiales (mascotas, mobiliario, quién paga qué, etc.).
+
+Se crea un registro de Oferta (aún no es contrato).
+
+Oferta aceptada → Pre-Contrato
+
+La oferta pasa a estado “Aceptada” por el propietario.
+
+Desde esa oferta se genera un borrador de contrato usando la plantilla adecuada:
+
+arrendamiento,
+
+subarrendamiento,
+
+administración, etc.
+
+Borrador / Revisión
+
+El borrador se llena automáticamente con:
+
+datos de Cliente (inquilino) desde la tabla de Clientes,
+
+datos de Propietario desde la tabla de Propietarios,
+
+datos de Propiedad,
+
+condiciones financieras (renta, depósito, plazos) de la oferta.
+
+El admin puede ajustar algunos campos y añadir cláusulas extra según el tipo de contrato.
+
+Firma / Contrato Activo
+
+El borrador se exporta a PDF (y más adelante se podría enviar a firma digital).
+
+Se sube el contrato final firmado a los documentos del contrato.
+
+El contrato pasa a estado signed / active.
+
+Se enlaza con el Portal (tenant/owner) cuando aplique.
+
+Cierre / Terminación
+
+Se registra terminación natural o anticipada, con sus documentos (carta de terminación, acta de entrega, etc.).
+
+Estado final: terminated / expired.
+
+2) UI dentro de “Contratos”
+
+Necesito que la sección de contratos tenga:
+
+Vista de lista de contratos:
+
+Filtros por:
+
+estado (Oferta, Borrador, En revisión, Activo, Terminado),
+
+tipo (arrendamiento, subarrendamiento, administración, etc.),
+
+propiedad,
+
+cliente,
+
+propietario,
+
+agencia.
+
+Cada fila debe mostrar:
+
+código/ID de contrato u oferta,
+
+propiedad,
+
+cliente/inquilino,
+
+propietario,
+
+renta,
+
+fechas inicio/fin,
+
+estado actual,
+
+botón “Abrir”.
+
+Dentro de un contrato/oferta, organizar la información en tabs:
+
+Resumen:
+
+estado actual,
+
+propiedad, inquilino, propietario,
+
+renta, fechas, depósito,
+
+botones: “Generar contrato PDF”, “Subir contrato firmado”, “Ir al Portal” (si está activo).
+
+Partes (Personas):
+
+datos del inquilino / co-inquilinos,
+
+datos del propietario / representante,
+
+siempre usando la base de Clientes/Propietarios (no datos “huérfanos”).
+
+Propiedad y condiciones:
+
+datos auto-llenados de la propiedad,
+
+uso (casa-habitación, sublease, etc.),
+
+duración, renovaciones, penalizaciones básicas.
+
+Finanzas:
+
+renta mensual, depósito, otros cargos,
+
+quién paga qué servicios (luz, agua, internet, mantenimiento, HOA),
+
+si hay comisiones y cómo se calculan (internamente para TRH).
+
+Documentos:
+
+listado de documentos asociados al contrato (IDs, comprobantes, escrituras, contrato firmado, anexos, etc.),
+
+drag & drop para subir archivos,
+
+posibilidad de clasificar cada archivo:
+
+tipo de documento (INE, escritura, contrato firmado, anexo, etc.),
+
+visibilidad (interno, visible para propietario, visible para inquilino),
+
+vista rápida (preview) de PDFs/imágenes sin descargar.
+
+Historial / Notas:
+
+timeline de cambios de estado,
+
+anotaciones internas de TRH / broker,
+
+quién hizo qué (creó, modificó, aprobó).
+
+(Opcional) Tareas / Checklist:
+
+lista de tareas de onboarding del contrato (firmas completas, entrega de llaves, lecturas de medidores, etc.).
+
+3) Conexión con Clientes y Portal
+
+Asegúrense de que:
+
+los contratos siguen usando la tabla/base de Clientes para los datos de personas,
+
+no se haya roto la selección de clientes al crear un contrato.
+
+Cuando un contrato pase a estado active:
+
+si corresponde, que se cree o asocie el contrato con el Portal (tenant/owner),
+
+se puedan compartir algunos documentos clave en portal_documents (como “Contrato firmado”).
+
+4) UX general
+
+Interfaz limpia, con tabs y títulos claros.
+
+Botones principales bien visibles (Generar contrato, Subir firmado, Ver Portal).
+
+En móvil:
+
+los tabs deben ser fáciles de navegar,
+
+no debe haber scroll horizontal innecesario,
+
+formularios legibles.
+
+Por favor:
+
+revisen cómo está actualmente el módulo de contratos, ofertas y clientes,
+
+adapten la estructura y la UI a esta lógica,
+
+y al final explíquenme:
+
+qué cambios hicieron,
+
+qué modelos/tablas se usan para ofertas, contratos, clientes,
+
+cómo es ahora el flujo típico desde una oferta hasta un contrato activo.

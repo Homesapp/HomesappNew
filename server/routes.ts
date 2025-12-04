@@ -249,6 +249,8 @@ import {
   sellerMessageTemplates,
   sellerFollowUpTasks,
   externalLeadPropertyOffers,
+  externalLeadPropertyFavorites,
+  insertExternalLeadPropertyFavoriteSchema,
   insertSellerMessageTemplateSchema,
   insertSellerFollowUpTaskSchema,
   insertExternalLeadPropertyOfferSchema,
@@ -26998,6 +27000,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error("Error sharing property:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/lead-shared-properties/:leadId - Get shared properties for a lead
+  app.get("/api/external-seller/lead-shared-properties/:leadId", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const { leadId } = req.params;
+
+      // Get all property offers (shares) for this lead
+      const shares = await db.select({
+        unitId: externalLeadPropertyOffers.unitId,
+        propertyId: externalLeadPropertyOffers.propertyId,
+      })
+        .from(externalLeadPropertyOffers)
+        .where(and(
+          eq(externalLeadPropertyOffers.leadId, leadId),
+          eq(externalLeadPropertyOffers.agencyId, agencyId)
+        ));
+
+      // Return unique unit IDs
+      const uniqueUnitIds = [...new Set(shares.filter(s => s.unitId).map(s => s.unitId))];
+      res.json(uniqueUnitIds.map(unitId => ({ unitId })));
+    } catch (error: any) {
+      console.error("Error getting lead shared properties:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET /api/external-seller/lead-favorites/:leadId - Get favorites for a lead
+  app.get("/api/external-seller/lead-favorites/:leadId", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellerId = req.user.claims?.sub || req.user.id;
+      const { leadId } = req.params;
+
+      const favorites = await db.select({
+        unitId: externalLeadPropertyFavorites.unitId,
+      })
+        .from(externalLeadPropertyFavorites)
+        .where(and(
+          eq(externalLeadPropertyFavorites.leadId, leadId),
+          eq(externalLeadPropertyFavorites.sellerId, sellerId),
+          eq(externalLeadPropertyFavorites.agencyId, agencyId)
+        ));
+
+      res.json(favorites);
+    } catch (error: any) {
+      console.error("Error getting lead favorites:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST /api/external-seller/lead-favorites - Add a favorite
+  app.post("/api/external-seller/lead-favorites", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellerId = req.user.claims?.sub || req.user.id;
+      const { leadId, unitId, notes } = req.body;
+
+      if (!leadId || !unitId) {
+        return res.status(400).json({ message: "leadId and unitId are required" });
+      }
+
+      // Verify lead belongs to agency
+      const [lead] = await db.select().from(externalLeads)
+        .where(and(
+          eq(externalLeads.id, leadId),
+          eq(externalLeads.agencyId, agencyId)
+        )).limit(1);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found or not authorized" });
+      }
+
+      // Verify unit belongs to agency
+      const [unit] = await db.select().from(externalUnits)
+        .where(and(
+          eq(externalUnits.id, unitId),
+          eq(externalUnits.agencyId, agencyId)
+        )).limit(1);
+      
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found or not authorized" });
+      }
+
+      const [favorite] = await db.insert(externalLeadPropertyFavorites).values({
+        leadId,
+        unitId,
+        sellerId,
+        agencyId,
+        notes,
+      }).returning();
+
+      res.json(favorite);
+    } catch (error: any) {
+      console.error("Error adding favorite:", error);
+      handleGenericError(res, error);
+    }
+  });
+  // DELETE /api/external-seller/lead-favorites/:leadId/:unitId - Remove a favorite
+  app.delete("/api/external-seller/lead-favorites/:leadId/:unitId", isAuthenticated, requireRole(['external_agency_seller', ...EXTERNAL_ADMIN_ROLES]), async (req: any, res) => {
+    try {
+      const agencyId = await getUserAgencyId(req);
+      if (!agencyId) {
+        return res.status(400).json({ message: "User is not assigned to any agency" });
+      }
+
+      const sellerId = req.user.claims?.sub || req.user.id;
+      const { leadId, unitId } = req.params;
+
+      await db.delete(externalLeadPropertyFavorites).where(and(
+        eq(externalLeadPropertyFavorites.leadId, leadId),
+        eq(externalLeadPropertyFavorites.unitId, unitId),
+        eq(externalLeadPropertyFavorites.sellerId, sellerId),
+        eq(externalLeadPropertyFavorites.agencyId, agencyId)
+      ));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error removing favorite:", error);
       handleGenericError(res, error);
     }
   });

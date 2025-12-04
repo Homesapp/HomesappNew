@@ -1,0 +1,195 @@
+Quiero empezar a acoplar todo el concepto de la plataforma también a VENTA de propiedades, con una separación clara de marcas:
+
+Tulum Rental Homes (TRH) = agencia exclusiva para rentas a largo plazo.
+
+Homesapp = agencia exclusiva para ventas de las unidades que maneja TRH.
+
+Es decir:
+
+Una misma propiedad física puede tener:
+
+un listing de renta (TRH),
+
+y un listing de venta (Homesapp).
+
+A nivel web/UX, la marca que se muestra depende del tipo de listing.
+
+1) Modelo de datos: renta vs venta
+
+Revisar la estructura actual de propiedades/listings.
+
+Necesito que:
+
+exista una entidad de “propiedad base” (unidad física),
+
+y sobre ella podamos tener varios listings, con al menos estos campos:
+
+listingType: rent_long, rent_short, sale
+
+brand: TRH o HOMESAPP
+
+isExclusive: boolean
+
+precio de renta o precio de venta, según aplique
+
+Si ya tienen algo similar, adáptenlo/documenten cómo queda.
+
+En frontend:
+
+Cuando el listing sea de renta (listingType = rent_long), la ficha/listado/mapa deben verse con branding Tulum Rental Homes.
+
+Cuando el listing sea de venta (listingType = sale), deben verse con branding Homesapp (logo, nombre comercial, etc.).
+
+2) Nuevo perfil: agente de ventas Homesapp
+
+Quiero crear un perfil de agente de ventas que sea parte de Homesapp:
+
+Rol sugerido: sales_agent o homesapp_agent.
+
+Permisos:
+
+ver y gestionar solo listings de venta (listingType = sale),
+
+trabajar con leads de compra,
+
+crear/editar ofertas de compra,
+
+participar en el flujo de contratos de compraventa.
+
+Este rol no debe tocar (o solo lectura limitada):
+
+contratos de renta de TRH,
+
+procesos exclusivos de portal de inquilinos.
+
+Por favor:
+
+definan este rol,
+
+ajusten menús/dashboards para que vea un panel enfocado en ventas (similar al de vendedores de renta, pero con listings de venta y leads de compradores).
+
+3) Flujo de venta (similar al de renta, pero orientado a compra)
+
+Quiero un flujo equivalente al que tenemos para renta, pero para venta:
+
+Lead comprador:
+
+Tipo de lead buyer,
+
+llega de formularios de “quiero comprar”, mapa, ficha de propiedad, etc.
+
+vive en el módulo de leads, con estados tipo: nuevo, en contacto, cita, en negociación, cerrado.
+
+Matching con propiedades de venta:
+
+El agente de ventas debe poder:
+
+seleccionar un lead comprador,
+
+ver un catálogo similar al de rentas, pero filtrando listingType = sale,
+
+aplicar filtros por precio, zona, recámaras, etc.,
+
+enviar opciones (por WhatsApp/email) como ya hacemos con rentas.
+
+Oferta de compra:
+
+Desde un lead + propiedad de venta, crear un registro de Oferta de compra con:
+
+precio ofrecido,
+
+forma de pago (contado / crédito),
+
+monto de enganche,
+
+tiempos propuestos (fecha de firma, escrituración),
+
+condiciones (muebles incluidos, etc.).
+
+Estado de la oferta: enviada, contraoferta, aceptada, rechazada.
+
+Pre-contrato / Borrador de compraventa:
+
+Cuando la oferta se marca como aceptada:
+
+generar un borrador de contrato de compraventa o promesa usando una plantilla específica de venta (que yo les puedo pasar en texto).
+
+auto-llenar:
+
+datos del comprador (desde la tabla de Clientes),
+
+datos del propietario,
+
+datos de la propiedad,
+
+precio de venta, enganche, etc.
+
+Este flujo debe ser similar al de borrador de contrato de renta que ya estamos mejorando.
+
+Contrato de venta y cierre:
+
+El contrato pasa por borrador → revisión → firmado.
+
+Guardar:
+
+contrato firmado,
+
+escrituras finales (cuando corresponda),
+
+otros anexos.
+
+Estado: closed_sale cuando se concreta.
+
+4) Ajustes UX: separar mentalmente “Renta TRH” vs “Venta Homesapp”
+
+A nivel interfaz:
+
+En la parte pública:
+
+que quede claro qué listing es de renta (TRH) y cuál es de venta (Homesapp).
+
+Esto puede ser con:
+
+etiqueta “Renta” vs “Venta”,
+
+logo y nombre de la marca,
+
+y filtros separados (por tipo de operación).
+
+En la parte interna:
+
+Vendedores TRH trabajan sobre:
+
+leads de renta,
+
+listings de renta.
+
+Agentes Homesapp trabajan sobre:
+
+leads de compradores,
+
+listings de venta,
+
+contratos/flujo de compraventa.
+
+Admin TRH/Homesapp (yo) debe poder ver:
+
+ambos mundos (renta + venta),
+
+estadísticas por marca,
+
+sin duplicar propiedades base.
+
+Al final, por favor:
+
+explíquenme cómo quedó modelado:
+
+propiedad base vs listing de renta vs listing de venta,
+
+cómo se decide qué marca/branding se muestra en cada caso.
+
+qué rol nuevo crearon para agente de ventas Homesapp y qué menús/pantallas ve.
+
+cómo es el flujo típico de:
+
+lead comprador → oferta de compra → contrato de compraventa → cierre.

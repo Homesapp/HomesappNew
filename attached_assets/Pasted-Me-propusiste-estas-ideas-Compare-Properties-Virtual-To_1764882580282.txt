@@ -1,0 +1,124 @@
+Me propusiste estas ideas:
+
+Compare Properties
+
+Virtual Tour integration
+
+Neighborhood Insights
+
+Smart Search
+
+Financial Calculator
+
+Te detallo lo que quiero priorizar y cómo implementarlo:
+
+1) Compare Properties
+
+Esto sí quiero que lo implementemos ahora.
+
+Objetivo: que los usuarios puedan seleccionar varias propiedades (máximo 3–4) y verlas en una tabla comparativa.
+
+En las tarjetas/listados públicos (y si es fácil, también en el catálogo de vendedores), añade un checkbox o botón “Comparar”.
+
+Muestra un contador flotante tipo: Comparar (X) que abre un panel/modaI con la comparativa.
+
+En la tabla comparar:
+
+Foto de portada,
+
+Nombre de la propiedad/condominio,
+
+Zona,
+
+Precio (y si incluye mantenimiento),
+
+Tipo de renta (12/6 meses, vacacional),
+
+Recámaras, baños, m²,
+
+Si es amueblado,
+
+Si acepta mascotas,
+
+Amenities principales (pool, gym, seguridad, etc.).
+
+En mobile, la tabla debe ser deslizable o cambiar a una vista donde se vea una propiedad a la vez con flechas para pasar, para que no sea un infierno de scroll horizontal.
+
+2) Virtual Tour (ya existe, solo mejorar UX)
+
+Ya tenemos campo de tour virtual / 3D en los listings.
+
+Lo que quiero es:
+
+Revisar el campo existente (virtual tour URL / video) y asegurarse de:
+
+que si existe, se muestre un botón claro tipo “Ver tour virtual 3D” en la ficha de la propiedad,
+
+que el embed sea responsivo y funcione bien en mobile.
+
+Si la propiedad no tiene tour, no mostrar el botón (para evitar confusión).
+
+No hace falta una nueva integración, solo mejorar cómo se muestra lo que ya tenemos.
+
+3) Neighborhood Insights (versión sencilla)
+
+Me interesa una sección “Zona y alrededores / Neighborhood Insights” dentro de la ficha de propiedad.
+
+Primera versión (simple):
+
+Un tab o sección con:
+
+nombre de la zona (Aldea Zama, La Veleta, etc.),
+
+un texto descriptivo estático por zona (puede venir de una tabla de zonas que definamos),
+
+bullets para:
+
+distancia aproximada a la playa,
+
+distancia al centro,
+
+tipo de zona (residencial, turística, tranquila, etc.).
+
+Un mini-mapa con algunos puntos cercanos:
+
+supermercados,
+
+gimnasios,
+
+zonas de restaurantes.
+
+No necesito algo súper complejo al inicio, solo que el usuario sienta que entiende el contexto de la propiedad.
+
+4) Smart Search (fase 1, sin IA compleja)
+
+Me interesa pero en una versión simple, por ahora:
+
+Recordar los últimos filtros del usuario (en localStorage) y aplicarlos cuando vuelva al buscador/mapa.
+
+En las fichas de propiedad, mostrar una sección “Te puede interesar” con propiedades similares (misma zona + rango de precio + tipo de propiedad).
+
+Más adelante podemos pensar en algo más avanzado, pero de momento con esto me sirve.
+
+5) Financial Calculator
+
+Este lo dejaría como fase 2.
+De momento prefiero priorizar:
+
+Compare Properties,
+
+mejorar UX del Virtual Tour,
+
+Neighborhood Insights,
+
+Smart Search simple.
+
+Por favor empieza por:
+
+Compare Properties,
+
+mejorar el Virtual Tour con buena UI,
+
+y la sección Neighborhood Insights básica.
+
+Y cuando termines esa parte, me explicas qué rutas/componentes tocaste y cómo se usan para que yo pueda probarlo.

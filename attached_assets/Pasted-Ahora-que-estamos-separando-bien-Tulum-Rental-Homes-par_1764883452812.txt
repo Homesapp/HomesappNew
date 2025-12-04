@@ -1,0 +1,207 @@
+Ahora que estamos separando bien:
+
+Tulum Rental Homes para rentas,
+
+Homesapp para ventas,
+
+quiero potenciar al máximo el rol de “agente de ventas” (Homesapp) y crear una herramienta de valuación de propiedades útil tanto para agentes como para propietarios.
+
+1) Dashboard y herramientas del agente de ventas
+
+Para el rol sales_agent / homesapp_agent, quiero un panel específico con:
+
+Dashboard de ventas
+
+Resumen de:
+
+leads compradores activos,
+
+negocios en negociación,
+
+ventas cerradas este mes.
+
+Pequeño embudo:
+
+nuevo → contactado → visita/cita → oferta → negociación → cerrado.
+
+Atajos:
+
+“Mis compradores”
+
+“Mis propiedades en venta”
+
+“Crear valuación”.
+
+Módulo “Mis compradores”
+
+Vista tipo Kanban + lista, filtrando leads de tipo buyer.
+
+En cada lead/comprador:
+
+presupuesto,
+
+zonas objetivo,
+
+tipo de unidad,
+
+urgencia.
+
+Acciones:
+
+ver propiedades sugeridas (listings sale que hacen match),
+
+agendar cita/visita,
+
+crear una oferta de compra.
+
+Módulo “Mis propiedades en venta”
+
+Lista/grid solo de listings con listingType = sale y brand Homesapp.
+
+Mostrar:
+
+precio de venta,
+
+status (publicada / reservada / bajo oferta / vendida),
+
+días en mercado,
+
+nº de leads interesados.
+
+Acciones:
+
+abrir ficha de propiedad,
+
+crear/editar una valuación para esa propiedad,
+
+ver leads compradores que han preguntado por esa unidad.
+
+Módulo “Ofertas de compra y contratos de compraventa”
+
+Lista de ofertas de compra:
+
+propiedad, comprador, precio ofrecido, estado de la oferta.
+
+Desde una oferta aceptada:
+
+pasar al flujo de borrador de contrato de compraventa (similar a lo que estamos haciendo con contratos de renta).
+
+2) Herramienta de valuación de propiedades (CMA interna)
+
+Quiero una herramienta de valuación interna que registre y sugiera rangos de precio para venta (y opcionalmente también para renta).
+
+Modelo de datos
+
+Crear una entidad valuations (o similar), con:
+
+id
+
+propertyId
+
+createdByUserId (agente que la hizo)
+
+type: sale (y opcional rent_long)
+
+datos de entrada:
+
+m², recámaras, baños, piso, estado (nuevo/usado), amueblado, vista, etc.
+
+resultados:
+
+priceMin, priceTarget, priceMax (sugeridos),
+
+currency (MXN),
+
+resumen de metodología / notas,
+
+timestamp de creación/actualización.
+
+Opcional: una tabla valuation_comparables para:
+
+listados propertyId o listingId usados como comparables,
+
+precio, m², recámaras, tipo (venta/renta),
+
+ajustes.
+
+Flujo para el agente de ventas (backend)
+
+Desde la ficha de una propiedad en venta:
+
+botón “Valuar propiedad”.
+
+Wizard de 3–4 pasos:
+
+Paso 1: confirmar datos de la propiedad (m², recámaras, estado, amueblado, etc.).
+
+Paso 2: mostrar comparables internos sugeridos:
+
+otras propiedades en la misma zona/condominio,
+
+con m² y recámaras similares,
+
+mostrar su precio de venta y/o renta.
+
+Paso 3: permitir al agente incluir/excluir comparables y agregar ajustes o notas.
+
+Paso 4: mostrar una sugerencia de rango de precio:
+
+priceMin, priceTarget, priceMax,
+
+posibilidad de editar manualmente y guardar.
+
+Guardar la valuación en la tabla y permitir ver histórico de valuaciones por propiedad.
+
+Versión para el propietario (Portal owner)
+
+En el Portal del propietario, añadir un bloque:
+
+botón “Solicitar valuación para venta” (y si queremos, para renta).
+
+Al pulsarlo:
+
+crear un registro de solicitud de valuación asociada a su propiedad,
+
+notificar al agente de ventas de Homesapp.
+
+Cuando el agente complete/actualice una valuación:
+
+en el Portal del propietario mostrar:
+
+un rango de precio sugerido (no todos los detalles técnicos),
+
+texto explicativo básico,
+
+un disclaimer de que es una estimación interna y no es avalúo oficial.
+
+3) UX y permisos
+
+Aseguren que:
+
+el rol sales_agent solo vea:
+
+leads compradores,
+
+listings de venta,
+
+valuaciones asociadas a propiedades de venta,
+
+ofertas/contratos de compraventa.
+
+El admin puede ver todo (rentas y ventas).
+
+El propietario solo ve:
+
+el resumen de su valuación (rango + explicación),
+
+no la parte interna de comparables ni notas internas.
+
+Al final, por favor explíquenme:
+
+qué pantallas nuevas tiene el agente de ventas (Dashboard, Mis compradores, Mis propiedades en venta, Valuaciones),
+
+cómo se guarda una valuación en BD y cómo se vincula a una propiedad,
+
+cómo la puede ver el propietario desde su Portal,
+
+y cómo se conecta todo esto con el flujo de ofertas y contratos de venta.

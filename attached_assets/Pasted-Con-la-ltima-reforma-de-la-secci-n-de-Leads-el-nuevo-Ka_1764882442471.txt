@@ -1,0 +1,111 @@
+Con la última reforma de la sección de Leads (el nuevo Kanban en admin), tengo una duda y un posible problema:
+
+Antes teníamos una sección de Clientes donde:
+
+veíamos la lista de personas (clientes finales),
+
+y de ahí seleccionábamos los datos para generar contratos de renta y demás documentos.
+
+Ahora con el Kanban de Leads:
+
+no veo claramente la sección de Clientes,
+
+y no quiero perder esa funcionalidad ni los datos ya existentes.
+
+Necesito que revisen y dejen claro/funcional lo siguiente:
+
+1) ¿Dónde quedó la sección de CLIENTES?
+
+Confirmen si sigue existiendo la tabla / modelo de:
+
+clients, persons, customers o como se llame internamente.
+
+Confirmen que:
+
+los registros de clientes antiguos (los que usábamos en contratos) siguen en la base de datos,
+
+y NO se han perdido ni sobreescrito al crear el nuevo módulo de leads.
+
+Asegúrense de que en el panel admin haya de nuevo un menú claro:
+
+“Clientes” o “Personas”,
+
+con lista, buscador y ficha de cada cliente/propietario.
+
+Esa sección es la que usamos como base de datos “limpia” de personas para contratos y portal.
+
+2) Relación correcta entre LEADS y CLIENTES
+
+Quiero que la lógica quede así:
+
+Los LEADS (Kanban):
+
+son prospectos en proceso: interesados en rentar, dueños potenciales, etc.
+
+viven en el módulo de Leads, con estados: nuevo, en contacto, cita, en revisión, aprobado, etc.
+
+Los CLIENTES:
+
+son personas ya “validadas” que usamos para:
+
+contratos de renta,
+
+contratos de administración,
+
+acceso al Portal (tenant/owner).
+
+Por favor:
+
+Cuando un lead de tipo cliente/inquilino llegue a estado tipo approved / tenant:
+
+que el sistema cree (o actualice) un registro en la tabla de Clientes (con todos sus datos completos).
+
+Cuando un lead de tipo propietario sea aprobado:
+
+que cree (o actualice) un registro de Propietario en esa misma base o en la tabla que haga de dueños.
+
+Dejen documentado en el código (o en un .md) este flujo:
+
+Lead → Approved → se genera/actualiza Cliente/Propietario.
+
+3) Uso de CLIENTES en contratos
+
+Necesito mantener (o restaurar) esto:
+
+En la sección donde generamos contratos de renta y documentos:
+
+debe ser posible buscar y seleccionar un Cliente desde la base de clientes (no desde el Kanban).
+
+es decir: el formulario de contrato debe seguir usando la tabla de Clientes como fuente de datos de personas.
+
+Por favor verifiquen:
+
+Que la lógica de contratos siga apuntando a la tabla/modelo de Clientes/Personas.
+
+Que el refactor del módulo de Leads NO haya roto:
+
+relaciones contract → client,
+
+ni queries que llenan los formularios de contrato.
+
+Si han unificado algo internamente (por ejemplo mezclando leads y clientes en una sola tabla), explíquenme exactamente cómo quedó y asegúrense de:
+
+no perder los datos históricos,
+
+no romper la selección de persona al generar contratos.
+
+4) UX deseada (resumen)
+
+Admin / vendedor:
+
+trabaja en el Kanban de Leads para avanzar prospectos.
+
+Cuando un prospecto “se cierra”:
+
+se convierte en Cliente (inquilino / propietario).
+
+Contratos y Portal:
+
+siempre se basan en la lista de Clientes, no en la vista de Leads.
+
+Necesito que verifiquen todo esto, restauren la visibilidad de la sección de Clientes si se escondió, y me expliquen cómo quedó al final la relación Leads ↔ Clientes ↔ Contratos.

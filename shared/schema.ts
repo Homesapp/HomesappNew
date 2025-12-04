@@ -7068,6 +7068,36 @@ export type InsertExternalLeadPropertySent = z.infer<typeof insertExternalLeadPr
 export type UpdateExternalLeadPropertySent = z.infer<typeof updateExternalLeadPropertySentSchema>;
 export type ExternalLeadPropertySent = typeof externalLeadPropertySent.$inferSelect;
 
+// Lead Property Favorites - Track favorite properties for specific leads (seller workspace)
+export const externalLeadPropertyFavorites = pgTable("external_lead_property_favorites", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  leadId: varchar("lead_id").notNull().references(() => externalLeads.id, { onDelete: "cascade" }),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  unitId: varchar("unit_id").notNull().references(() => externalUnits.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Notes about why this is a favorite for this lead
+  notes: text("notes"),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_lead_property_favorites_lead").on(table.leadId),
+  index("idx_lead_property_favorites_unit").on(table.unitId),
+  index("idx_lead_property_favorites_seller").on(table.sellerId),
+  index("idx_lead_property_favorites_agency").on(table.agencyId),
+  index("idx_lead_property_favorites_lead_seller").on(table.leadId, table.sellerId),
+  uniqueIndex("idx_lead_property_favorites_unique").on(table.leadId, table.unitId, table.sellerId),
+]);
+
+export const insertExternalLeadPropertyFavoriteSchema = createInsertSchema(externalLeadPropertyFavorites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertExternalLeadPropertyFavorite = z.infer<typeof insertExternalLeadPropertyFavoriteSchema>;
+export type ExternalLeadPropertyFavorite = typeof externalLeadPropertyFavorites.$inferSelect;
+
 // Client Activities - Track all interactions with clients
 export const externalClientActivities = pgTable("external_client_activities", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
