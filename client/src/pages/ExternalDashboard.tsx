@@ -37,7 +37,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import CommissionRatesDisplay from "@/components/CommissionRatesDisplay";
 
 type DashboardSummary = {
   totalCondominiums: number;
@@ -204,7 +203,7 @@ function SellerDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card data-testid="card-total-leads">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -329,52 +328,6 @@ function SellerDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Commission Rates Section */}
-      <Card data-testid="card-commission-rates">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Percent className="h-5 w-5" />
-            {language === "es" ? "Mis Comisiones" : "My Commissions"}
-          </CardTitle>
-          <CardDescription>
-            {language === "es" 
-              ? "Tus porcentajes de comisión por concepto"
-              : "Your commission percentages by concept"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CommissionRatesDisplay />
-        </CardContent>
-      </Card>
-
-      {/* Lead Status Distribution */}
-      {Object.keys(stats.leadsByStatus).length > 0 && (
-        <Card data-testid="card-lead-status">
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {language === "es" ? "Estado de Leads" : "Lead Status"}
-            </CardTitle>
-            <CardDescription>
-              {language === "es" ? "Distribución por estado" : "Distribution by status"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(stats.leadsByStatus).map(([status, count]) => (
-                <Badge 
-                  key={status} 
-                  variant="outline" 
-                  className="text-sm py-1 px-3"
-                  data-testid={`badge-status-${status}`}
-                >
-                  {LEAD_STATUS_LABELS[language]?.[status] || status}: {count}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Quick Actions */}
       <div>
@@ -687,7 +640,7 @@ function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card data-testid="card-total-condominiums">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">

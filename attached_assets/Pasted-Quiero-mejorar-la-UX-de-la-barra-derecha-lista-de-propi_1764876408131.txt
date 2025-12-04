@@ -1,0 +1,95 @@
+Quiero mejorar la UX de la barra derecha (lista de propiedades) y del popup que aparece al hacer clic en una propiedad en el Mapa Interactivo.
+
+Objetivo:
+
+Que la lista de la derecha se vea como un catálogo atractivo (tipo Airbnb),
+
+que el popup del mapa sea consistente con esa vista,
+
+y que en ambos se muestre la foto de portada de la propiedad.
+
+1) Tarjetas de propiedad en la barra derecha
+
+En el componente que renderiza la lista de propiedades del mapa (sidebar derecho), rediseña cada item para que sea una tarjeta con:
+
+Miniatura de la foto de portada de la propiedad (por ejemplo, la primera imagen disponible).
+
+Logo y nombre del condominio / nombre de la propiedad.
+
+Precio grande (ej. $38,000 /mes).
+
+Zona / colonia.
+
+Chips con datos clave: recámaras, baños, si acepta mascotas, si está amueblado, etc.
+
+Añade acciones claras dentro de la tarjeta:
+
+Botón principal: “Ver detalles” (navega a la ficha pública de la propiedad).
+
+Botón o link secundario: “Quiero rentar / Agendar visita” (dispara el flujo de lead/chatbot que ya existe).
+
+Comportamiento con el mapa:
+
+Al pasar el mouse sobre la tarjeta, resalta el marker correspondiente en el mapa.
+
+Al hacer clic en la tarjeta:
+
+centra el mapa en esa propiedad,
+
+abre el mismo popup que aparece al hacer clic en el marker.
+
+Mobile:
+
+En versión móvil, convierte la barra derecha en una hoja deslizable desde abajo:
+
+botón “Ver lista” sobre el mapa,
+
+tarjetas en una sola columna, sin scroll horizontal,
+
+botones grandes fáciles de tocar.
+
+2) Popup al hacer clic en un marker
+
+Rediseña el popup que aparece al hacer clic en un marker para que use el mismo estilo que la tarjeta de la barra derecha:
+
+Foto de portada pequeña arriba.
+
+Nombre del condominio / propiedad.
+
+Precio.
+
+Chips con recámaras, baños, mascotas, etc.
+
+Botones:
+
+“Ver detalles”
+
+“Quiero más info / Agendar visita”
+
+Elimina cualquier tooltip / label nativo del mapa (por ejemplo, el rectángulo blanco con solo texto) para que solo se vea nuestro popup custom, manteniendo una UI uniforme.
+
+3) Foto de portada
+
+Asegúrate de que tanto la tarjeta de la barra derecha como el popup usen la misma lógica para obtener la foto de portada:
+
+por ejemplo, el primer elemento de la galería de la propiedad,
+
+o un campo mainPhotoUrl si existe.
+
+Si la propiedad no tiene foto:
+
+muestra un placeholder con el logo de Tulum Rental Homes o un fondo neutro con un ícono.
+
+4) Resultado
+
+Al final, explícame:
+
+Qué componente(s) de la barra derecha modificaste,
+
+cómo se construyen ahora las tarjetas (qué datos muestran),
+
+cómo se ve el nuevo popup del mapa,
+
+y cómo están obteniendo la foto de portada de cada propiedad.
+
+También quiero que confirmes que la experiencia en mobile no tiene scroll horizontal y que los botones son cómodos de usar.
