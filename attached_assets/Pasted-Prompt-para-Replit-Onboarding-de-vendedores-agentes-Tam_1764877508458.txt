@@ -1,0 +1,99 @@
+Prompt para Replit – Onboarding de vendedores / agentes
+
+También quiero mejorar la experiencia de onboarding para nuevos vendedores / agentes externos.
+
+La idea es tener una landing pública tipo “Quiero ser vendedor de Tulum Rental Homes / Homesapp” con un formulario en pasos, y que internamente se cree un lead de agente con estados (applicant, under_review, approved, rejected).
+
+Landing de vendedores
+
+Ruta sugerida: /vendedores/aplicar o similar.
+
+Contenido:
+
+explicación corta del programa de vendedores / agencias externas,
+
+beneficios (comisión, acceso a herramientas, soporte TRH),
+
+botón: “Aplicar como vendedor”.
+
+Formulario en pasos
+
+Paso 1: Datos personales
+
+nombre, email, WhatsApp, ciudad de residencia,
+
+si tiene licencia/registro como asesor y su número (si aplica).
+
+Paso 2: Experiencia
+
+años en bienes raíces,
+
+zonas que maneja (checkboxes),
+
+si trabaja con otras agencias (sí/no, cuáles),
+
+tipo de operaciones que más trabaja (renta larga, vacacional, venta).
+
+Paso 3: Capacidad y redes
+
+cuántas propiedades estima enlistar con nosotros,
+
+link a Instagram/página profesional,
+
+breve descripción de su forma de trabajar.
+
+Paso 4: Documentos (opcional)
+
+subir documentos (credencial, registro, etc.).
+
+Paso final: mensaje de gracias y próximos pasos.
+
+Modelo de datos y estados
+
+Crear/usar una tabla de seller_applicants o similar con campos:
+
+datos personales,
+
+experiencia,
+
+redes / links,
+
+documentos,
+
+status: applicant, under_review, approved, rejected,
+
+notes internas.
+
+Cuando cambie a approved, crear automáticamente:
+
+usuario con rol seller o external_agent,
+
+y, si aplica, liga a una agencia externa existente.
+
+Panel interno
+
+En el admin, una vista para ver:
+
+lista de solicitantes,
+
+filtros por estado,
+
+detalle de cada aplicante,
+
+botones para cambiar estado y agregar notas.
+
+UX
+
+Mismo estilo visual que el resto de la app,
+
+formularios cortos y claros, con barra de progreso,
+
+en mobile, todo usable solo con scroll vertical.
+
+Al final, explícame:
+
+qué rutas nuevas creaste para el flujo de vendedores,
+
+cómo se guarda el aplicante en la BD,
+
+y qué hace el sistema cuando un aplicante pasa a “approved”.

@@ -387,7 +387,9 @@ export function PhotoEditor({
 
       // Apply contrast only if different from default
       if (adjustments.contrast !== 100) {
-        const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+        // Convert 0-200 scale (100 = no change) to -255 to 255 range
+        const contrastLevel = ((adjustments.contrast - 100) / 100) * 255;
+        const factor = (259 * (contrastLevel + 255)) / (255 * (259 - contrastLevel));
         r = factor * (r - 128) + 128;
         g = factor * (g - 128) + 128;
         b = factor * (b - 128) + 128;

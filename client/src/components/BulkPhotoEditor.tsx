@@ -225,55 +225,80 @@ export function BulkPhotoEditor({
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
 
-        const brightness = adjustments.brightness / 100;
-        const contrast = adjustments.contrast / 100;
-        const saturation = adjustments.saturation / 100;
-        const warmthVal = adjustments.warmth / 100;
-        const exposure = 1 + (adjustments.exposure / 100);
-        const highlights = adjustments.highlights / 100;
-        const shadows = adjustments.shadows / 100;
+        // Skip pixel manipulation if all values are at default
+        const isDefault = 
+          adjustments.brightness === 100 &&
+          adjustments.contrast === 100 &&
+          adjustments.saturation === 100 &&
+          adjustments.warmth === 0 &&
+          adjustments.exposure === 0 &&
+          adjustments.highlights === 0 &&
+          adjustments.shadows === 0;
 
-        for (let i = 0; i < data.length; i += 4) {
-          let r = data[i];
-          let g = data[i + 1];
-          let b = data[i + 2];
+        if (!isDefault) {
+          const brightness = adjustments.brightness / 100;
+          const saturation = adjustments.saturation / 100;
+          const warmthVal = adjustments.warmth / 100;
+          const exposure = 1 + (adjustments.exposure / 100);
+          const highlights = adjustments.highlights / 100;
+          const shadows = adjustments.shadows / 100;
 
-          r = r * brightness * exposure;
-          g = g * brightness * exposure;
-          b = b * brightness * exposure;
+          for (let i = 0; i < data.length; i += 4) {
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
 
-          const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
-          r = factor * (r - 128) + 128;
-          g = factor * (g - 128) + 128;
-          b = factor * (b - 128) + 128;
+            // Apply brightness and exposure
+            r = r * brightness * exposure;
+            g = g * brightness * exposure;
+            b = b * brightness * exposure;
 
-          const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
-          r = gray + saturation * (r - gray);
-          g = gray + saturation * (g - gray);
-          b = gray + saturation * (b - gray);
+            // Apply contrast only if different from default
+            if (adjustments.contrast !== 100) {
+              const contrastLevel = ((adjustments.contrast - 100) / 100) * 255;
+              const factor = (259 * (contrastLevel + 255)) / (255 * (259 - contrastLevel));
+              r = factor * (r - 128) + 128;
+              g = factor * (g - 128) + 128;
+              b = factor * (b - 128) + 128;
+            }
 
-          r = r + warmthVal * 30;
-          b = b - warmthVal * 30;
+            // Apply saturation only if different from default
+            if (adjustments.saturation !== 100) {
+              const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
+              r = gray + saturation * (r - gray);
+              g = gray + saturation * (g - gray);
+              b = gray + saturation * (b - gray);
+            }
 
-          const luminance = (r + g + b) / 3;
-          if (luminance > 128) {
-            const highlightFactor = ((luminance - 128) / 127) * highlights * 30;
-            r = r + highlightFactor;
-            g = g + highlightFactor;
-            b = b + highlightFactor;
-          } else {
-            const shadowFactor = ((128 - luminance) / 128) * shadows * 30;
-            r = r + shadowFactor;
-            g = g + shadowFactor;
-            b = b + shadowFactor;
+            // Apply warmth only if different from default
+            if (adjustments.warmth !== 0) {
+              r = r + warmthVal * 30;
+              b = b - warmthVal * 30;
+            }
+
+            // Apply highlights and shadows only if different from default
+            if (adjustments.highlights !== 0 || adjustments.shadows !== 0) {
+              const luminance = (r + g + b) / 3;
+              if (luminance > 128 && adjustments.highlights !== 0) {
+                const highlightFactor = ((luminance - 128) / 127) * highlights * 30;
+                r = r + highlightFactor;
+                g = g + highlightFactor;
+                b = b + highlightFactor;
+              } else if (luminance <= 128 && adjustments.shadows !== 0) {
+                const shadowFactor = ((128 - luminance) / 128) * shadows * 30;
+                r = r + shadowFactor;
+                g = g + shadowFactor;
+                b = b + shadowFactor;
+              }
+            }
+
+            data[i] = Math.max(0, Math.min(255, r));
+            data[i + 1] = Math.max(0, Math.min(255, g));
+            data[i + 2] = Math.max(0, Math.min(255, b));
           }
 
-          data[i] = Math.max(0, Math.min(255, r));
-          data[i + 1] = Math.max(0, Math.min(255, g));
-          data[i + 2] = Math.max(0, Math.min(255, b));
+          ctx.putImageData(imageData, 0, 0);
         }
-
-        ctx.putImageData(imageData, 0, 0);
 
         if (watermark.enabled && watermark.type === "text" && watermark.text) {
           ctx.globalAlpha = watermark.opacity / 100;

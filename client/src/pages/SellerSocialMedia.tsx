@@ -52,6 +52,7 @@ import {
   X
 } from "lucide-react";
 import PhotoEditor from "@/components/PhotoEditor";
+import { BulkPhotoEditor, BulkPhoto } from "@/components/BulkPhotoEditor";
 import { SiFacebook, SiInstagram, SiWhatsapp } from "react-icons/si";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
 import { es, enUS } from "date-fns/locale";
@@ -651,6 +652,11 @@ export default function SellerSocialMedia() {
   const [photoCondominiumId, setPhotoCondominiumId] = useState<string>("");
   const [editingPhotoUrl, setEditingPhotoUrl] = useState<string | null>(null);
   const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
+  
+  // Bulk photo editing state
+  const [bulkSelectionMode, setBulkSelectionMode] = useState(false);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(new Set());
+  const [isBulkEditorOpen, setIsBulkEditorOpen] = useState(false);
   
   // Queries
   // Fetch agency AI credits status
@@ -2377,65 +2383,159 @@ export default function SellerSocialMedia() {
               ) : (
                 <div className="space-y-3">
                   {/* Album header with count and bulk actions */}
-                  <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center justify-between px-1 gap-2 flex-wrap">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Image className="h-4 w-4" />
                       <span>{(propertyMedia || []).filter(m => m.type === "image").length} {lang === "es" ? "fotos" : "photos"}</span>
+                      {bulkSelectionMode && selectedPhotoIds.size > 0 && (
+                        <Badge variant="secondary" className="ml-1">
+                          {selectedPhotoIds.size} {lang === "es" ? "seleccionadas" : "selected"}
+                        </Badge>
+                      )}
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const images = (propertyMedia || []).filter(m => m.type === "image");
-                        if (images.length > 0) {
-                          setEditingPhotoUrl(images[0].url);
-                          setEditingMediaId(images[0].id);
-                        }
-                      }}
-                      data-testid="button-bulk-edit-photos"
-                    >
-                      <Wand2 className="h-4 w-4 mr-1" />
-                      {lang === "es" ? "Editar fotos" : "Edit photos"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {bulkSelectionMode ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const images = (propertyMedia || []).filter(m => m.type === "image");
+                              if (selectedPhotoIds.size === images.length) {
+                                setSelectedPhotoIds(new Set());
+                              } else {
+                                setSelectedPhotoIds(new Set(images.map(m => m.id)));
+                              }
+                            }}
+                            data-testid="button-select-all-photos"
+                          >
+                            {selectedPhotoIds.size === (propertyMedia || []).filter(m => m.type === "image").length 
+                              ? (lang === "es" ? "Deseleccionar todo" : "Deselect all")
+                              : (lang === "es" ? "Seleccionar todo" : "Select all")
+                            }
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={selectedPhotoIds.size === 0}
+                            onClick={() => {
+                              setIsBulkEditorOpen(true);
+                            }}
+                            data-testid="button-edit-selected-photos"
+                          >
+                            <Wand2 className="h-4 w-4 mr-1" />
+                            {lang === "es" ? "Editar selección" : "Edit selected"} ({selectedPhotoIds.size})
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setBulkSelectionMode(false);
+                              setSelectedPhotoIds(new Set());
+                            }}
+                            data-testid="button-cancel-bulk-selection"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setBulkSelectionMode(true)}
+                            data-testid="button-start-bulk-selection"
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            {lang === "es" ? "Seleccionar" : "Select"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const images = (propertyMedia || []).filter(m => m.type === "image");
+                              if (images.length > 0) {
+                                setEditingPhotoUrl(images[0].url);
+                                setEditingMediaId(images[0].id);
+                              }
+                            }}
+                            data-testid="button-edit-photos"
+                          >
+                            <Wand2 className="h-4 w-4 mr-1" />
+                            {lang === "es" ? "Editar fotos" : "Edit photos"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Compact thumbnail grid */}
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
                     {(propertyMedia || [])
                       .filter(m => m.type === "image")
-                      .map(media => (
-                        <div 
-                          key={media.id}
-                          className="group relative aspect-[4/3] rounded overflow-hidden border bg-muted cursor-pointer hover:ring-2 hover:ring-primary hover:ring-offset-1 transition-all"
-                          onClick={() => {
-                            setEditingPhotoUrl(media.url);
-                            setEditingMediaId(media.id);
-                          }}
-                        >
-                          <img
-                            src={media.url}
-                            alt={media.caption || `Photo ${media.order}`}
-                            className="w-full h-full object-cover"
-                            crossOrigin="anonymous"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Wand2 className="h-5 w-5 text-white drop-shadow-lg" />
-                            </div>
+                      .map(media => {
+                        const isSelected = selectedPhotoIds.has(media.id);
+                        return (
+                          <div 
+                            key={media.id}
+                            className={`group relative aspect-[4/3] rounded overflow-hidden border bg-muted cursor-pointer transition-all ${
+                              bulkSelectionMode && isSelected 
+                                ? "ring-2 ring-primary ring-offset-1" 
+                                : "hover:ring-2 hover:ring-primary hover:ring-offset-1"
+                            }`}
+                            onClick={() => {
+                              if (bulkSelectionMode) {
+                                const newSet = new Set(selectedPhotoIds);
+                                if (isSelected) {
+                                  newSet.delete(media.id);
+                                } else {
+                                  newSet.add(media.id);
+                                }
+                                setSelectedPhotoIds(newSet);
+                              } else {
+                                setEditingPhotoUrl(media.url);
+                                setEditingMediaId(media.id);
+                              }
+                            }}
+                          >
+                            <img
+                              src={media.url}
+                              alt={media.caption || `Photo ${media.order}`}
+                              className="w-full h-full object-cover"
+                              crossOrigin="anonymous"
+                            />
+                            {bulkSelectionMode ? (
+                              <div className={`absolute inset-0 transition-colors flex items-center justify-center ${
+                                isSelected ? "bg-primary/20" : "bg-black/0 group-hover:bg-black/20"
+                              }`}>
+                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                                  isSelected 
+                                    ? "bg-primary border-primary" 
+                                    : "bg-white/80 border-white/80 group-hover:border-primary"
+                                }`}>
+                                  {isSelected && <Check className="h-4 w-4 text-white" />}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Wand2 className="h-5 w-5 text-white drop-shadow-lg" />
+                                </div>
+                              </div>
+                            )}
+                            {media.section && (
+                              <Badge 
+                                variant="secondary" 
+                                className="absolute bottom-1 left-1 text-[9px] px-1 py-0"
+                              >
+                                {media.section}
+                              </Badge>
+                            )}
+                            <span className="absolute top-1 right-1 bg-black/50 text-white text-[9px] px-1 rounded">
+                              {media.order + 1}
+                            </span>
                           </div>
-                          {media.section && (
-                            <Badge 
-                              variant="secondary" 
-                              className="absolute bottom-1 left-1 text-[9px] px-1 py-0"
-                            >
-                              {media.section}
-                            </Badge>
-                          )}
-                          <span className="absolute top-1 right-1 bg-black/50 text-white text-[9px] px-1 rounded">
-                            {media.order + 1}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -2537,6 +2637,59 @@ export default function SellerSocialMedia() {
                 />
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Bulk Photo Editor Dialog */}
+      <Dialog 
+        open={isBulkEditorOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsBulkEditorOpen(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{lang === "es" ? "Editor de Fotos en Lote" : "Bulk Photo Editor"}</DialogTitle>
+            <DialogDescription>{lang === "es" ? "Editar múltiples fotos simultáneamente" : "Edit multiple photos simultaneously"}</DialogDescription>
+          </DialogHeader>
+          {isBulkEditorOpen && propertyMedia && (
+            <BulkPhotoEditor
+              photos={
+                (propertyMedia || [])
+                  .filter(m => m.type === "image" && selectedPhotoIds.has(m.id))
+                  .map(m => ({
+                    id: m.id,
+                    url: m.url,
+                    name: m.caption || `Photo ${m.order + 1}`,
+                  })) as BulkPhoto[]
+              }
+              language={lang}
+              agencyLogo={watermarkConfig?.watermarkImageUrl || watermarkConfig?.agencyLogoUrl}
+              agencyName={watermarkConfig?.watermarkText}
+              onSave={async (processedPhotos) => {
+                for (const photo of processedPhotos) {
+                  const link = document.createElement("a");
+                  link.href = URL.createObjectURL(photo.blob);
+                  link.download = `edited-${photo.id}-${Date.now()}.jpg`;
+                  link.click();
+                  URL.revokeObjectURL(link.href);
+                }
+                toast({
+                  title: lang === "es" ? "Fotos descargadas" : "Photos downloaded",
+                  description: lang === "es" 
+                    ? `${processedPhotos.length} fotos editadas descargadas` 
+                    : `${processedPhotos.length} edited photos downloaded`,
+                });
+              }}
+              onClose={() => {
+                setIsBulkEditorOpen(false);
+                setBulkSelectionMode(false);
+                setSelectedPhotoIds(new Set());
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>
