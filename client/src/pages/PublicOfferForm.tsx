@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Home, CheckCircle2, AlertCircle, Upload, X, ChevronLeft, ChevronRight, Bed, Bath, Maximize2, Sofa, MapPin, ExternalLink, PawPrint } from "lucide-react";
+import { Loader2, Home, CheckCircle2, AlertCircle, Upload, X, ChevronLeft, ChevronRight, Bed, Bath, Maximize2, Sofa, MapPin, ExternalLink, PawPrint, MessageCircle, Copy, Check, Share2 } from "lucide-react";
 import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -142,6 +142,10 @@ const t = {
     submitOffer: "Enviar Oferta",
     clearSignature: "Limpiar firma",
     signatureCaptured: "Firma capturada",
+    shareViaWhatsApp: "Compartir por WhatsApp",
+    copyLink: "Copiar Enlace",
+    linkCopied: "Enlace copiado al portapapeles",
+    shareThisOffer: "Compartir esta oferta",
     
     // Loading and validation states
     validatingLink: "Validando enlace...",
@@ -304,6 +308,10 @@ const t = {
     submitOffer: "Submit Offer",
     clearSignature: "Clear signature",
     signatureCaptured: "Signature captured",
+    shareViaWhatsApp: "Share via WhatsApp",
+    copyLink: "Copy Link",
+    linkCopied: "Link copied to clipboard",
+    shareThisOffer: "Share this offer",
     
     // Loading and validation states
     validatingLink: "Validating link...",
@@ -357,6 +365,7 @@ export default function PublicOfferForm() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const text = language === "es" ? t.es : t.en;
 
@@ -943,6 +952,72 @@ export default function PublicOfferForm() {
     return null;
   };
 
+  // Get the current offer link for sharing
+  const getOfferLink = () => {
+    return window.location.href;
+  };
+
+  // Copy link to clipboard
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(getOfferLink());
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+      toast({
+        title: text.linkCopied,
+      });
+    } catch (err) {
+      toast({
+        title: language === "es" ? "Error al copiar" : "Copy failed",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Generate WhatsApp message for sharing
+  const getWhatsAppShareMessage = () => {
+    const propertyTitle = property?.title || (language === "es" ? "Propiedad en renta" : "Property for rent");
+    const propertyAddress = property?.address || "";
+    const monthlyRent = property?.monthlyRentPrice 
+      ? `$${property.monthlyRentPrice.toLocaleString()}` 
+      : "";
+    const offerLink = getOfferLink();
+    
+    if (language === "es") {
+      return `¡Hola! 👋
+
+Te comparto esta propiedad en renta que te puede interesar:
+
+*${propertyTitle}*
+${propertyAddress ? `📍 ${propertyAddress}` : ""}
+${monthlyRent ? `💰 Renta mensual: ${monthlyRent}` : ""}
+
+Puedes ver todos los detalles y enviar tu oferta aquí:
+${offerLink}
+
+¡Revísalo y me cuentas qué te parece! 😊`;
+    } else {
+      return `Hello! 👋
+
+I'm sharing this rental property that might interest you:
+
+*${propertyTitle}*
+${propertyAddress ? `📍 ${propertyAddress}` : ""}
+${monthlyRent ? `💰 Monthly rent: ${monthlyRent}` : ""}
+
+You can see all the details and submit your offer here:
+${offerLink}
+
+Check it out and let me know what you think! 😊`;
+    }
+  };
+
+  // Open WhatsApp with pre-filled message
+  const openWhatsAppShare = () => {
+    const message = encodeURIComponent(getWhatsAppShareMessage());
+    window.open(`https://wa.me/?text=${message}`, "_blank");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -985,9 +1060,40 @@ export default function PublicOfferForm() {
                 <Home className="h-6 w-6 text-primary" />
                 <CardTitle className="text-2xl">{text.rentalOfferTitle}</CardTitle>
               </div>
-              <LanguageToggle />
+              <div className="flex items-center gap-2">
+                <LanguageToggle />
+              </div>
             </div>
             <CardDescription className="text-lg">{property?.title || text.propertyPhoto}</CardDescription>
+            
+            {/* Share Section */}
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={openWhatsAppShare}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                data-testid="button-share-whatsapp"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                {text.shareViaWhatsApp}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={copyToClipboard}
+                data-testid="button-copy-link"
+              >
+                {copiedLink ? (
+                  <Check className="h-4 w-4 mr-2 text-green-600" />
+                ) : (
+                  <Copy className="h-4 w-4 mr-2" />
+                )}
+                {text.copyLink}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Enhanced Photo Gallery with Navigation */}
