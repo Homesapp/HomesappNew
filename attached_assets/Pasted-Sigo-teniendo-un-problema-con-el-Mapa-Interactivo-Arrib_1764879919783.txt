@@ -1,0 +1,90 @@
+Sigo teniendo un problema con el Mapa Interactivo:
+
+Arriba a la derecha se ve “0 propiedades” y en la barra lateral dice “No se encontraron propiedades”, incluso con todos los filtros reseteados.
+
+Antes de las últimas optimizaciones sí veía ~950 propiedades.
+
+Vi en los logs que detectaste un error en la URL del endpoint:
+
+GET /api/public/map-markers/north=...
+
+
+y lo cambiaste para que fuera:
+
+GET /api/public/map-markers?north=...
+
+
+pero después de ese cambio el mapa sigue mostrando 0 propiedades.
+
+Te pido por favor que revises estos puntos específicos:
+
+Respuesta real del endpoint
+
+Abre las herramientas de dev del navegador (Network) y verifica qué está devolviendo ahora:
+
+La petición a /api/public/map-markers?... devuelve:
+
+¿status 200 con markers: []?
+
+¿algún error 4xx/5xx?
+
+También prueba manualmente en el navegador o Postman una URL de ejemplo, por ejemplo:
+
+/api/public/map-markers?north=20.3&south=20.1&east=-86.7&west=-87.0
+
+
+usando bounds de Tulum, y dime cuántos markers devuelve.
+
+Si la respuesta ya viene vacía (markers: []), entonces el problema está en el backend (filtros demasiado restrictivos o bounds mal interpretados).
+
+Lógica de filtros en el backend del mapa
+
+Revisa el handler de /api/public/map-markers en el servidor:
+
+qué condiciones está usando además de los bounds:
+
+publishToMain = true
+
+publishStatus = 'approved'
+
+isActive = true
+
+agencyId, etc.
+
+Confirma que al menos algunas de mis propiedades cumplen esas condiciones y caen dentro de los bounds del mapa que se envían en la primera carga.
+
+Si ahora el endpoint requiere obligatoriamente north/south/east/west, asegúrate de que:
+
+en la primera carga del mapa se envían bounds válidos,
+
+y que no se esté mandando 0 o undefined (lo que causaría que el backend filtre todo y devuelva 0).
+
+Construcción de la URL en el frontend
+
+En client/src/pages/InteractiveMap.tsx y/o donde uses useQuery para /api/public/map-markers, revisa:
+
+cómo se construye exactamente la URL con los parámetros de bounds y filtros.
+
+que no se esté mezclando el queryKey de React Query con queryClient de forma que termine generando una URL incorrecta (por ejemplo, repitiendo /api/public/map-markers o perdiendo algunos parámetros).
+
+Si hace falta, en vez de confiar en el queryKey genérico, construye explícitamente la URL:
+
+const params = new URLSearchParams({
+  north: bounds.north.toString(),
+  south: bounds.south.toString(),
+  east: bounds.east.toString(),
+  west: bounds.west.toString(),
+  // filtros adicionales...
+});
+fetch(`/api/public/map-markers?${params.toString()}`)
+
+
+Verificación final
+
+Una vez corregido:
+
+confirma cuántos markers devuelve el endpoint para los bounds iniciales de Tulum,
+
+y que el contador de “X propiedades” en el mapa coincida con ese número (o con las propiedades visibles según filtros).
+
+El objetivo es que el mapa vuelva a mostrar las propiedades como antes (alrededor de 900 en total, filtradas por bounds), pero sin perder las optimizaciones de rendimiento que ya hicieron.

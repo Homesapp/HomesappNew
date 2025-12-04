@@ -90,6 +90,9 @@ import OwnerDashboard from "@/pages/OwnerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminProfile from "@/pages/AdminProfile";
 import ClientDashboard from "@/pages/ClientDashboard";
+import ClientHomeDashboard from "@/pages/ClientHomeDashboard";
+import OwnerHomeDashboard from "@/pages/OwnerHomeDashboard";
+import MyApplications from "@/pages/MyApplications";
 import Changelog from "@/pages/Changelog";
 import Notifications from "@/pages/Notifications";
 import Chat from "@/pages/Chat";
@@ -347,9 +350,9 @@ function AuthenticatedApp() {
     // Route based on user role
     switch (userRole) {
       case "cliente":
-        return ClientDashboard;
+        return ClientHomeDashboard;
       case "owner":
-        return OwnerDashboard;
+        return OwnerHomeDashboard;
       case "master":
       case "admin":
       case "admin_jr":
@@ -421,6 +424,8 @@ function AuthenticatedApp() {
               <Route path="/propiedad-externa/:id" component={PublicUnitDetail} />
               <Route path="/propiedad/:id" component={PropertyDetails} />
               <Route path="/favoritos" component={Favorites} />
+              <Route path="/mis-solicitudes" component={MyApplications} />
+              <Route path="/my-applications" component={MyApplications} />
               <Route path="/mis-oportunidades" component={MyOpportunities} />
               <Route path="/rental-offer/:propertyId" component={RentalOfferForm} />
               <Route path="/contract/:contractId" component={ContractView} />
