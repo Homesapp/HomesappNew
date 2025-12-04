@@ -292,6 +292,36 @@ export default function BrokerManagementTab() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const getSourceBadge = (source: string | null | undefined) => {
+    if (source === "seller_invite") {
+      return (
+        <Badge variant="outline" className="text-xs">
+          {language === "es" ? "Referido" : "Referred"}
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="secondary" className="text-xs">
+        {language === "es" ? "Público" : "Public"}
+      </Badge>
+    );
+  };
+
+  const getTermsBadge = (broker: ExternalBroker) => {
+    if (broker.termsAcceptedAt) {
+      return (
+        <Badge variant="default" className="text-xs bg-green-600">
+          {language === "es" ? "Aceptados" : "Accepted"}
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-xs text-muted-foreground">
+        {language === "es" ? "Pendiente" : "Pending"}
+      </Badge>
+    );
+  };
+
   const SortableHeader = ({ field, label }: { field: SortField; label: string }) => (
     <TableHead
       className="cursor-pointer hover-elevate select-none"
@@ -502,6 +532,16 @@ export default function BrokerManagementTab() {
               <span>{language === "es" ? "Comisión:" : "Commission:"} {broker.commissionRate}%</span>
             </div>
 
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              {getSourceBadge(broker.registrationSource)}
+              {getTermsBadge(broker)}
+              {broker.isFreelancer && (
+                <Badge variant="outline" className="text-xs">
+                  Freelancer
+                </Badge>
+              )}
+            </div>
+
             <div className="text-xs text-muted-foreground mt-2">
               {language === "es" ? "Registrado:" : "Registered:"} {formatDate(broker.createdAt)}
             </div>
@@ -641,6 +681,8 @@ export default function BrokerManagementTab() {
                 <SortableHeader field="company" label={language === "es" ? "Empresa" : "Company"} />
                 <TableHead>{language === "es" ? "Contacto" : "Contact"}</TableHead>
                 <SortableHeader field="commissionRate" label={language === "es" ? "Comisión" : "Commission"} />
+                <TableHead>{language === "es" ? "Fuente" : "Source"}</TableHead>
+                <TableHead>{language === "es" ? "Términos" : "Terms"}</TableHead>
                 <SortableHeader field="status" label={language === "es" ? "Estado" : "Status"} />
                 <SortableHeader field="createdAt" label={language === "es" ? "Fecha" : "Date"} />
                 <TableHead className="w-[50px]"></TableHead>
@@ -650,7 +692,14 @@ export default function BrokerManagementTab() {
               {brokers.map((broker) => (
                 <TableRow key={broker.id} data-testid={`row-broker-${broker.id}`}>
                   <TableCell className="font-medium">
-                    {broker.firstName} {broker.lastName}
+                    <div className="flex items-center gap-2">
+                      {broker.firstName} {broker.lastName}
+                      {broker.isFreelancer && (
+                        <Badge variant="outline" className="text-xs">
+                          Freelancer
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{broker.company || "-"}</TableCell>
                   <TableCell>
@@ -679,6 +728,8 @@ export default function BrokerManagementTab() {
                     </div>
                   </TableCell>
                   <TableCell>{broker.commissionRate}%</TableCell>
+                  <TableCell>{getSourceBadge(broker.registrationSource)}</TableCell>
+                  <TableCell>{getTermsBadge(broker)}</TableCell>
                   <TableCell>{getStatusBadge(broker.status)}</TableCell>
                   <TableCell>{formatDate(broker.createdAt)}</TableCell>
                   <TableCell>
