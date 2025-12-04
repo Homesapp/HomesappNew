@@ -5037,6 +5037,8 @@ export const externalAgencies = pgTable("external_agencies", {
 }, (table) => [
   index("idx_external_agencies_active").on(table.isActive),
   index("idx_external_agencies_assigned_user").on(table.assignedToUser),
+  index("idx_external_agencies_created_by").on(table.createdBy),
+  index("idx_external_agencies_created_at").on(table.createdAt),
 ]);
 
 export const insertExternalAgencySchema = createInsertSchema(externalAgencies).omit({
@@ -5059,6 +5061,35 @@ export const insertExternalAgencySchema = createInsertSchema(externalAgencies).o
 
 export type InsertExternalAgency = z.infer<typeof insertExternalAgencySchema>;
 export type ExternalAgency = typeof externalAgencies.$inferSelect;
+
+// Summary type for list views (excludes large fields like logo base64)
+export interface ExternalAgencySummary {
+  id: string;
+  name: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  isActive: boolean;
+  createdBy: string | null;
+  createdAt: Date;
+  propertyCount: number;
+  leadCount: number;
+  contractCount: number;
+  assignedUser: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+}
+
+export interface ExternalAgencyListResponse {
+  agencies: ExternalAgencySummary[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 // External Agency Integrations - Configuraciones de integraciones por agencia
 export const externalAgencyIntegrations = pgTable("external_agency_integrations", {

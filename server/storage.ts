@@ -314,6 +314,8 @@ import {
   externalAgencies,
   type ExternalAgency,
   type InsertExternalAgency,
+  type ExternalAgencySummary,
+  type ExternalAgencyListResponse,
   externalProperties,
   type ExternalProperty,
   type InsertExternalProperty,
@@ -1315,6 +1317,13 @@ export interface IStorage {
   getExternalAgencies(filters?: { isActive?: boolean }): Promise<ExternalAgency[]>;
   getExternalAgenciesByCreator(createdBy: string): Promise<ExternalAgency[]>;
   getExternalAgencyByUser(userId: string): Promise<ExternalAgency | undefined>;
+  getExternalAgenciesSummary(options: { 
+    page?: number; 
+    limit?: number; 
+    isActive?: boolean;
+    createdBy?: string;
+    search?: string;
+  }): Promise<ExternalAgencyListResponse>;
   createExternalAgency(agency: InsertExternalAgency): Promise<ExternalAgency>;
   updateExternalAgency(id: string, updates: Partial<InsertExternalAgency>): Promise<ExternalAgency>;
   toggleExternalAgencyActive(id: string, isActive: boolean): Promise<ExternalAgency>;
@@ -8203,6 +8212,141 @@ export class DatabaseStorage implements IStorage {
         eq(externalAgencies.isActive, true)
       ));
     return result;
+  }
+
+  async getExternalAgenciesSummary(options: {
+    page?: number;
+    limit?: number;
+    isActive?: boolean;
+    createdBy?: string;
+    search?: string;
+  }): Promise<ExternalAgencyListResponse> {
+    const page = options.page || 1;
+    const limit = options.limit || 25;
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL[] = [];
+    
+    if (options.isActive !== undefined) {
+      conditions.push(eq(externalAgencies.isActive, options.isActive));
+    }
+    
+    if (options.createdBy) {
+      conditions.push(eq(externalAgencies.createdBy, options.createdBy));
+    }
+    
+    if (options.search) {
+      conditions.push(
+        or(
+          ilike(externalAgencies.name, `%${options.search}%`),
+          ilike(externalAgencies.contactEmail, `%${options.search}%`),
+          ilike(externalAgencies.contactName, `%${options.search}%`)
+        )!
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [totalResult] = await db.select({ count: count() })
+      .from(externalAgencies)
+      .where(whereClause);
+    
+    const total = totalResult?.count || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    const agenciesData = await db.select({
+      id: externalAgencies.id,
+      name: externalAgencies.name,
+      contactName: externalAgencies.contactName,
+      contactEmail: externalAgencies.contactEmail,
+      contactPhone: externalAgencies.contactPhone,
+      isActive: externalAgencies.isActive,
+      createdBy: externalAgencies.createdBy,
+      createdAt: externalAgencies.createdAt,
+    })
+      .from(externalAgencies)
+      .where(whereClause)
+      .orderBy(desc(externalAgencies.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    if (agenciesData.length === 0) {
+      return {
+        agencies: [],
+        total,
+        page,
+        limit,
+        totalPages,
+      };
+    }
+
+    const agencyIds = agenciesData.map(a => a.id);
+    const userIds = agenciesData.map(a => a.createdBy).filter((id): id is string => id !== null);
+
+    const [propertyCounts, leadCounts, contractCounts, usersData] = await Promise.all([
+      db.select({
+        agencyId: externalProperties.agencyId,
+        count: count(),
+      })
+        .from(externalProperties)
+        .where(inArray(externalProperties.agencyId, agencyIds))
+        .groupBy(externalProperties.agencyId),
+      
+      db.select({
+        agencyId: externalLeads.agencyId,
+        count: count(),
+      })
+        .from(externalLeads)
+        .where(inArray(externalLeads.agencyId, agencyIds))
+        .groupBy(externalLeads.agencyId),
+      
+      db.select({
+        agencyId: externalRentalContracts.agencyId,
+        count: count(),
+      })
+        .from(externalRentalContracts)
+        .where(inArray(externalRentalContracts.agencyId, agencyIds))
+        .groupBy(externalRentalContracts.agencyId),
+      
+      userIds.length > 0 
+        ? db.select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+          })
+          .from(users)
+          .where(inArray(users.id, userIds))
+        : Promise.resolve([]),
+    ]);
+
+    const propertyCountMap = new Map(propertyCounts.map(p => [p.agencyId, p.count]));
+    const leadCountMap = new Map(leadCounts.map(l => [l.agencyId, l.count]));
+    const contractCountMap = new Map(contractCounts.map(c => [c.agencyId, c.count]));
+    const userMap = new Map(usersData.map(u => [u.id, u]));
+
+    const agencies: ExternalAgencySummary[] = agenciesData.map(agency => ({
+      id: agency.id,
+      name: agency.name,
+      contactName: agency.contactName,
+      contactEmail: agency.contactEmail,
+      contactPhone: agency.contactPhone,
+      isActive: agency.isActive,
+      createdBy: agency.createdBy,
+      createdAt: agency.createdAt,
+      propertyCount: propertyCountMap.get(agency.id) || 0,
+      leadCount: leadCountMap.get(agency.id) || 0,
+      contractCount: contractCountMap.get(agency.id) || 0,
+      assignedUser: agency.createdBy ? userMap.get(agency.createdBy) || null : null,
+    }));
+
+    return {
+      agencies,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
   }
 
   async createExternalAgency(agency: InsertExternalAgency): Promise<ExternalAgency> {
