@@ -10269,3 +10269,279 @@ export const insertSellerSocialMediaReminderSchema = createInsertSchema(sellerSo
 });
 export type InsertSellerSocialMediaReminder = z.infer<typeof insertSellerSocialMediaReminderSchema>;
 export type SellerSocialMediaReminder = typeof sellerSocialMediaReminders.$inferSelect;
+
+// ============================================
+// PORTAL 2.0 - ENHANCED TENANT/OWNER PORTAL
+// ============================================
+
+// Payment Frequency Enum
+export const portalPaymentFrequencyEnum = pgEnum("portal_payment_frequency", [
+  "monthly",      // Mensual
+  "bimonthly",    // Bimestral
+  "quarterly",    // Trimestral
+  "eventual",     // Eventual/variable
+]);
+
+// Payment Responsible Party
+export const portalPaymentResponsibleEnum = pgEnum("portal_payment_responsible", [
+  "tenant",       // Inquilino paga
+  "owner",        // Propietario paga
+  "shared",       // Compartido
+  "agency",       // Agencia paga
+]);
+
+// Payment Record Status
+export const portalPaymentRecordStatusEnum = pgEnum("portal_payment_record_status", [
+  "pending",      // Pendiente
+  "paid",         // Pagado (tenant marcó como pagado)
+  "overdue",      // Atrasado
+  "verified",     // Verificado por owner/TRH
+  "rejected",     // Rechazado por owner/TRH
+]);
+
+// Portal Document Type
+export const portalDocumentTypeEnum = pgEnum("portal_document_type", [
+  "contract",         // Contrato principal
+  "annex",            // Anexo
+  "inventory",        // Inventario de muebles
+  "payment_receipt",  // Comprobante de pago
+  "service_bill",     // Recibo de servicio
+  "inspection",       // Reporte de inspección
+  "other",            // Otro
+]);
+
+// Portal Message Type (enhanced)
+export const portalMessageTypeEnum = pgEnum("portal_message_type", [
+  "user",         // Mensaje de usuario (tenant/owner)
+  "system",       // Mensaje automático del sistema
+  "internal",     // Mensaje interno (solo visible para owner/TRH)
+  "assistant",    // Respuesta de IA
+]);
+
+// Maintenance Ticket Category
+export const portalTicketCategoryEnum = pgEnum("portal_ticket_category", [
+  "plumbing",         // Plomería
+  "electrical",       // Electricidad
+  "appliances",       // Electrodomésticos
+  "hvac",             // Aire acondicionado/calefacción
+  "structural",       // Estructural
+  "pest_control",     // Control de plagas
+  "cleaning",         // Limpieza
+  "keys_locks",       // Llaves/cerraduras
+  "other",            // Otro
+]);
+
+// Portal Service Configurations - Enhanced service config per contract
+export const portalServiceConfigs = pgTable("portal_service_configs", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  
+  serviceType: serviceTypeEnum("service_type").notNull(), // rent, electricity, water, internet, gas, hoa, etc.
+  customName: varchar("custom_name", { length: 100 }), // Nombre personalizado (ej. "CFE Zona Norte")
+  providerName: varchar("provider_name", { length: 100 }), // Nombre del proveedor
+  accountNumber: varchar("account_number", { length: 100 }), // Número de cuenta
+  
+  paymentFrequency: portalPaymentFrequencyEnum("payment_frequency").notNull().default("monthly"),
+  responsibleParty: portalPaymentResponsibleEnum("responsible_party").notNull().default("tenant"),
+  
+  expectedAmount: decimal("expected_amount", { precision: 10, scale: 2 }), // Monto esperado
+  currency: varchar("currency", { length: 10 }).default("MXN"),
+  nextDueDate: date("next_due_date"), // Próxima fecha de pago
+  dueDay: integer("due_day"), // Día del mes (1-31)
+  
+  paymentInstructions: text("payment_instructions"),
+  paymentUrl: text("payment_url"),
+  
+  isActive: boolean("is_active").notNull().default(true),
+  showToTenant: boolean("show_to_tenant").notNull().default(true),
+  tenantCanEdit: boolean("tenant_can_edit").notNull().default(false), // Si tenant puede editar algunos campos
+  
+  notes: text("notes"),
+  
+  createdBy: varchar("created_by").references(() => users.id),
+  createdByRole: portalRoleEnum("created_by_role"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_service_configs_agency").on(table.agencyId),
+  index("idx_portal_service_configs_contract").on(table.contractId),
+  index("idx_portal_service_configs_type").on(table.serviceType),
+  index("idx_portal_service_configs_responsible").on(table.responsibleParty),
+]);
+
+export const insertPortalServiceConfigSchema = createInsertSchema(portalServiceConfigs).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertPortalServiceConfig = z.infer<typeof insertPortalServiceConfigSchema>;
+export type PortalServiceConfig = typeof portalServiceConfigs.$inferSelect;
+
+// Portal Payment Records - Detailed payment tracking
+export const portalPaymentRecords = pgTable("portal_payment_records", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  serviceConfigId: varchar("service_config_id").references(() => portalServiceConfigs.id, { onDelete: "set null" }),
+  
+  category: serviceTypeEnum("category").notNull(), // rent, electricity, water, etc.
+  description: varchar("description", { length: 255 }), // Descripción del pago
+  
+  dateDue: date("date_due").notNull(), // Fecha de vencimiento
+  datePaid: timestamp("date_paid"), // Fecha de pago (null = no pagado)
+  
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull().default("MXN"),
+  
+  status: portalPaymentRecordStatusEnum("status").notNull().default("pending"),
+  
+  receiptUrl: text("receipt_url"), // URL del comprobante
+  receiptFileName: varchar("receipt_file_name", { length: 255 }),
+  
+  tenantNotes: text("tenant_notes"), // Notas del inquilino
+  ownerNotes: text("owner_notes"), // Notas del propietario (internas)
+  
+  paidBy: portalRoleEnum("paid_by"), // Quién marcó como pagado
+  paidByTokenId: varchar("paid_by_token_id").references(() => externalPortalAccessTokens.id),
+  
+  verifiedBy: varchar("verified_by").references(() => users.id), // Quién verificó
+  verifiedByRole: portalRoleEnum("verified_by_role"),
+  verifiedAt: timestamp("verified_at"),
+  
+  periodMonth: integer("period_month"), // Mes del periodo (1-12)
+  periodYear: integer("period_year"), // Año del periodo
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_payment_records_agency").on(table.agencyId),
+  index("idx_portal_payment_records_contract").on(table.contractId),
+  index("idx_portal_payment_records_service").on(table.serviceConfigId),
+  index("idx_portal_payment_records_status").on(table.status),
+  index("idx_portal_payment_records_due").on(table.dateDue),
+  index("idx_portal_payment_records_category").on(table.category),
+]);
+
+export const insertPortalPaymentRecordSchema = createInsertSchema(portalPaymentRecords).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertPortalPaymentRecord = z.infer<typeof insertPortalPaymentRecordSchema>;
+export type PortalPaymentRecord = typeof portalPaymentRecords.$inferSelect;
+
+// Portal Documents - Documents associated with contracts
+export const portalDocuments = pgTable("portal_documents", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  paymentRecordId: varchar("payment_record_id").references(() => portalPaymentRecords.id, { onDelete: "set null" }),
+  
+  documentType: portalDocumentTypeEnum("document_type").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  fileUrl: text("file_url").notNull(),
+  fileName: varchar("file_name", { length: 255 }),
+  fileSize: integer("file_size"), // In bytes
+  mimeType: varchar("mime_type", { length: 100 }),
+  
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  uploadedByRole: portalRoleEnum("uploaded_by_role"),
+  uploadedByTokenId: varchar("uploaded_by_token_id").references(() => externalPortalAccessTokens.id),
+  
+  visibleToTenant: boolean("visible_to_tenant").notNull().default(true),
+  visibleToOwner: boolean("visible_to_owner").notNull().default(true),
+  
+  documentDate: date("document_date"), // Fecha del documento
+  expiresAt: timestamp("expires_at"), // Si el documento expira
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_documents_agency").on(table.agencyId),
+  index("idx_portal_documents_contract").on(table.contractId),
+  index("idx_portal_documents_payment").on(table.paymentRecordId),
+  index("idx_portal_documents_type").on(table.documentType),
+]);
+
+export const insertPortalDocumentSchema = createInsertSchema(portalDocuments).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertPortalDocument = z.infer<typeof insertPortalDocumentSchema>;
+export type PortalDocument = typeof portalDocuments.$inferSelect;
+
+// Portal Messages - Enhanced chat with internal messaging
+export const portalMessages = pgTable("portal_messages", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  contractId: varchar("contract_id").notNull().references(() => externalRentalContracts.id, { onDelete: "cascade" }),
+  
+  senderRole: portalRoleEnum("sender_role"), // tenant, owner, or null for system/TRH
+  senderTokenId: varchar("sender_token_id").references(() => externalPortalAccessTokens.id),
+  senderUserId: varchar("sender_user_id").references(() => users.id), // For TRH/admin
+  senderName: varchar("sender_name", { length: 100 }), // Display name
+  
+  messageType: portalMessageTypeEnum("message_type").notNull().default("user"),
+  content: text("content").notNull(),
+  
+  isInternal: boolean("is_internal").notNull().default(false), // Solo visible para owner/TRH
+  
+  attachmentUrl: text("attachment_url"),
+  attachmentName: varchar("attachment_name", { length: 255 }),
+  attachmentType: varchar("attachment_type", { length: 50 }), // image, pdf, etc.
+  
+  relatedEntityType: varchar("related_entity_type", { length: 50 }), // payment, ticket, document
+  relatedEntityId: varchar("related_entity_id"),
+  
+  readByTenant: boolean("read_by_tenant").notNull().default(false),
+  readByOwner: boolean("read_by_owner").notNull().default(false),
+  readByTenantAt: timestamp("read_by_tenant_at"),
+  readByOwnerAt: timestamp("read_by_owner_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_messages_agency").on(table.agencyId),
+  index("idx_portal_messages_contract").on(table.contractId),
+  index("idx_portal_messages_sender_role").on(table.senderRole),
+  index("idx_portal_messages_type").on(table.messageType),
+  index("idx_portal_messages_internal").on(table.isInternal),
+  index("idx_portal_messages_created").on(table.createdAt),
+]);
+
+export const insertPortalMessageSchema = createInsertSchema(portalMessages).omit({
+  id: true, createdAt: true,
+});
+export type InsertPortalMessage = z.infer<typeof insertPortalMessageSchema>;
+export type PortalMessage = typeof portalMessages.$inferSelect;
+
+// Portal Ticket Updates - Timeline for maintenance tickets
+export const portalTicketUpdates = pgTable("portal_ticket_updates", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  ticketId: varchar("ticket_id").notNull().references(() => externalMaintenanceTickets.id, { onDelete: "cascade" }),
+  
+  updateType: varchar("update_type", { length: 50 }).notNull(), // status_change, comment, assignment, photo_added
+  
+  previousStatus: externalTicketStatusEnum("previous_status"),
+  newStatus: externalTicketStatusEnum("new_status"),
+  
+  comment: text("comment"),
+  isInternal: boolean("is_internal").notNull().default(false), // Solo visible para owner/TRH
+  
+  updatedByRole: portalRoleEnum("updated_by_role"),
+  updatedByTokenId: varchar("updated_by_token_id").references(() => externalPortalAccessTokens.id),
+  updatedByUserId: varchar("updated_by_user_id").references(() => users.id),
+  updatedByName: varchar("updated_by_name", { length: 100 }),
+  
+  attachmentUrl: text("attachment_url"),
+  attachmentName: varchar("attachment_name", { length: 255 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_portal_ticket_updates_ticket").on(table.ticketId),
+  index("idx_portal_ticket_updates_type").on(table.updateType),
+  index("idx_portal_ticket_updates_created").on(table.createdAt),
+]);
+
+export const insertPortalTicketUpdateSchema = createInsertSchema(portalTicketUpdates).omit({
+  id: true, createdAt: true,
+});
+export type InsertPortalTicketUpdate = z.infer<typeof insertPortalTicketUpdateSchema>;
+export type PortalTicketUpdate = typeof portalTicketUpdates.$inferSelect;

@@ -683,4 +683,704 @@ export function registerPortalRoutes(
       handleGenericError(res, error);
     }
   });
+
+  // ============================================
+  // PORTAL 2.0 - ENHANCED PORTAL ROUTES
+  // ============================================
+
+  // ----- Service Configurations -----
+  
+  // GET service configs for a contract (portal users)
+  app.get("/api/portal/services", verifyPortalSession, async (req: any, res) => {
+    try {
+      const contractId = req.portalContract.id;
+      const role = req.portalRole;
+      
+      const configs = await storage.getPortalServiceConfigs(contractId, { isActive: true });
+      
+      // Filter based on role - tenants only see services marked showToTenant
+      const filtered = role === 'tenant' 
+        ? configs.filter(c => c.showToTenant)
+        : configs;
+      
+      res.json(filtered);
+    } catch (error: any) {
+      console.error("Error getting portal service configs:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST create service config (owner/admin only)
+  app.post("/api/portal/services", verifyPortalSession, async (req: any, res) => {
+    try {
+      if (req.portalRole === 'tenant') {
+        return res.status(403).json({ message: "Only owners can configure services", message_es: "Solo propietarios pueden configurar servicios" });
+      }
+      
+      const config = await storage.createPortalServiceConfig({
+        ...req.body,
+        agencyId: req.portalAgencyId,
+        contractId: req.portalContract.id,
+        createdByRole: req.portalRole,
+      });
+      
+      res.status(201).json(config);
+    } catch (error: any) {
+      console.error("Error creating portal service config:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PUT update service config
+  app.put("/api/portal/services/:id", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const config = await storage.getPortalServiceConfig(id);
+      
+      if (!config || config.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Service not found", message_es: "Servicio no encontrado" });
+      }
+      
+      // Tenants can only edit if tenantCanEdit is true, and only certain fields
+      if (req.portalRole === 'tenant') {
+        if (!config.tenantCanEdit) {
+          return res.status(403).json({ message: "You cannot edit this service", message_es: "No puedes editar este servicio" });
+        }
+        // Restrict to only certain fields for tenant
+        const { accountNumber, notes } = req.body;
+        const updated = await storage.updatePortalServiceConfig(id, { accountNumber, notes });
+        return res.json(updated);
+      }
+      
+      const updated = await storage.updatePortalServiceConfig(id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating portal service config:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE service config (owner only)
+  app.delete("/api/portal/services/:id", verifyPortalSession, async (req: any, res) => {
+    try {
+      if (req.portalRole === 'tenant') {
+        return res.status(403).json({ message: "Only owners can delete services", message_es: "Solo propietarios pueden eliminar servicios" });
+      }
+      
+      const { id } = req.params;
+      const config = await storage.getPortalServiceConfig(id);
+      
+      if (!config || config.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Service not found", message_es: "Servicio no encontrado" });
+      }
+      
+      await storage.deletePortalServiceConfig(id);
+      res.json({ message: "Service deleted", message_es: "Servicio eliminado" });
+    } catch (error: any) {
+      console.error("Error deleting portal service config:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ----- Payment Records -----
+  
+  // GET payment records for a contract
+  app.get("/api/portal/payments", verifyPortalSession, async (req: any, res) => {
+    try {
+      const contractId = req.portalContract.id;
+      const { status, category, startDate, endDate } = req.query;
+      
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (category) filters.category = category;
+      if (startDate) filters.startDate = new Date(startDate);
+      if (endDate) filters.endDate = new Date(endDate);
+      
+      const records = await storage.getPortalPaymentRecords(contractId, filters);
+      
+      // If tenant, hide owner notes
+      if (req.portalRole === 'tenant') {
+        const sanitized = records.map(r => ({ ...r, ownerNotes: undefined }));
+        return res.json(sanitized);
+      }
+      
+      res.json(records);
+    } catch (error: any) {
+      console.error("Error getting portal payment records:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET payment summary
+  app.get("/api/portal/payments/summary", verifyPortalSession, async (req: any, res) => {
+    try {
+      const contractId = req.portalContract.id;
+      const summary = await storage.getPortalPaymentSummary(contractId);
+      res.json(summary);
+    } catch (error: any) {
+      console.error("Error getting payment summary:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST create payment record (either role can create)
+  app.post("/api/portal/payments", verifyPortalSession, async (req: any, res) => {
+    try {
+      const record = await storage.createPortalPaymentRecord({
+        ...req.body,
+        agencyId: req.portalAgencyId,
+        contractId: req.portalContract.id,
+      });
+      
+      res.status(201).json(record);
+    } catch (error: any) {
+      console.error("Error creating portal payment record:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PUT update payment record
+  app.put("/api/portal/payments/:id", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const record = await storage.getPortalPaymentRecord(id);
+      
+      if (!record || record.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Payment not found", message_es: "Pago no encontrado" });
+      }
+      
+      const updated = await storage.updatePortalPaymentRecord(id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating portal payment record:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST mark payment as paid (tenant action)
+  app.post("/api/portal/payments/:id/mark-paid", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const record = await storage.getPortalPaymentRecord(id);
+      
+      if (!record || record.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Payment not found", message_es: "Pago no encontrado" });
+      }
+      
+      const { receiptUrl, receiptFileName, tenantNotes } = req.body;
+      
+      const updated = await storage.updatePortalPaymentRecord(id, {
+        status: 'paid',
+        datePaid: new Date(),
+        paidBy: req.portalRole,
+        paidByTokenId: req.portalToken.id,
+        receiptUrl,
+        receiptFileName,
+        tenantNotes,
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error marking payment as paid:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST verify payment (owner action)
+  app.post("/api/portal/payments/:id/verify", verifyPortalSession, async (req: any, res) => {
+    try {
+      if (req.portalRole === 'tenant') {
+        return res.status(403).json({ message: "Only owners can verify payments", message_es: "Solo propietarios pueden verificar pagos" });
+      }
+      
+      const { id } = req.params;
+      const record = await storage.getPortalPaymentRecord(id);
+      
+      if (!record || record.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Payment not found", message_es: "Pago no encontrado" });
+      }
+      
+      const { ownerNotes } = req.body;
+      
+      const updated = await storage.updatePortalPaymentRecord(id, {
+        status: 'verified',
+        verifiedByRole: 'owner',
+        verifiedAt: new Date(),
+        ownerNotes,
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error verifying payment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST reject payment (owner action)
+  app.post("/api/portal/payments/:id/reject", verifyPortalSession, async (req: any, res) => {
+    try {
+      if (req.portalRole === 'tenant') {
+        return res.status(403).json({ message: "Only owners can reject payments", message_es: "Solo propietarios pueden rechazar pagos" });
+      }
+      
+      const { id } = req.params;
+      const record = await storage.getPortalPaymentRecord(id);
+      
+      if (!record || record.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Payment not found", message_es: "Pago no encontrado" });
+      }
+      
+      const { ownerNotes } = req.body;
+      
+      const updated = await storage.updatePortalPaymentRecord(id, {
+        status: 'rejected',
+        verifiedByRole: 'owner',
+        verifiedAt: new Date(),
+        ownerNotes,
+      });
+      
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error rejecting payment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ----- Documents -----
+  
+  // GET documents for a contract
+  app.get("/api/portal/documents", verifyPortalSession, async (req: any, res) => {
+    try {
+      const contractId = req.portalContract.id;
+      const { documentType } = req.query;
+      
+      const filters: any = {};
+      if (documentType) filters.documentType = documentType;
+      
+      // Filter by visibility based on role
+      if (req.portalRole === 'tenant') {
+        filters.visibleToTenant = true;
+      } else {
+        filters.visibleToOwner = true;
+      }
+      
+      const documents = await storage.getPortalDocuments(contractId, filters);
+      res.json(documents);
+    } catch (error: any) {
+      console.error("Error getting portal documents:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST upload document
+  app.post("/api/portal/documents", verifyPortalSession, async (req: any, res) => {
+    try {
+      const document = await storage.createPortalDocument({
+        ...req.body,
+        agencyId: req.portalAgencyId,
+        contractId: req.portalContract.id,
+        uploadedByRole: req.portalRole,
+        uploadedByTokenId: req.portalToken.id,
+      });
+      
+      res.status(201).json(document);
+    } catch (error: any) {
+      console.error("Error creating portal document:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PUT update document
+  app.put("/api/portal/documents/:id", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const document = await storage.getPortalDocument(id);
+      
+      if (!document || document.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Document not found", message_es: "Documento no encontrado" });
+      }
+      
+      // Only owner or uploader can edit
+      if (req.portalRole === 'tenant' && document.uploadedByTokenId !== req.portalToken.id) {
+        return res.status(403).json({ message: "You cannot edit this document", message_es: "No puedes editar este documento" });
+      }
+      
+      const updated = await storage.updatePortalDocument(id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating portal document:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // DELETE document
+  app.delete("/api/portal/documents/:id", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const document = await storage.getPortalDocument(id);
+      
+      if (!document || document.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Document not found", message_es: "Documento no encontrado" });
+      }
+      
+      // Only owner or uploader can delete
+      if (req.portalRole === 'tenant' && document.uploadedByTokenId !== req.portalToken.id) {
+        return res.status(403).json({ message: "You cannot delete this document", message_es: "No puedes eliminar este documento" });
+      }
+      
+      await storage.deletePortalDocument(id);
+      res.json({ message: "Document deleted", message_es: "Documento eliminado" });
+    } catch (error: any) {
+      console.error("Error deleting portal document:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ----- Enhanced Messages -----
+  
+  // GET messages for a contract
+  app.get("/api/portal/messages", verifyPortalSession, async (req: any, res) => {
+    try {
+      const contractId = req.portalContract.id;
+      const { messageType } = req.query;
+      
+      const filters: any = {};
+      if (messageType) filters.messageType = messageType;
+      
+      // Tenants cannot see internal messages
+      if (req.portalRole === 'tenant') {
+        filters.isInternal = false;
+      }
+      
+      const messages = await storage.getPortalMessages(contractId, filters);
+      
+      // Mark as read
+      await storage.markPortalMessagesAsRead(contractId, req.portalRole);
+      
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error getting portal messages:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET unread count
+  app.get("/api/portal/messages/unread", verifyPortalSession, async (req: any, res) => {
+    try {
+      const contractId = req.portalContract.id;
+      const count = await storage.getPortalUnreadCount(contractId, req.portalRole);
+      res.json({ unread: count });
+    } catch (error: any) {
+      console.error("Error getting unread count:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST send message
+  app.post("/api/portal/messages", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { content, isInternal, attachmentUrl, attachmentName, attachmentType, relatedEntityType, relatedEntityId } = req.body;
+      
+      // Tenants cannot send internal messages
+      if (req.portalRole === 'tenant' && isInternal) {
+        return res.status(403).json({ message: "Tenants cannot send internal messages", message_es: "Inquilinos no pueden enviar mensajes internos" });
+      }
+      
+      const message = await storage.createPortalMessage({
+        agencyId: req.portalAgencyId,
+        contractId: req.portalContract.id,
+        senderRole: req.portalRole,
+        senderTokenId: req.portalToken.id,
+        senderName: req.portalRole === 'tenant' ? req.portalContract.tenantName : req.portalContract.ownerName,
+        messageType: 'user',
+        content,
+        isInternal: isInternal || false,
+        attachmentUrl,
+        attachmentName,
+        attachmentType,
+        relatedEntityType,
+        relatedEntityId,
+        // Messages from sender are marked as read by sender
+        readByTenant: req.portalRole === 'tenant',
+        readByOwner: req.portalRole === 'owner',
+      });
+      
+      res.status(201).json(message);
+    } catch (error: any) {
+      console.error("Error creating portal message:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ----- Ticket Updates -----
+  
+  // GET ticket updates/timeline
+  app.get("/api/portal/tickets/:ticketId/updates", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      
+      // Verify ticket belongs to this contract
+      const ticket = await storage.getExternalMaintenanceTicket(ticketId);
+      if (!ticket || ticket.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Ticket not found", message_es: "Ticket no encontrado" });
+      }
+      
+      const filters: any = {};
+      // Tenants cannot see internal updates
+      if (req.portalRole === 'tenant') {
+        filters.isInternal = false;
+      }
+      
+      const updates = await storage.getPortalTicketUpdates(ticketId, filters);
+      res.json(updates);
+    } catch (error: any) {
+      console.error("Error getting ticket updates:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST add ticket update/comment
+  app.post("/api/portal/tickets/:ticketId/updates", verifyPortalSession, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const { updateType, comment, isInternal, attachmentUrl, attachmentName, newStatus } = req.body;
+      
+      // Verify ticket belongs to this contract
+      const ticket = await storage.getExternalMaintenanceTicket(ticketId);
+      if (!ticket || ticket.contractId !== req.portalContract.id) {
+        return res.status(404).json({ message: "Ticket not found", message_es: "Ticket no encontrado" });
+      }
+      
+      // Tenants cannot add internal updates
+      if (req.portalRole === 'tenant' && isInternal) {
+        return res.status(403).json({ message: "Tenants cannot add internal updates", message_es: "Inquilinos no pueden agregar actualizaciones internas" });
+      }
+      
+      const update = await storage.createPortalTicketUpdate({
+        ticketId,
+        updateType: updateType || 'comment',
+        comment,
+        isInternal: isInternal || false,
+        updatedByRole: req.portalRole,
+        updatedByTokenId: req.portalToken.id,
+        updatedByName: req.portalRole === 'tenant' ? req.portalContract.tenantName : req.portalContract.ownerName,
+        previousStatus: ticket.status,
+        newStatus,
+        attachmentUrl,
+        attachmentName,
+      });
+      
+      // If status change requested, update the ticket
+      if (newStatus && newStatus !== ticket.status) {
+        await storage.updateExternalMaintenanceTicket(ticketId, { status: newStatus });
+      }
+      
+      res.status(201).json(update);
+    } catch (error: any) {
+      console.error("Error creating ticket update:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // ----- Admin Routes for Portal 2.0 -----
+
+  // GET service configs for admin (by contract)
+  app.get("/api/external/contracts/:contractId/services", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const contract = await storage.getExternalRentalContract(contractId);
+      if (!contract || contract.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      const configs = await storage.getPortalServiceConfigs(contractId);
+      res.json(configs);
+    } catch (error: any) {
+      console.error("Error getting service configs:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST create service config (admin)
+  app.post("/api/external/contracts/:contractId/services", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const contract = await storage.getExternalRentalContract(contractId);
+      if (!contract || contract.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      const config = await storage.createPortalServiceConfig({
+        ...req.body,
+        agencyId,
+        contractId,
+        createdBy: req.user.id,
+      });
+      
+      await createAuditLog(req, "create", "portal_service_config", config.id, `Created service config: ${config.serviceType}`);
+      res.status(201).json(config);
+    } catch (error: any) {
+      console.error("Error creating service config:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET payment records for admin (by contract)
+  app.get("/api/external/contracts/:contractId/payments", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const contract = await storage.getExternalRentalContract(contractId);
+      if (!contract || contract.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      const { status, category } = req.query;
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (category) filters.category = category;
+      
+      const records = await storage.getPortalPaymentRecords(contractId, filters);
+      res.json(records);
+    } catch (error: any) {
+      console.error("Error getting payment records:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST create payment record (admin)
+  app.post("/api/external/contracts/:contractId/payments", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const contract = await storage.getExternalRentalContract(contractId);
+      if (!contract || contract.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      const record = await storage.createPortalPaymentRecord({
+        ...req.body,
+        agencyId,
+        contractId,
+      });
+      
+      await createAuditLog(req, "create", "portal_payment_record", record.id, `Created payment record: ${record.category}`);
+      res.status(201).json(record);
+    } catch (error: any) {
+      console.error("Error creating payment record:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // PUT verify payment (admin)
+  app.put("/api/external/payments/:id/verify", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const record = await storage.getPortalPaymentRecord(id);
+      if (!record || record.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      
+      const updated = await storage.updatePortalPaymentRecord(id, {
+        status: 'verified',
+        verifiedBy: req.user.id,
+        verifiedAt: new Date(),
+        ownerNotes: req.body.ownerNotes,
+      });
+      
+      await createAuditLog(req, "update", "portal_payment_record", id, `Verified payment record`);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error verifying payment:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // GET messages for admin (by contract)
+  app.get("/api/external/contracts/:contractId/messages", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const contract = await storage.getExternalRentalContract(contractId);
+      if (!contract || contract.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      const messages = await storage.getPortalMessages(contractId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Error getting messages:", error);
+      handleGenericError(res, error);
+    }
+  });
+
+  // POST send message as admin
+  app.post("/api/external/contracts/:contractId/messages", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const agencyId = await getUserAgencyId(req);
+      
+      if (!agencyId) {
+        return res.status(403).json({ message: "User is not assigned to any agency" });
+      }
+      
+      const contract = await storage.getExternalRentalContract(contractId);
+      if (!contract || contract.agencyId !== agencyId) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      const { content, isInternal, attachmentUrl, attachmentName, attachmentType } = req.body;
+      
+      const message = await storage.createPortalMessage({
+        agencyId,
+        contractId,
+        senderUserId: req.user.id,
+        senderName: req.user.name || req.user.email,
+        messageType: 'user',
+        content,
+        isInternal: isInternal || false,
+        attachmentUrl,
+        attachmentName,
+        attachmentType,
+      });
+      
+      res.status(201).json(message);
+    } catch (error: any) {
+      console.error("Error creating message:", error);
+      handleGenericError(res, error);
+    }
+  });
 }

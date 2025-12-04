@@ -515,6 +515,21 @@ import {
   externalSellerCommissionOverrides,
   type ExternalSellerCommissionOverride,
   type InsertExternalSellerCommissionOverride,
+  portalServiceConfigs,
+  type PortalServiceConfig,
+  type InsertPortalServiceConfig,
+  portalPaymentRecords,
+  type PortalPaymentRecord,
+  type InsertPortalPaymentRecord,
+  portalDocuments,
+  type PortalDocument,
+  type InsertPortalDocument,
+  portalMessages,
+  type PortalMessage,
+  type InsertPortalMessage,
+  portalTicketUpdates,
+  type PortalTicketUpdate,
+  type InsertPortalTicketUpdate,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray, ne } from "drizzle-orm";
@@ -1796,6 +1811,39 @@ export interface IStorage {
   // Portal Access System - Chat Messages
   getExternalPortalChatMessages(contractId: string, role: string): Promise<ExternalPortalChatMessage[]>;
   createExternalPortalChatMessage(message: InsertExternalPortalChatMessage): Promise<ExternalPortalChatMessage>;
+
+  // Portal 2.0 - Service Configurations
+  getPortalServiceConfigs(contractId: string, filters?: { isActive?: boolean; responsibleParty?: string }): Promise<PortalServiceConfig[]>;
+  getPortalServiceConfig(id: string): Promise<PortalServiceConfig | undefined>;
+  createPortalServiceConfig(config: InsertPortalServiceConfig): Promise<PortalServiceConfig>;
+  updatePortalServiceConfig(id: string, updates: Partial<InsertPortalServiceConfig>): Promise<PortalServiceConfig>;
+  deletePortalServiceConfig(id: string): Promise<void>;
+
+  // Portal 2.0 - Payment Records
+  getPortalPaymentRecords(contractId: string, filters?: { status?: string; category?: string; startDate?: Date; endDate?: Date }): Promise<PortalPaymentRecord[]>;
+  getPortalPaymentRecord(id: string): Promise<PortalPaymentRecord | undefined>;
+  createPortalPaymentRecord(record: InsertPortalPaymentRecord): Promise<PortalPaymentRecord>;
+  updatePortalPaymentRecord(id: string, updates: Partial<InsertPortalPaymentRecord>): Promise<PortalPaymentRecord>;
+  deletePortalPaymentRecord(id: string): Promise<void>;
+  getPortalPaymentSummary(contractId: string): Promise<{ pending: number; paid: number; overdue: number; verified: number }>;
+
+  // Portal 2.0 - Documents
+  getPortalDocuments(contractId: string, filters?: { documentType?: string; visibleToTenant?: boolean; visibleToOwner?: boolean }): Promise<PortalDocument[]>;
+  getPortalDocument(id: string): Promise<PortalDocument | undefined>;
+  createPortalDocument(doc: InsertPortalDocument): Promise<PortalDocument>;
+  updatePortalDocument(id: string, updates: Partial<InsertPortalDocument>): Promise<PortalDocument>;
+  deletePortalDocument(id: string): Promise<void>;
+
+  // Portal 2.0 - Messages (enhanced with internal flag)
+  getPortalMessages(contractId: string, filters?: { isInternal?: boolean; messageType?: string; unreadOnly?: boolean }): Promise<PortalMessage[]>;
+  getPortalMessage(id: string): Promise<PortalMessage | undefined>;
+  createPortalMessage(message: InsertPortalMessage): Promise<PortalMessage>;
+  markPortalMessagesAsRead(contractId: string, role: 'tenant' | 'owner'): Promise<void>;
+  getPortalUnreadCount(contractId: string, role: 'tenant' | 'owner'): Promise<number>;
+
+  // Portal 2.0 - Ticket Updates
+  getPortalTicketUpdates(ticketId: string, filters?: { isInternal?: boolean }): Promise<PortalTicketUpdate[]>;
+  createPortalTicketUpdate(update: InsertPortalTicketUpdate): Promise<PortalTicketUpdate>;
 
   // Public Chatbot Conversations
   getPublicChatbotConversation(id: string): Promise<PublicChatbotConversation | undefined>;
@@ -12895,6 +12943,272 @@ export class DatabaseStorage implements IStorage {
     const [result] = await db
       .insert(externalPortalChatMessages)
       .values(message)
+      .returning();
+    return result;
+  }
+
+  // Portal 2.0 - Service Configurations
+  async getPortalServiceConfigs(contractId: string, filters?: { isActive?: boolean; responsibleParty?: string }): Promise<PortalServiceConfig[]> {
+    const conditions: SQL[] = [eq(portalServiceConfigs.contractId, contractId)];
+    
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(portalServiceConfigs.isActive, filters.isActive));
+    }
+    if (filters?.responsibleParty) {
+      conditions.push(eq(portalServiceConfigs.responsibleParty, filters.responsibleParty as any));
+    }
+    
+    return await db
+      .select()
+      .from(portalServiceConfigs)
+      .where(and(...conditions))
+      .orderBy(asc(portalServiceConfigs.serviceType));
+  }
+
+  async getPortalServiceConfig(id: string): Promise<PortalServiceConfig | undefined> {
+    const [result] = await db
+      .select()
+      .from(portalServiceConfigs)
+      .where(eq(portalServiceConfigs.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async createPortalServiceConfig(config: InsertPortalServiceConfig): Promise<PortalServiceConfig> {
+    const [result] = await db
+      .insert(portalServiceConfigs)
+      .values(config)
+      .returning();
+    return result;
+  }
+
+  async updatePortalServiceConfig(id: string, updates: Partial<InsertPortalServiceConfig>): Promise<PortalServiceConfig> {
+    const [result] = await db
+      .update(portalServiceConfigs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(portalServiceConfigs.id, id))
+      .returning();
+    return result;
+  }
+
+  async deletePortalServiceConfig(id: string): Promise<void> {
+    await db.delete(portalServiceConfigs).where(eq(portalServiceConfigs.id, id));
+  }
+
+  // Portal 2.0 - Payment Records
+  async getPortalPaymentRecords(contractId: string, filters?: { status?: string; category?: string; startDate?: Date; endDate?: Date }): Promise<PortalPaymentRecord[]> {
+    const conditions: SQL[] = [eq(portalPaymentRecords.contractId, contractId)];
+    
+    if (filters?.status) {
+      conditions.push(eq(portalPaymentRecords.status, filters.status as any));
+    }
+    if (filters?.category) {
+      conditions.push(eq(portalPaymentRecords.category, filters.category as any));
+    }
+    if (filters?.startDate) {
+      conditions.push(gte(portalPaymentRecords.dateDue, filters.startDate.toISOString().split('T')[0]));
+    }
+    if (filters?.endDate) {
+      conditions.push(lte(portalPaymentRecords.dateDue, filters.endDate.toISOString().split('T')[0]));
+    }
+    
+    return await db
+      .select()
+      .from(portalPaymentRecords)
+      .where(and(...conditions))
+      .orderBy(desc(portalPaymentRecords.dateDue));
+  }
+
+  async getPortalPaymentRecord(id: string): Promise<PortalPaymentRecord | undefined> {
+    const [result] = await db
+      .select()
+      .from(portalPaymentRecords)
+      .where(eq(portalPaymentRecords.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async createPortalPaymentRecord(record: InsertPortalPaymentRecord): Promise<PortalPaymentRecord> {
+    const [result] = await db
+      .insert(portalPaymentRecords)
+      .values(record)
+      .returning();
+    return result;
+  }
+
+  async updatePortalPaymentRecord(id: string, updates: Partial<InsertPortalPaymentRecord>): Promise<PortalPaymentRecord> {
+    const [result] = await db
+      .update(portalPaymentRecords)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(portalPaymentRecords.id, id))
+      .returning();
+    return result;
+  }
+
+  async deletePortalPaymentRecord(id: string): Promise<void> {
+    await db.delete(portalPaymentRecords).where(eq(portalPaymentRecords.id, id));
+  }
+
+  async getPortalPaymentSummary(contractId: string): Promise<{ pending: number; paid: number; overdue: number; verified: number }> {
+    const records = await db
+      .select({ status: portalPaymentRecords.status })
+      .from(portalPaymentRecords)
+      .where(eq(portalPaymentRecords.contractId, contractId));
+    
+    const summary = { pending: 0, paid: 0, overdue: 0, verified: 0 };
+    records.forEach(r => {
+      if (r.status === 'pending') summary.pending++;
+      else if (r.status === 'paid') summary.paid++;
+      else if (r.status === 'overdue') summary.overdue++;
+      else if (r.status === 'verified') summary.verified++;
+    });
+    return summary;
+  }
+
+  // Portal 2.0 - Documents
+  async getPortalDocuments(contractId: string, filters?: { documentType?: string; visibleToTenant?: boolean; visibleToOwner?: boolean }): Promise<PortalDocument[]> {
+    const conditions: SQL[] = [eq(portalDocuments.contractId, contractId)];
+    
+    if (filters?.documentType) {
+      conditions.push(eq(portalDocuments.documentType, filters.documentType as any));
+    }
+    if (filters?.visibleToTenant !== undefined) {
+      conditions.push(eq(portalDocuments.visibleToTenant, filters.visibleToTenant));
+    }
+    if (filters?.visibleToOwner !== undefined) {
+      conditions.push(eq(portalDocuments.visibleToOwner, filters.visibleToOwner));
+    }
+    
+    return await db
+      .select()
+      .from(portalDocuments)
+      .where(and(...conditions))
+      .orderBy(desc(portalDocuments.createdAt));
+  }
+
+  async getPortalDocument(id: string): Promise<PortalDocument | undefined> {
+    const [result] = await db
+      .select()
+      .from(portalDocuments)
+      .where(eq(portalDocuments.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async createPortalDocument(doc: InsertPortalDocument): Promise<PortalDocument> {
+    const [result] = await db
+      .insert(portalDocuments)
+      .values(doc)
+      .returning();
+    return result;
+  }
+
+  async updatePortalDocument(id: string, updates: Partial<InsertPortalDocument>): Promise<PortalDocument> {
+    const [result] = await db
+      .update(portalDocuments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(portalDocuments.id, id))
+      .returning();
+    return result;
+  }
+
+  async deletePortalDocument(id: string): Promise<void> {
+    await db.delete(portalDocuments).where(eq(portalDocuments.id, id));
+  }
+
+  // Portal 2.0 - Messages (enhanced with internal flag)
+  async getPortalMessages(contractId: string, filters?: { isInternal?: boolean; messageType?: string; unreadOnly?: boolean }): Promise<PortalMessage[]> {
+    const conditions: SQL[] = [eq(portalMessages.contractId, contractId)];
+    
+    if (filters?.isInternal !== undefined) {
+      conditions.push(eq(portalMessages.isInternal, filters.isInternal));
+    }
+    if (filters?.messageType) {
+      conditions.push(eq(portalMessages.messageType, filters.messageType as any));
+    }
+    
+    return await db
+      .select()
+      .from(portalMessages)
+      .where(and(...conditions))
+      .orderBy(asc(portalMessages.createdAt));
+  }
+
+  async getPortalMessage(id: string): Promise<PortalMessage | undefined> {
+    const [result] = await db
+      .select()
+      .from(portalMessages)
+      .where(eq(portalMessages.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async createPortalMessage(message: InsertPortalMessage): Promise<PortalMessage> {
+    const [result] = await db
+      .insert(portalMessages)
+      .values(message)
+      .returning();
+    return result;
+  }
+
+  async markPortalMessagesAsRead(contractId: string, role: 'tenant' | 'owner'): Promise<void> {
+    if (role === 'tenant') {
+      await db
+        .update(portalMessages)
+        .set({ readByTenant: true, readByTenantAt: new Date() })
+        .where(and(
+          eq(portalMessages.contractId, contractId),
+          eq(portalMessages.readByTenant, false),
+          eq(portalMessages.isInternal, false) // Tenants can't see internal messages
+        ));
+    } else {
+      await db
+        .update(portalMessages)
+        .set({ readByOwner: true, readByOwnerAt: new Date() })
+        .where(and(
+          eq(portalMessages.contractId, contractId),
+          eq(portalMessages.readByOwner, false)
+        ));
+    }
+  }
+
+  async getPortalUnreadCount(contractId: string, role: 'tenant' | 'owner'): Promise<number> {
+    const conditions: SQL[] = [eq(portalMessages.contractId, contractId)];
+    
+    if (role === 'tenant') {
+      conditions.push(eq(portalMessages.readByTenant, false));
+      conditions.push(eq(portalMessages.isInternal, false)); // Tenants can't see internal
+    } else {
+      conditions.push(eq(portalMessages.readByOwner, false));
+    }
+    
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(portalMessages)
+      .where(and(...conditions));
+    
+    return Number(result?.count) || 0;
+  }
+
+  // Portal 2.0 - Ticket Updates
+  async getPortalTicketUpdates(ticketId: string, filters?: { isInternal?: boolean }): Promise<PortalTicketUpdate[]> {
+    const conditions: SQL[] = [eq(portalTicketUpdates.ticketId, ticketId)];
+    
+    if (filters?.isInternal !== undefined) {
+      conditions.push(eq(portalTicketUpdates.isInternal, filters.isInternal));
+    }
+    
+    return await db
+      .select()
+      .from(portalTicketUpdates)
+      .where(and(...conditions))
+      .orderBy(asc(portalTicketUpdates.createdAt));
+  }
+
+  async createPortalTicketUpdate(update: InsertPortalTicketUpdate): Promise<PortalTicketUpdate> {
+    const [result] = await db
+      .insert(portalTicketUpdates)
+      .values(update)
       .returning();
     return result;
   }

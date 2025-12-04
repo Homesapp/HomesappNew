@@ -113,6 +113,79 @@ interface ChatMessage {
   isAi?: boolean;
 }
 
+// Portal 2.0 Interfaces
+interface PortalPaymentRecord {
+  id: string;
+  contractId: string;
+  category: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  dueDate: string;
+  datePaid?: string;
+  status: string;
+  paidBy?: string;
+  receiptUrl?: string;
+  receiptFileName?: string;
+  tenantNotes?: string;
+  ownerNotes?: string;
+  verifiedAt?: string;
+  createdAt: string;
+}
+
+interface PortalPaymentSummary {
+  totalDue: number;
+  totalPaid: number;
+  totalVerified: number;
+  pendingCount: number;
+  overdueCount: number;
+  currency: string;
+}
+
+interface PortalServiceConfig {
+  id: string;
+  contractId: string;
+  serviceType: string;
+  provider?: string;
+  accountNumber?: string;
+  monthlyEstimate?: number;
+  paymentResponsibility: string;
+  notes?: string;
+  showToTenant: boolean;
+  tenantCanEdit: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface PortalDocument {
+  id: string;
+  contractId: string;
+  documentType: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize?: number;
+  description?: string;
+  uploadedByRole: string;
+  visibleToTenant: boolean;
+  visibleToOwner: boolean;
+  createdAt: string;
+}
+
+interface PortalMessage {
+  id: string;
+  contractId: string;
+  senderRole?: string;
+  senderName?: string;
+  messageType: string;
+  content: string;
+  isInternal: boolean;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  readByTenant: boolean;
+  readByOwner: boolean;
+  createdAt: string;
+}
+
 interface FinancialSummary {
   totalRevenue: number;
   pendingPayments: number;
@@ -210,6 +283,44 @@ export default function OwnerPortal() {
     enabled: !!session && activeTab === "support",
   });
 
+  // Portal 2.0 Queries
+  const { data: portalPayments = [], isLoading: portalPaymentsLoading } = useQuery<PortalPaymentRecord[]>({
+    queryKey: ["/api/portal/payments"],
+    queryFn: () => get("/api/portal/payments"),
+    enabled: !!session,
+  });
+
+  const { data: paymentSummary } = useQuery<PortalPaymentSummary>({
+    queryKey: ["/api/portal/payments/summary"],
+    queryFn: () => get("/api/portal/payments/summary"),
+    enabled: !!session,
+  });
+
+  const { data: portalServices = [], isLoading: portalServicesLoading } = useQuery<PortalServiceConfig[]>({
+    queryKey: ["/api/portal/services"],
+    queryFn: () => get("/api/portal/services"),
+    enabled: !!session,
+  });
+
+  const { data: portalDocuments = [], isLoading: portalDocumentsLoading } = useQuery<PortalDocument[]>({
+    queryKey: ["/api/portal/documents"],
+    queryFn: () => get("/api/portal/documents"),
+    enabled: !!session && activeTab === "documents",
+  });
+
+  const { data: portalMessages = [], isLoading: portalMessagesLoading } = useQuery<PortalMessage[]>({
+    queryKey: ["/api/portal/messages"],
+    queryFn: () => get("/api/portal/messages"),
+    enabled: !!session && activeTab === "support",
+  });
+
+  const { data: unreadCount } = useQuery<{ unread: number }>({
+    queryKey: ["/api/portal/messages/unread"],
+    queryFn: () => get("/api/portal/messages/unread"),
+    enabled: !!session,
+    refetchInterval: 30000,
+  });
+
   const confirmReceiptMutation = useMutation({
     mutationFn: (receiptId: number) => put(`/api/portal/owner/receipts/${receiptId}/confirm`),
     onSuccess: () => {
@@ -257,6 +368,33 @@ export default function OwnerPortal() {
     },
   });
 
+  // Portal 2.0 Mutations
+  const verifyPaymentMutation = useMutation({
+    mutationFn: ({ id, ownerNotes }: { id: string; ownerNotes?: string }) => 
+      post(`/api/portal/payments/${id}/verify`, { ownerNotes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/portal/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portal/payments/summary"] });
+      toast({ title: t("owner.paymentVerified", "Payment verified successfully") });
+    },
+    onError: (error: Error) => {
+      toast({ title: t("common.error", "Error"), description: error.message, variant: "destructive" });
+    },
+  });
+
+  const rejectPaymentMutation = useMutation({
+    mutationFn: ({ id, ownerNotes }: { id: string; ownerNotes?: string }) => 
+      post(`/api/portal/payments/${id}/reject`, { ownerNotes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/portal/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portal/payments/summary"] });
+      toast({ title: t("owner.paymentRejected", "Payment rejected") });
+    },
+    onError: (error: Error) => {
+      toast({ title: t("common.error", "Error"), description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleSendChat = async () => {
     if (!chatInput.trim()) return;
 
@@ -286,13 +424,31 @@ export default function OwnerPortal() {
       in_progress: { variant: "default", icon: Wrench },
       resolved: { variant: "default", icon: CheckCircle2 },
       active: { variant: "default", icon: CheckCircle2 },
+      // Portal 2.0 payment statuses
+      paid: { variant: "default", icon: CheckCircle2 },
+      verified: { variant: "default", icon: Check },
+      overdue: { variant: "destructive", icon: AlertCircle },
     };
     const config = variants[status] || { variant: "outline", icon: Info };
     const Icon = config.icon;
+    
+    // Custom labels for payment statuses
+    const labels: Record<string, string> = {
+      pending: t("status.pending", "Pending"),
+      paid: t("status.paid", "Paid"),
+      verified: t("status.verified", "Verified"),
+      rejected: t("status.rejected", "Rejected"),
+      overdue: t("status.overdue", "Overdue"),
+      open: t("status.open", "Open"),
+      in_progress: t("status.inProgress", "In Progress"),
+      resolved: t("status.resolved", "Resolved"),
+      active: t("status.active", "Active"),
+    };
+    
     return (
       <Badge variant={config.variant} className="gap-1">
         <Icon className="h-3 w-3" />
-        {status.replace("_", " ")}
+        {labels[status] || status.replace("_", " ")}
       </Badge>
     );
   };
@@ -521,6 +677,40 @@ export default function OwnerPortal() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Portal 2.0 Payment Summary */}
+              {paymentSummary && (
+                <Card className="lg:col-span-4">
+                  <CardHeader>
+                    <CardTitle>{t("owner.paymentSummary", "Payment Summary")}</CardTitle>
+                    <CardDescription>{t("owner.paymentSummaryDesc", "Overview of payment activity")}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 md:grid-cols-5">
+                      <div className="text-center p-3 rounded-lg bg-muted/50">
+                        <p className="text-2xl font-bold">{paymentSummary.currency} ${paymentSummary.totalDue.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{t("owner.totalDue", "Total Due")}</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-green-500/10">
+                        <p className="text-2xl font-bold text-green-600">{paymentSummary.currency} ${paymentSummary.totalPaid.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{t("owner.totalPaid", "Paid")}</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-primary/10">
+                        <p className="text-2xl font-bold text-primary">{paymentSummary.currency} ${paymentSummary.totalVerified.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{t("owner.totalVerified", "Verified")}</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-yellow-500/10">
+                        <p className="text-2xl font-bold text-yellow-600">{paymentSummary.pendingCount}</p>
+                        <p className="text-xs text-muted-foreground">{t("owner.pendingVerification", "Awaiting Review")}</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-red-500/10">
+                        <p className="text-2xl font-bold text-red-600">{paymentSummary.overdueCount}</p>
+                        <p className="text-xs text-muted-foreground">{t("owner.overduePayments", "Overdue")}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
@@ -700,6 +890,115 @@ export default function OwnerPortal() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Portal 2.0 Payment Records with Verification Workflow */}
+              {portalPayments.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("owner.portal2Payments", "Payment Records")}</CardTitle>
+                    <CardDescription>{t("owner.portal2PaymentsDesc", "View and verify all payment submissions")}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {portalPaymentsLoading ? (
+                      <div className="flex items-center justify-center p-8">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {portalPayments.map((payment) => (
+                          <div key={payment.id} className="p-4 space-y-3" data-testid={`payment-record-${payment.id}`}>
+                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                              <div className="flex items-center gap-4">
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                                  payment.status === 'paid' ? 'bg-green-500/10' :
+                                  payment.status === 'verified' ? 'bg-primary/10' :
+                                  payment.status === 'overdue' ? 'bg-red-500/10' :
+                                  payment.status === 'rejected' ? 'bg-red-500/10' :
+                                  'bg-yellow-500/10'
+                                }`}>
+                                  <DollarSign className={`h-5 w-5 ${
+                                    payment.status === 'paid' ? 'text-green-500' :
+                                    payment.status === 'verified' ? 'text-primary' :
+                                    payment.status === 'overdue' || payment.status === 'rejected' ? 'text-red-500' :
+                                    'text-yellow-500'
+                                  }`} />
+                                </div>
+                                <div>
+                                  <p className="font-medium capitalize">{payment.category.replace('_', ' ')}</p>
+                                  {payment.description && (
+                                    <p className="text-sm text-muted-foreground">{payment.description}</p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">
+                                    {t("owner.dueDate", "Due")}: {format(new Date(payment.dueDate), "MMM d, yyyy")}
+                                    {payment.datePaid && ` | ${t("owner.paidDate", "Paid")}: ${format(new Date(payment.datePaid), "MMM d, yyyy")}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="font-medium">{payment.currency} ${payment.amount.toLocaleString()}</span>
+                                {getStatusBadge(payment.status)}
+                              </div>
+                            </div>
+                            
+                            {/* Tenant notes and receipt */}
+                            {(payment.tenantNotes || payment.receiptUrl) && (
+                              <div className="ml-14 p-3 rounded-lg bg-muted/50 text-sm">
+                                {payment.tenantNotes && (
+                                  <p className="text-muted-foreground">{t("owner.tenantNote", "Tenant note")}: {payment.tenantNotes}</p>
+                                )}
+                                {payment.receiptUrl && (
+                                  <a 
+                                    href={payment.receiptUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-primary hover:underline mt-1"
+                                    data-testid={`receipt-link-${payment.id}`}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    {payment.receiptFileName || t("owner.viewReceipt", "View Receipt")}
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Owner notes */}
+                            {payment.ownerNotes && (
+                              <div className="ml-14 p-3 rounded-lg bg-primary/5 text-sm">
+                                <p className="text-muted-foreground">{t("owner.yourNote", "Your note")}: {payment.ownerNotes}</p>
+                              </div>
+                            )}
+                            
+                            {/* Verification actions for 'paid' payments */}
+                            {payment.status === 'paid' && (
+                              <div className="ml-14 flex items-center gap-2 pt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => rejectPaymentMutation.mutate({ id: payment.id })}
+                                  disabled={rejectPaymentMutation.isPending}
+                                  data-testid={`button-reject-payment-${payment.id}`}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  {t("owner.rejectPayment", "Reject")}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => verifyPaymentMutation.mutate({ id: payment.id })}
+                                  disabled={verifyPaymentMutation.isPending}
+                                  data-testid={`button-verify-payment-${payment.id}`}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  {t("owner.verifyPayment", "Verify")}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
@@ -966,6 +1265,66 @@ export default function OwnerPortal() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Portal 2.0 Documents - Grouped by Type */}
+              {portalDocuments.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">{t("owner.sharedDocuments", "Shared Documents")}</h3>
+                  {portalDocumentsLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Group documents by type */}
+                      {Object.entries(
+                        portalDocuments.reduce((acc, doc) => {
+                          const type = doc.documentType || 'other';
+                          if (!acc[type]) acc[type] = [];
+                          acc[type].push(doc);
+                          return acc;
+                        }, {} as Record<string, PortalDocument[]>)
+                      ).map(([type, docs]) => (
+                        <Card key={type}>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium capitalize">{type.replace('_', ' ')}</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            <div className="divide-y">
+                              {docs.map((doc) => (
+                                <a 
+                                  key={doc.id} 
+                                  href={doc.fileUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-4 p-4 hover-elevate"
+                                  data-testid={`doc-row-${doc.id}`}
+                                >
+                                  <FileText className="h-5 w-5 text-muted-foreground" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">{doc.fileName}</p>
+                                    {doc.description && (
+                                      <p className="text-sm text-muted-foreground truncate">{doc.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      <span>{format(new Date(doc.createdAt), "MMM d, yyyy")}</span>
+                                      <span>-</span>
+                                      <span className="capitalize">{doc.uploadedByRole}</span>
+                                      {doc.visibleToTenant && (
+                                        <Badge variant="secondary" className="text-xs">{t("owner.visibleToTenant", "Visible to Tenant")}</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </a>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </TabsContent>
 
