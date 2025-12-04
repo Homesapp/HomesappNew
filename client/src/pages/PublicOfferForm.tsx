@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Home, CheckCircle2, AlertCircle, Upload, X } from "lucide-react";
+import { Loader2, Home, CheckCircle2, AlertCircle, Upload, X, ChevronLeft, ChevronRight, Bed, Bath, Maximize2, Sofa, MapPin, ExternalLink, PawPrint } from "lucide-react";
 import logoPath from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -42,6 +42,25 @@ const t = {
     monthlyRentRequested: "Renta Mensual Solicitada por el Propietario",
     perMonth: "/mes",
     servicesRequiredByOwner: "Servicios que el Propietario Requiere que Pagues",
+    
+    // Gallery navigation
+    previousPhoto: "Foto anterior",
+    nextPhoto: "Foto siguiente",
+    photoOf: "de",
+    
+    // Property features
+    propertyDescription: "Descripción de la Propiedad",
+    propertyFeatures: "Características",
+    bedrooms: "Recámaras",
+    bathrooms: "Baños",
+    area: "Área",
+    furnished: "Amueblado",
+    unfurnished: "Sin amueblar",
+    petFriendly: "Acepta mascotas",
+    
+    // Map
+    viewOnMap: "Ver ubicación",
+    openInGoogleMaps: "Abrir en Google Maps",
     
     // Form labels
     fullName: "Nombre Completo",
@@ -186,6 +205,25 @@ const t = {
     perMonth: "/month",
     servicesRequiredByOwner: "Services Owner Requires You to Pay",
     
+    // Gallery navigation
+    previousPhoto: "Previous photo",
+    nextPhoto: "Next photo",
+    photoOf: "of",
+    
+    // Property features
+    propertyDescription: "Property Description",
+    propertyFeatures: "Features",
+    bedrooms: "Bedrooms",
+    bathrooms: "Bathrooms",
+    area: "Area",
+    furnished: "Furnished",
+    unfurnished: "Unfurnished",
+    petFriendly: "Pet friendly",
+    
+    // Map
+    viewOnMap: "View location",
+    openInGoogleMaps: "Open in Google Maps",
+    
     // Form labels
     fullName: "Full Name",
     email: "Email",
@@ -318,6 +356,7 @@ export default function PublicOfferForm() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   const text = language === "es" ? t.es : t.en;
 
@@ -413,6 +452,17 @@ export default function PublicOfferForm() {
   const lead = validationData?.lead;
   const isCompleted = validationData?.isCompleted;
   const submittedOffer = validationData?.submittedOffer;
+
+  // Reset photo index when property photos change to prevent out-of-bounds access
+  // Use JSON.stringify to detect array content changes, not just length
+  const propertyPhotosForReset = property?.photos || [];
+  const photosKey = JSON.stringify(propertyPhotosForReset);
+  useEffect(() => {
+    // Reset to 0 when photos change or when current index is out of bounds
+    if (currentPhotoIndex >= propertyPhotosForReset.length || currentPhotoIndex < 0) {
+      setCurrentPhotoIndex(0);
+    }
+  }, [photosKey, currentPhotoIndex, propertyPhotosForReset.length]);
   
   // Use creator's profile picture as agency logo
   const agencyLogo = validationData?.creatorUser?.profilePictureUrl;
@@ -852,7 +902,46 @@ export default function PublicOfferForm() {
   ];
 
   const propertyPhotos = property?.photos || [];
-  const displayPhotos = propertyPhotos.slice(0, 5);
+  const totalPhotos = propertyPhotos.length;
+
+  const goToPreviousPhoto = () => {
+    if (totalPhotos === 0) return;
+    setCurrentPhotoIndex((prev) => (prev === 0 ? totalPhotos - 1 : prev - 1));
+  };
+
+  const goToNextPhoto = () => {
+    if (totalPhotos === 0) return;
+    setCurrentPhotoIndex((prev) => (prev === totalPhotos - 1 ? 0 : prev + 1));
+  };
+
+  const goToPhoto = (index: number) => {
+    if (index >= 0 && index < totalPhotos) {
+      setCurrentPhotoIndex(index);
+    }
+  };
+
+  const getGoogleMapsUrl = () => {
+    if (property?.latitude && property?.longitude) {
+      return `https://www.google.com/maps?q=${property.latitude},${property.longitude}`;
+    }
+    if (property?.address) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address)}`;
+    }
+    return null;
+  };
+
+  const getOpenStreetMapEmbedUrl = () => {
+    if (property?.latitude && property?.longitude) {
+      const lat = parseFloat(String(property.latitude));
+      const lng = parseFloat(String(property.longitude));
+      // Validate that lat and lng are valid numbers
+      if (isNaN(lat) || isNaN(lng)) {
+        return null;
+      }
+      return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`;
+    }
+    return null;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 py-8 px-4">
@@ -901,23 +990,164 @@ export default function PublicOfferForm() {
             <CardDescription className="text-lg">{property?.title || text.propertyPhoto}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {displayPhotos.length > 0 && (
-              <div className="space-y-2">
+            {/* Enhanced Photo Gallery with Navigation */}
+            {totalPhotos > 0 && (
+              <div className="space-y-3">
                 <h3 className="text-sm font-medium text-muted-foreground">{text.propertyPhotos}</h3>
-                <div className="flex gap-2 overflow-x-auto pb-2" data-testid="gallery-property-photos">
-                  {displayPhotos.map((photo: string, index: number) => (
-                    <div
-                      key={index}
-                      className="flex-shrink-0 w-32 h-24 rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700"
-                    >
+                
+                {/* Main Photo with Navigation */}
+                <div className="relative rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <div className="aspect-video relative">
+                    {propertyPhotos[currentPhotoIndex] && (
                       <img
-                        src={photo}
-                        alt={`${text.propertyPhoto} ${index + 1}`}
+                        src={propertyPhotos[currentPhotoIndex]}
+                        alt={`${text.propertyPhoto} ${currentPhotoIndex + 1}`}
                         className="w-full h-full object-cover"
-                        data-testid={`img-property-${index}`}
+                        data-testid="img-main-photo"
                       />
+                    )}
+                    
+                    {/* Photo Counter */}
+                    <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      {currentPhotoIndex + 1} {text.photoOf} {totalPhotos}
                     </div>
-                  ))}
+                    
+                    {/* Navigation Arrows */}
+                    {totalPhotos > 1 && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 dark:bg-black/60 hover:bg-white dark:hover:bg-black/80 rounded-full h-10 w-10"
+                          onClick={goToPreviousPhoto}
+                          aria-label={text.previousPhoto}
+                          data-testid="button-prev-photo"
+                        >
+                          <ChevronLeft className="h-6 w-6" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 dark:bg-black/60 hover:bg-white dark:hover:bg-black/80 rounded-full h-10 w-10"
+                          onClick={goToNextPhoto}
+                          aria-label={text.nextPhoto}
+                          data-testid="button-next-photo"
+                        >
+                          <ChevronRight className="h-6 w-6" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Thumbnails */}
+                {totalPhotos > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2" data-testid="gallery-thumbnails">
+                    {propertyPhotos.map((photo: string, index: number) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => goToPhoto(index)}
+                        className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${
+                          index === currentPhotoIndex
+                            ? "border-primary ring-2 ring-primary/30"
+                            : "border-slate-200 dark:border-slate-700 hover:border-primary/50"
+                        }`}
+                        aria-label={`${text.propertyPhoto} ${index + 1}`}
+                        data-testid={`thumbnail-${index}`}
+                      >
+                        <img
+                          src={photo}
+                          alt={`${text.propertyPhoto} ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Property Description */}
+            {property?.description && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">{text.propertyDescription}</h3>
+                <p className="text-foreground leading-relaxed">{property.description}</p>
+              </div>
+            )}
+
+            {/* Property Features with Icons */}
+            {(property?.bedrooms || property?.bathrooms || property?.area || property?.furnished !== undefined) && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">{text.propertyFeatures}</h3>
+                <div className="flex flex-wrap gap-4">
+                  {property?.bedrooms && (
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg">
+                      <Bed className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">{property.bedrooms} {text.bedrooms}</span>
+                    </div>
+                  )}
+                  {property?.bathrooms && (
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg">
+                      <Bath className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">{property.bathrooms} {text.bathrooms}</span>
+                    </div>
+                  )}
+                  {property?.area && (
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg">
+                      <Maximize2 className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">{property.area} m² {text.area}</span>
+                    </div>
+                  )}
+                  {property?.furnished !== undefined && (
+                    <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg">
+                      <Sofa className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-medium">{property.furnished ? text.furnished : text.unfurnished}</span>
+                    </div>
+                  )}
+                  {property?.petFriendly && (
+                    <div className="flex items-center gap-2 bg-green-100 dark:bg-green-900 px-3 py-2 rounded-lg">
+                      <PawPrint className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <span className="text-sm font-medium text-green-700 dark:text-green-300">{text.petFriendly}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* OpenStreetMap Location */}
+            {getOpenStreetMapEmbedUrl() && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    {text.viewOnMap}
+                  </h3>
+                  {getGoogleMapsUrl() && (
+                    <a
+                      href={getGoogleMapsUrl()!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                      data-testid="link-google-maps"
+                    >
+                      {text.openInGoogleMaps}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+                <div className="rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <iframe
+                    src={getOpenStreetMapEmbedUrl()!}
+                    width="100%"
+                    height="200"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    title={text.viewOnMap}
+                    data-testid="iframe-map"
+                  />
                 </div>
               </div>
             )}

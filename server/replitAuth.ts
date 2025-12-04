@@ -24,9 +24,19 @@ const getOidcConfig = memoize(
   { maxAge: 3600 * 1000 }
 );
 
+// Fallback logic: Use SOURCE_DATABASE_URL if DATABASE_URL is corrupted or missing
+// Accept both postgres:// and postgresql:// as valid prefixes (Neon uses postgres://)
+const isValidDbUrl = (url: string | undefined): boolean => {
+  return !!url && (url.startsWith('postgresql://') || url.startsWith('postgres://'));
+};
+
+const sessionDatabaseUrl = isValidDbUrl(process.env.DATABASE_URL)
+  ? process.env.DATABASE_URL 
+  : process.env.SOURCE_DATABASE_URL;
+
 // Create a connection pool with higher timeout for Neon cold starts
 const sessionPool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: sessionDatabaseUrl,
   connectionTimeoutMillis: 45000, // 45 seconds for Neon cold starts
   idleTimeoutMillis: 60000, // Keep connections alive longer
   max: 10,
