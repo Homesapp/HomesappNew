@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExternalAgencySchema } from "@shared/schema";
 import type { ExternalAgency, ExternalAgencySummary, ExternalAgencyListResponse } from "@shared/schema";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Building2, Search, Key, Copy, Upload, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Search, Key, Copy, Upload, X, ChevronLeft, ChevronRight, Home, Users, FileText, Loader2, MoreVertical, Phone, Mail } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { compressImage } from "@/lib/imageCompression";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const formSchema = insertExternalAgencySchema.extend({
   assignedUserId: z.string().min(1, "Please select a user"),
@@ -67,9 +73,179 @@ interface User {
   status: string;
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  return isMobile;
+}
+
+function AgencyCardSkeleton() {
+  return (
+    <Card className="animate-pulse">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-16" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+        <Skeleton className="h-4 w-48" />
+        <div className="flex gap-2 pt-2">
+          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-8 w-8" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AgencyRowSkeleton() {
+  return (
+    <TableRow className="animate-pulse">
+      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+      <TableCell>
+        <div className="flex gap-1">
+          <Skeleton className="h-5 w-12" />
+          <Skeleton className="h-5 w-12" />
+          <Skeleton className="h-5 w-12" />
+        </div>
+      </TableCell>
+      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-8 w-8" />
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+interface AgencyCardProps {
+  agency: ExternalAgencySummary;
+  language: string;
+  onEdit: (agency: ExternalAgencySummary) => void;
+  onDelete: (agency: ExternalAgencySummary) => void;
+  onResetPassword: (userId: string) => void;
+  isLoadingEdit: boolean;
+  isResettingPassword: boolean;
+}
+
+function AgencyCard({ agency, language, onEdit, onDelete, onResetPassword, isLoadingEdit, isResettingPassword }: AgencyCardProps) {
+  return (
+    <Card data-testid={`card-agency-${agency.id}`} className="hover-elevate transition-all">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold truncate" data-testid={`text-agency-name-${agency.id}`}>
+              {agency.name}
+            </h3>
+            {agency.contactName && (
+              <p className="text-sm text-muted-foreground truncate">
+                {agency.contactName}
+              </p>
+            )}
+          </div>
+          <Badge variant={agency.isActive ? "default" : "secondary"} className="shrink-0">
+            {agency.isActive 
+              ? (language === "es" ? "Activa" : "Active")
+              : (language === "es" ? "Inactiva" : "Inactive")}
+          </Badge>
+        </div>
+        
+        <div className="flex flex-wrap gap-1.5">
+          <Badge variant="outline" className="text-xs">
+            <Home className="h-3 w-3 mr-1" />
+            {agency.propertiesCount} {language === "es" ? "prop." : "prop."}
+          </Badge>
+          <Badge variant="outline" className="text-xs">
+            <Users className="h-3 w-3 mr-1" />
+            {agency.leadsCount} {language === "es" ? "leads" : "leads"}
+          </Badge>
+          <Badge variant="outline" className="text-xs">
+            <FileText className="h-3 w-3 mr-1" />
+            {agency.contractsCount} {language === "es" ? "contr." : "contr."}
+          </Badge>
+        </div>
+        
+        <div className="text-xs text-muted-foreground space-y-1">
+          {agency.contactEmail && (
+            <div className="flex items-center gap-1 truncate">
+              <Mail className="h-3 w-3 shrink-0" />
+              <span className="truncate">{agency.contactEmail}</span>
+            </div>
+          )}
+          {agency.contactPhone && (
+            <div className="flex items-center gap-1">
+              <Phone className="h-3 w-3 shrink-0" />
+              <span>{agency.contactPhone}</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between pt-2 border-t">
+          <span className="text-xs text-muted-foreground">
+            {format(new Date(agency.createdAt), 'dd/MM/yyyy')}
+          </span>
+          <div className="flex items-center gap-1">
+            {agency.assignedUser && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onResetPassword(agency.assignedUser!.id)}
+                disabled={isResettingPassword}
+                title={language === "es" ? "Gestionar contraseña" : "Manage password"}
+                data-testid={`button-password-mobile-${agency.id}`}
+              >
+                <Key className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onEdit(agency)}
+              disabled={isLoadingEdit}
+              data-testid={`button-edit-mobile-${agency.id}`}
+            >
+              {isLoadingEdit ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Pencil className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(agency)}
+              data-testid={`button-delete-mobile-${agency.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminExternalAgencies() {
   const { language } = useLanguage();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -83,6 +259,7 @@ export default function AdminExternalAgencies() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -92,7 +269,7 @@ export default function AdminExternalAgencies() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { data: agencyResponse, isLoading: isLoadingAgencies } = useQuery<ExternalAgencyListResponse>({
+  const { data: agencyResponse, isLoading: isLoadingAgencies, isFetching } = useQuery<ExternalAgencyListResponse>({
     queryKey: ['/api/external-agencies/summary', { page, limit, search: debouncedSearch }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -110,6 +287,8 @@ export default function AdminExternalAgencies() {
       }
       return response.json();
     },
+    staleTime: 30000,
+    placeholderData: (previousData) => previousData,
   });
 
   const agencies = agencyResponse?.agencies ?? [];
@@ -119,6 +298,7 @@ export default function AdminExternalAgencies() {
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ['/api/users'],
     select: (users) => users.filter(user => user.status === "approved"),
+    staleTime: 60000,
   });
 
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,7 +327,6 @@ export default function AdminExternalAgencies() {
         },
       });
 
-      // Convert bytes to KB for display
       const originalSizeKB = Math.round(result.originalSize / 1024);
       const compressedSizeKB = Math.round(result.compressedSize / 1024);
 
@@ -198,7 +377,6 @@ export default function AdminExternalAgencies() {
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
       const { assignedUserId, ...agencyData } = data;
-      // Backend automatically assigns external_agency_admin role when creating agency
       return await apiRequest("POST", "/api/external-agencies", {
         ...agencyData,
         createdBy: assignedUserId,
@@ -210,6 +388,7 @@ export default function AdminExternalAgencies() {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setIsCreateDialogOpen(false);
       form.reset();
+      setLogoPreview(null);
       toast({
         title: language === "es" ? "Agencia creada" : "Agency created",
         description: language === "es" 
@@ -352,6 +531,7 @@ export default function AdminExternalAgencies() {
 
   const handleEdit = async (agencySummary: ExternalAgencySummary) => {
     try {
+      setLoadingEditId(agencySummary.id);
       const response = await fetch(`/api/external-agencies/${agencySummary.id}`, {
         credentials: 'include',
       });
@@ -382,6 +562,8 @@ export default function AdminExternalAgencies() {
           : "Could not load agency details",
         variant: "destructive",
       });
+    } finally {
+      setLoadingEditId(null);
     }
   };
 
@@ -390,31 +572,172 @@ export default function AdminExternalAgencies() {
     setIsDeleteDialogOpen(true);
   };
 
-  if (isLoadingAgencies) {
-    return (
-      <div className="container mx-auto p-6 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
+  const renderTableView = () => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{language === "es" ? "Nombre" : "Name"}</TableHead>
+          <TableHead>{language === "es" ? "Contacto" : "Contact"}</TableHead>
+          <TableHead>{language === "es" ? "KPIs" : "KPIs"}</TableHead>
+          <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
+          <TableHead>{language === "es" ? "Fecha" : "Date"}</TableHead>
+          <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {isLoadingAgencies ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <AgencyRowSkeleton key={i} />
+          ))
+        ) : agencies.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              {language === "es" 
+                ? "No hay agencias externas registradas"
+                : "No external agencies registered"}
+            </TableCell>
+          </TableRow>
+        ) : (
+          agencies.map((agency) => {
+            const assignedUser = agency.assignedUser;
+            const isEditLoading = loadingEditId === agency.id;
+            return (
+              <TableRow key={agency.id} data-testid={`row-agency-${agency.id}`}>
+                <TableCell>
+                  <div className="font-medium">{agency.name}</div>
+                  {assignedUser && (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {assignedUser.firstName} {assignedUser.lastName}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm space-y-0.5">
+                    {agency.contactName && <div>{agency.contactName}</div>}
+                    {agency.contactEmail && (
+                      <div className="text-muted-foreground text-xs">{agency.contactEmail}</div>
+                    )}
+                    {agency.contactPhone && (
+                      <div className="text-muted-foreground text-xs">{agency.contactPhone}</div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className="text-xs whitespace-nowrap">
+                      <Home className="h-3 w-3 mr-1" />
+                      {agency.propertiesCount}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs whitespace-nowrap">
+                      <Users className="h-3 w-3 mr-1" />
+                      {agency.leadsCount}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs whitespace-nowrap">
+                      <FileText className="h-3 w-3 mr-1" />
+                      {agency.contractsCount}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={agency.isActive ? "default" : "secondary"}>
+                    {agency.isActive 
+                      ? (language === "es" ? "Activa" : "Active")
+                      : (language === "es" ? "Inactiva" : "Inactive")}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  {format(new Date(agency.createdAt), 'dd/MM/yyyy')}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    {assignedUser && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => resetPasswordMutation.mutate(assignedUser.id)}
+                        disabled={resetPasswordMutation.isPending}
+                        title={language === "es" ? "Gestionar contraseña" : "Manage password"}
+                        data-testid={`button-password-${agency.id}`}
+                      >
+                        <Key className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(agency)}
+                      disabled={isEditLoading}
+                      data-testid={`button-edit-${agency.id}`}
+                    >
+                      {isEditLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Pencil className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(agency)}
+                      data-testid={`button-delete-${agency.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })
+        )}
+      </TableBody>
+    </Table>
+  );
+
+  const renderCardView = () => (
+    <div className="grid gap-3">
+      {isLoadingAgencies ? (
+        Array.from({ length: 4 }).map((_, i) => (
+          <AgencyCardSkeleton key={i} />
+        ))
+      ) : agencies.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground" data-testid="div-no-agencies">
+          {language === "es" 
+            ? "No hay agencias externas registradas"
+            : "No external agencies registered"}
+        </div>
+      ) : (
+        agencies.map((agency) => (
+          <AgencyCard
+            key={agency.id}
+            agency={agency}
+            language={language}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onResetPassword={(userId) => resetPasswordMutation.mutate(userId)}
+            isLoadingEdit={loadingEditId === agency.id}
+            isResettingPassword={resetPasswordMutation.isPending}
+          />
+        ))
+      )}
+    </div>
+  );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">
-            {language === "es" ? "Gestión de Agencias Externas" : "External Agencies Management"}
+          <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-page-title">
+            {language === "es" ? "Agencias Externas" : "External Agencies"}
           </h1>
-          <p className="text-muted-foreground mt-2" data-testid="text-page-description">
+          <p className="text-sm text-muted-foreground mt-1" data-testid="text-page-description">
             {language === "es" 
-              ? "Crea y administra agencias externas que utilizan el sistema"
-              : "Create and manage external agencies using the system"}
+              ? "Gestiona las agencias externas del sistema"
+              : "Manage external agencies in the system"}
           </p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-agency">
+            <Button data-testid="button-create-agency" className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               {language === "es" ? "Nueva Agencia" : "New Agency"}
             </Button>
@@ -503,7 +826,7 @@ export default function AdminExternalAgencies() {
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="contactName"
@@ -616,6 +939,32 @@ export default function AdminExternalAgencies() {
 
                 <FormField
                   control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          {language === "es" ? "Agencia Activa" : "Active Agency"}
+                        </FormLabel>
+                        <FormDescription>
+                          {language === "es" 
+                            ? "Las agencias inactivas no pueden publicar propiedades"
+                            : "Inactive agencies cannot publish properties"}
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-is-active"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="autoApprovePublications"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -625,8 +974,8 @@ export default function AdminExternalAgencies() {
                         </FormLabel>
                         <FormDescription>
                           {language === "es" 
-                            ? "Las propiedades de esta agencia se publicarán automáticamente sin revisión manual"
-                            : "Properties from this agency will be published automatically without manual review"}
+                            ? "Las propiedades se publicarán automáticamente sin revisión manual"
+                            : "Properties will be published automatically without manual review"}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -640,12 +989,17 @@ export default function AdminExternalAgencies() {
                   )}
                 />
 
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsCreateDialogOpen(false)}
+                    onClick={() => {
+                      setIsCreateDialogOpen(false);
+                      form.reset();
+                      setLogoPreview(null);
+                    }}
                     data-testid="button-cancel-create"
+                    className="w-full sm:w-auto"
                   >
                     {language === "es" ? "Cancelar" : "Cancel"}
                   </Button>
@@ -653,6 +1007,7 @@ export default function AdminExternalAgencies() {
                     type="submit" 
                     disabled={createMutation.isPending}
                     data-testid="button-submit-create"
+                    className="w-full sm:w-auto"
                   >
                     {createMutation.isPending 
                       ? (language === "es" ? "Creando..." : "Creating...") 
@@ -665,9 +1020,9 @@ export default function AdminExternalAgencies() {
         </Dialog>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={language === "es" ? "Buscar agencias..." : "Search agencies..."}
             value={searchTerm}
@@ -676,134 +1031,44 @@ export default function AdminExternalAgencies() {
             data-testid="input-search-agencies"
           />
         </div>
-        <Badge variant="outline" data-testid="badge-agency-count">
-          {totalAgencies} {language === "es" ? "agencias" : "agencies"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" data-testid="badge-agency-count" className="whitespace-nowrap">
+            {totalAgencies} {language === "es" ? "agencias" : "agencies"}
+          </Badge>
+          {isFetching && !isLoadingAgencies && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
       </div>
 
       <Card data-testid="card-agencies-table">
-        <CardHeader>
-          <CardTitle>
-            <Building2 className="h-5 w-5 inline mr-2" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Building2 className="h-5 w-5" />
             {language === "es" ? "Agencias Externas" : "External Agencies"}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             {language === "es" 
-              ? "Lista de todas las agencias externas registradas en el sistema"
-              : "List of all external agencies registered in the system"}
+              ? "Lista de todas las agencias externas registradas"
+              : "List of all registered external agencies"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {agencies.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground" data-testid="div-no-agencies">
-              {language === "es" 
-                ? "No hay agencias externas registradas"
-                : "No external agencies registered"}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{language === "es" ? "Nombre" : "Name"}</TableHead>
-                  <TableHead>{language === "es" ? "Contacto" : "Contact"}</TableHead>
-                  <TableHead>{language === "es" ? "Usuario Asignado" : "Assigned User"}</TableHead>
-                  <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
-                  <TableHead>{language === "es" ? "Fecha de Creación" : "Created Date"}</TableHead>
-                  <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {agencies.map((agency) => {
-                  const assignedUser = agency.assignedUser;
-                  return (
-                    <TableRow key={agency.id} data-testid={`row-agency-${agency.id}`}>
-                      <TableCell className="font-medium">{agency.name}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {agency.contactName && <div>{agency.contactName}</div>}
-                          {agency.contactEmail && <div className="text-muted-foreground">{agency.contactEmail}</div>}
-                          {agency.contactPhone && <div className="text-muted-foreground">{agency.contactPhone}</div>}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {assignedUser ? (
-                          <div className="text-sm">
-                            <div>{assignedUser.firstName} {assignedUser.lastName}</div>
-                            <div className="text-muted-foreground">{assignedUser.email}</div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">
-                            {language === "es" ? "Sin asignar" : "Unassigned"}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={agency.isActive ? "default" : "secondary"}>
-                          {agency.isActive 
-                            ? (language === "es" ? "Activa" : "Active")
-                            : (language === "es" ? "Inactiva" : "Inactive")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(agency.createdAt), 'dd/MM/yyyy')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {assignedUser && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                if (assignedUser.id) {
-                                  // Check if user already has a password (reset) or not (set new)
-                                  resetPasswordMutation.mutate(assignedUser.id);
-                                }
-                              }}
-                              disabled={resetPasswordMutation.isPending}
-                              title={language === "es" ? "Gestionar contraseña" : "Manage password"}
-                              data-testid={`button-password-${agency.id}`}
-                            >
-                              <Key className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(agency)}
-                            data-testid={`button-edit-${agency.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(agency)}
-                            data-testid={`button-delete-${agency.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+        <CardContent className="pt-0">
+          {isMobile ? renderCardView() : renderTableView()}
           
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t">
+              <div className="text-sm text-muted-foreground text-center sm:text-left">
                 {language === "es" 
-                  ? `Página ${page} de ${totalPages} (${totalAgencies} agencias)`
-                  : `Page ${page} of ${totalPages} (${totalAgencies} agencies)`}
+                  ? `Página ${page} de ${totalPages}`
+                  : `Page ${page} of ${totalPages}`}
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
+                  disabled={page <= 1 || isFetching}
                   data-testid="button-prev-page"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
@@ -813,7 +1078,7 @@ export default function AdminExternalAgencies() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
+                  disabled={page >= totalPages || isFetching}
                   data-testid="button-next-page"
                 >
                   {language === "es" ? "Siguiente" : "Next"}
@@ -825,7 +1090,6 @@ export default function AdminExternalAgencies() {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -877,7 +1141,7 @@ export default function AdminExternalAgencies() {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="contactName"
@@ -1024,6 +1288,32 @@ export default function AdminExternalAgencies() {
 
               <FormField
                 control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        {language === "es" ? "Agencia Activa" : "Active Agency"}
+                      </FormLabel>
+                      <FormDescription>
+                        {language === "es" 
+                          ? "Las agencias inactivas no pueden publicar propiedades"
+                          : "Inactive agencies cannot publish properties"}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-edit-is-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="autoApprovePublications"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -1048,12 +1338,13 @@ export default function AdminExternalAgencies() {
                 )}
               />
 
-              <DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsEditDialogOpen(false)}
                   data-testid="button-cancel-edit"
+                  className="w-full sm:w-auto"
                 >
                   {language === "es" ? "Cancelar" : "Cancel"}
                 </Button>
@@ -1061,6 +1352,7 @@ export default function AdminExternalAgencies() {
                   type="submit" 
                   disabled={updateMutation.isPending}
                   data-testid="button-submit-edit"
+                  className="w-full sm:w-auto"
                 >
                   {updateMutation.isPending 
                     ? (language === "es" ? "Actualizando..." : "Updating...") 
@@ -1072,7 +1364,6 @@ export default function AdminExternalAgencies() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1085,22 +1376,23 @@ export default function AdminExternalAgencies() {
                 : `Are you sure you want to delete the agency "${selectedAgency?.name}"? This action will delete all properties, payments, and tickets associated with this agency. This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel data-testid="button-cancel-delete" className="w-full sm:w-auto">
               {language === "es" ? "Cancelar" : "Cancel"}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => selectedAgency && deleteMutation.mutate(selectedAgency.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
               data-testid="button-confirm-delete"
             >
-              {language === "es" ? "Eliminar" : "Delete"}
+              {deleteMutation.isPending
+                ? (language === "es" ? "Eliminando..." : "Deleting...")
+                : (language === "es" ? "Eliminar" : "Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Password Display Dialog */}
       <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1172,8 +1464,8 @@ export default function AdminExternalAgencies() {
               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-900">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
                   {language === "es" 
-                    ? "⚠️ El usuario deberá cambiar esta contraseña en su primer inicio de sesión."
-                    : "⚠️ The user must change this password on their first login."}
+                    ? "El usuario deberá cambiar esta contraseña en su primer inicio de sesión."
+                    : "The user must change this password on their first login."}
                 </p>
               </div>
             </div>
@@ -1185,6 +1477,7 @@ export default function AdminExternalAgencies() {
                 setGeneratedPassword(null);
               }}
               data-testid="button-close-password-dialog"
+              className="w-full sm:w-auto"
             >
               {language === "es" ? "Cerrar" : "Close"}
             </Button>
