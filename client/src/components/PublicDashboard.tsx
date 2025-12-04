@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Colony, type Condominium } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicHeader } from "@/components/PublicHeader";
+import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 const FloatingChat = lazy(() => import("@/components/FloatingChat").then(m => ({ default: m.FloatingChat })));
 
