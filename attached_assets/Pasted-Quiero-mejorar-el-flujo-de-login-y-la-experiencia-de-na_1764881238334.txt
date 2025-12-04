@@ -1,0 +1,109 @@
+Quiero mejorar el flujo de login y la experiencia de navegación estando logueado.
+
+Actualmente, después de iniciar sesión, muchas veces termino directamente en vistas internas y no puedo usar el homepage/mapa/listings como “usuario logueado normal”.
+
+Lo que quiero es:
+
+1) Header global con usuario logueado
+
+En el layout principal del frontend, modifica el header para que:
+
+cuando NO haya sesión:
+
+muestre los botones Iniciar sesión y Registrarse en la esquina superior derecha (como ahora).
+
+cuando SÍ haya sesión (respuesta válida de /api/auth/user):
+
+muestre un avatar/ícono con la inicial del usuario + su nombre corto,
+
+al hacer clic abra un menú con opciones según el rol:
+
+Cliente:
+
+Mi cuenta
+
+Mis solicitudes
+
+Ir a Portal (si tiene contrato activo)
+
+Cerrar sesión
+
+Propietario:
+
+Dashboard propietario (home owner)
+
+Mis propiedades
+
+Ir a Portal de propietario
+
+Cerrar sesión
+
+Vendedor / broker:
+
+Dashboard ventas / broker
+
+Mis leads
+
+Catálogo de propiedades
+
+Cerrar sesión
+
+Puedes detectar roles usando el mismo objeto de usuario que ya responde el backend (roles/permissions).
+
+2) Comportamiento del login y redirect
+
+Ajustar la página de /login para que acepte un parámetro redirect, por ejemplo:
+
+/login?redirect=/tulum-rental-homes/propiedad/123
+
+Después de un login exitoso:
+
+si viene redirect, volver a esa URL.
+
+si no viene redirect, mandar al homepage / pero ya logueado (no a un dashboard cerrado).
+
+Desde cualquier página pública (homepage, mapa, ficha de propiedad), el botón “Iniciar sesión” debe:
+
+llevar a /login?redirect=<url_actual> para que el usuario vuelva al mismo lugar después de loguearse.
+
+3) Acceso a la “plataforma”
+
+En el homepage, cuando el usuario ya esté logueado, mostrar un botón visible tipo:
+
+Entrar a la plataforma o Ir a mi panel.
+
+Ese botón debe redirigir según el rol principal:
+
+Cliente → dashboard cliente / Mis solicitudes.
+
+Tenant con contrato → /portal/tenant.
+
+Propietario → dashboard propietario o /portal/owner.
+
+Vendedor → dashboard de vendedor / Mis leads.
+
+Broker → dashboard broker.
+
+El objetivo es que el usuario pueda:
+
+navegar la web pública estando logueado,
+
+y decidir cuándo entrar al “modo plataforma” desde ese botón o desde el menú de usuario.
+
+4) Manejo de /api/auth/user
+
+Asegúrate de que el frontend:
+
+haga una sola llamada a /api/auth/user en el layout root para detectar sesión,
+
+y comparta esa información con el header y el resto de la app (contexto o React Query),
+
+maneje el 401 Unauthorized como “usuario no logueado”, sin romper el mapa ni otras vistas.
+
+Por favor, al final explícame:
+
+qué cambios hiciste en el header / layout,
+
+cómo se construye el menú de usuario según roles,
+
+y cómo funciona ahora el redirect después del login (con ejemplos de URLs).

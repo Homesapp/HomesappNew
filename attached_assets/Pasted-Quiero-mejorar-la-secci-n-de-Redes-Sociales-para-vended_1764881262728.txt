@@ -1,0 +1,107 @@
+Quiero mejorar la sección de Redes Sociales para vendedores (Social Media tools) tanto en UI como en funciones.
+
+1) Organización en tabs
+
+Dentro de la sección de social media de una propiedad, organiza los contenidos en estos tabs:
+
+Plantillas rápidas
+
+Mis plantillas
+
+Imágenes / Creativos
+
+Historial
+
+2) Tab “Plantillas rápidas”
+
+Mostrar plantillas agrupadas por canal:
+
+Instagram Post, Instagram Story, Facebook, WhatsApp.
+
+Cada plantilla como tarjeta con:
+
+título, 2–3 líneas de preview, botón “Usar plantilla”.
+
+Al usar una plantilla:
+
+llenar un editor de texto con la plantilla + datos reales de la propiedad usando tokens:
+
+{{titulo}}, {{precio}}, {{zona}}, {{condominio}}, {{recamaras}}, {{banos}}, {{acepta_mascotas}}, {{link}}, etc.
+
+Debajo, botones:
+
+Copiar texto
+
+Copiar texto + link (link de la ficha de la propiedad).
+
+Añadir:
+
+selector de tono (neutral/premium/casual),
+
+selector de idioma (ES/EN) que reprocesa la plantilla si es posible.
+
+3) Tab “Mis plantillas”
+
+Lista de plantillas creadas por el vendedor (y/o por su agencia).
+
+El vendedor puede:
+
+crear nueva plantilla usando los mismos tokens ({{precio}}, {{zona}}, etc.),
+
+editar, duplicar, borrar,
+
+marcar favoritos.
+
+Reutilizar el mismo editor de texto y botones de “Usar plantilla” / “Copiar”.
+
+4) Tab “Imágenes / Creativos”
+
+Mostrar grid de fotos de la propiedad.
+
+Al hacer clic en una foto:
+
+abrir el editor de imágenes existente con:
+
+presets de relación de aspecto (1:1, 4:5, 9:16, 16:9),
+
+opción para poner logo TRH / Homesapp,
+
+posibilidad de poner un texto corto sobre la foto (ej. “Renta 12 meses – Aldea Zama”).
+
+Botones:
+
+Descargar la imagen lista para redes,
+
+(opcional) Copiar enlace de la imagen para compartir.
+
+5) Tab “Historial”
+
+Lista de publicaciones generadas para esa propiedad:
+
+fecha, canal, snippet del texto, vendedor.
+
+Sirve para que el vendedor y el owner vean qué se ha usado y evitar repetir el mismo copy todo el tiempo.
+
+6) Extras funcionales
+
+Implementar tokens de datos de propiedad de forma consistente ({{precio}}, {{zona}}, etc.).
+
+Añadir un bloque de hashtags sugeridos por zona/tipo de operación con botón “Copiar hashtags”.
+
+Añadir automáticamente (opcional) una CTA estándar TRH al final de los textos (teléfono/WhatsApp).
+
+Revisar el bug que había al hacer clic en las fotos dentro de la sección de social media (imagen que no se abre o tira error) y corregirlo usando el nuevo flujo del editor.
+
+Asegurarse de que la UI sea responsiva y fácil de usar en móvil (tabs accesibles, botones grandes).
+
+Al final, explícame:
+
+qué componentes/tabs nuevos creaste o modificaste,
+
+cómo se gestionan ahora las plantillas (rápidas vs personales),
+
+cómo se conectan las fotos con el editor y con las publicaciones,
+
+y cómo debe usar esta sección un vendedor típico para preparar y enviar publicaciones de una propiedad en pocos clics.
+
+El objetivo es que la sección funcione como herramienta diaria de marketing para los vendedores, no solo como un text area.

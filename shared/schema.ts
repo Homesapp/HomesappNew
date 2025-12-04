@@ -486,6 +486,27 @@ export const externalLeadStatusEnum = pgEnum("external_lead_status", [
   "muerto"                // Lead sin respuesta
 ]);
 
+export const leadPurposeEnum = pgEnum("lead_purpose", [
+  "cliente",     // Persona buscando rentar o comprar propiedad
+  "propietario", // Dueño de propiedad que quiere listar con la agencia
+  "vendedor"     // Agente que aplica para trabajar con la agencia
+]);
+
+export const leadSourceEnum = pgEnum("lead_source", [
+  "chatbot",               // Chatbot flotante del sitio
+  "mapa",                  // Desde el mapa interactivo
+  "listado",               // Desde una ficha de propiedad
+  "formulario_propietario", // Formulario de onboarding propietario
+  "formulario_vendedor",    // Formulario de aplicación vendedor
+  "link_compartido",        // Link de oferta/formato compartido
+  "whatsapp_manual",        // Registrado manualmente desde WhatsApp
+  "referido",               // Referido por otro cliente/agente
+  "email_import",           // Importado desde email (Tokko, EasyBroker)
+  "website",                // Formulario web general
+  "llamada",                // Llamada telefónica
+  "evento"                  // Evento o feria
+]);
+
 export const financialTransactionDirectionEnum = pgEnum("financial_transaction_direction", [
   "inflow",       // Dinero que entra (cobros)
   "outflow",      // Dinero que sale (pagos)
@@ -6645,6 +6666,8 @@ export const externalLeads = pgTable("external_leads", {
   
   // Estado y origen
   status: externalLeadStatusEnum("status").notNull().default("nuevo_lead"),
+  purpose: leadPurposeEnum("purpose").default("cliente"), // Propósito del lead: cliente, propietario, vendedor
+  sourceType: leadSourceEnum("source_type"), // Fuente estructurada del lead
   source: varchar("source", { length: 100 }), // de dónde vino el lead
   notes: text("notes"),
   
