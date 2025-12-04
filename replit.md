@@ -43,6 +43,8 @@ A photo editing system for property images includes canvas-based adjustments (br
 
 Reusable searchable dropdown components (`SearchableSelect`, `SearchableMultiSelect`) are implemented for improved UX in forms, supporting bilingual placeholders and messages.
 
+A deterministic public chatbot (FloatingChat) for lead capture uses a state machine architecture instead of LLM to guarantee data collection. Features include mandatory step-by-step data collection (operation type, name, phone, budget, zone, move date, bedrooms), quick reply buttons for common options, phone validation with retry logic (max 2 attempts), normalized phone storage for duplicate detection, bilingual support (Spanish), property/source context awareness (homepage vs property page), and optional appointment scheduling after lead capture with date/time selection.
+
 ## External Dependencies
 *   Google Calendar API
 *   Google OAuth 2.0
