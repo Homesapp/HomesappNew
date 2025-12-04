@@ -34157,6 +34157,91 @@ ${{precio}}/mes
     }
   });
 
+
+  // POST /api/public/leads/client - Public client registration
+  app.post("/api/public/leads/client", publicLeadRegistrationLimiter, async (req, res) => {
+    try {
+      const { 
+        firstName, 
+        lastName, 
+        email,
+        phone,
+        contractDuration,
+        checkInDate,
+        hasPets,
+        budgetMin,
+        budgetMax,
+        bedrooms,
+        zone,
+        notes 
+      } = req.body;
+      
+      // Basic validation - email and phone are required for clients
+      if (!firstName || !lastName || !email || !phone) {
+        return res.status(400).json({ message: "Faltan campos requeridos (nombre, apellido, email, teléfono)" });
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Formato de correo electrónico inválido" });
+      }
+      
+      // For now, we'll assign to first available external agency
+      const agencies = await storage.getExternalAgencies();
+      if (!agencies || agencies.length === 0) {
+        return res.status(500).json({ message: "No hay agencias disponibles" });
+      }
+      
+      const agencyId = agencies[0].id;
+      
+      // Check for duplicate lead with 3-month expiry
+      const phoneLast4 = phone.slice(-4);
+      const duplicateCheck = await storage.checkExternalLeadDuplicateWithExpiry(
+        agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck.isDuplicate) {
+        return res.status(409).json({ 
+          message: duplicateCheck.expiresIn 
+            ? `Este cliente ya está registrado. Puede registrarse nuevamente en ${duplicateCheck.expiresIn} días.`
+            : "Este cliente ya está registrado." 
+        });
+      }
+      
+      // Parse budget values to ensure they are numbers
+      const parsedBudgetMin = budgetMin ? parseFloat(String(budgetMin)) : null;
+      const parsedBudgetMax = budgetMax ? parseFloat(String(budgetMax)) : null;
+      const estimatedRent = parsedBudgetMin || parsedBudgetMax || null;
+      
+      // Create lead with client registration type
+      const lead = await storage.createExternalLead({
+        agencyId,
+        firstName,
+        lastName,
+        email,
+        phone,
+        phoneLast4,
+        contractDuration: contractDuration || null,
+        checkInDate: checkInDate || null,
+        hasPets: hasPets || null,
+        estimatedRentCost: estimatedRent ? Math.round(estimatedRent) : null,
+        budgetMin: parsedBudgetMin ? String(parsedBudgetMin) : null,
+        budgetMax: parsedBudgetMax ? String(parsedBudgetMax) : null,
+        bedrooms: bedrooms ? parseInt(bedrooms) : null,
+        desiredNeighborhood: zone || null,
+        registrationType: "client",
+        status: "nuevo_lead",
+        source: "public_web_client",
+        notes,
+      });
+      
+      res.status(201).json({ success: true, leadId: lead.id });
+    } catch (error: any) {
+      console.error("Error creating client lead:", error);
+      handleGenericError(res, error);
+    }
+  });
   // GET /api/public/agency - Get public agency info (name, logo)
   app.get("/api/public/agency", async (req, res) => {
     try {
@@ -35240,10 +35325,10 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         return res.status(400).json({ message: "Last name is required" });
       }
       
-      // Different validation for seller vs broker
-      if (registrationToken.registrationType === 'seller') {
+      // Different validation for seller/client vs broker
+      if (registrationToken.registrationType === 'seller' || registrationToken.registrationType === 'client') {
         if (!email || !phone) {
-          return res.status(400).json({ message: "Seller must provide email and phone" });
+          return res.status(400).json({ message: "Email and phone are required" });
         }
       } else if (registrationToken.registrationType === 'broker') {
         if (!phoneLast4 || phoneLast4.length !== 4) {

@@ -22,8 +22,11 @@ const translations = {
     fetchError: "Error al cargar el formulario de registro",
     successTitle: "¡Registro Exitoso!",
     successDescription: "¡Gracias por registrarte! Nos pondremos en contacto contigo pronto con la información proporcionada.",
+    clientSuccessDescription: "¡Gracias por completar tus requisitos! Un agente se pondrá en contacto contigo para ayudarte a encontrar la propiedad ideal.",
     sellerRegistration: "Registro de Vendedor",
     brokerRegistration: "Registro de Broker",
+    clientRegistration: "Registro de Cliente",
+    clientFormDescription: "Complete sus datos y preferencias de búsqueda para que podamos ayudarle a encontrar la propiedad ideal.",
     formExpires: "Este formulario expira el",
     notAvailable: "N/D",
     firstName: "Nombre",
@@ -75,9 +78,9 @@ const translations = {
     required: "*",
     errFirstName: "El nombre es requerido",
     errLastName: "El apellido es requerido",
-    errEmailRequired: "El correo electrónico es requerido para vendedores",
+    errEmailRequired: "El correo electrónico es requerido",
     errEmailInvalid: "Formato de correo electrónico inválido",
-    errPhoneRequired: "El teléfono es requerido para vendedores",
+    errPhoneRequired: "El teléfono es requerido",
     errPhoneLast4Required: "Los últimos 4 dígitos del teléfono son requeridos para brokers",
     errPhoneLast4Format: "Deben ser exactamente 4 dígitos",
     submitError: "Error al enviar el registro",
@@ -98,8 +101,11 @@ const translations = {
     fetchError: "Failed to fetch registration form",
     successTitle: "Registration Successful!",
     successDescription: "Thank you for registering! We will contact you shortly at the information you provided.",
+    clientSuccessDescription: "Thank you for completing your requirements! An agent will contact you soon to help you find the ideal property.",
     sellerRegistration: "Seller Registration",
     brokerRegistration: "Broker Registration",
+    clientRegistration: "Client Registration",
+    clientFormDescription: "Complete your details and search preferences so we can help you find the ideal property.",
     formExpires: "This form will expire on",
     notAvailable: "N/A",
     firstName: "First Name",
@@ -151,9 +157,9 @@ const translations = {
     required: "*",
     errFirstName: "First name is required",
     errLastName: "Last name is required",
-    errEmailRequired: "Email is required for sellers",
+    errEmailRequired: "Email is required",
     errEmailInvalid: "Invalid email format",
-    errPhoneRequired: "Phone is required for sellers",
+    errPhoneRequired: "Phone is required",
     errPhoneLast4Required: "Last 4 digits of phone are required for brokers",
     errPhoneLast4Format: "Must be exactly 4 digits",
     submitError: "Failed to submit registration",
@@ -353,7 +359,7 @@ export default function PublicLeadRegistration() {
       newErrors.lastName = t.errLastName;
     }
 
-    if (formInfo?.registrationType === "seller") {
+    if (formInfo?.registrationType === "seller" || formInfo?.registrationType === "client") {
       if (!formData.email.trim()) {
         newErrors.email = t.errEmailRequired;
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -432,7 +438,9 @@ export default function PublicLeadRegistration() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              {t.successDescription}
+              {formInfo?.registrationType === "client" 
+                ? t.clientSuccessDescription 
+                : t.successDescription}
             </p>
           </CardContent>
         </Card>
@@ -452,11 +460,16 @@ export default function PublicLeadRegistration() {
             <Badge variant="outline">{formInfo?.agencyName}</Badge>
           </div>
           <CardTitle className="text-2xl">
-            {formInfo?.registrationType === "seller" ? t.sellerRegistration : t.brokerRegistration}
+            {formInfo?.registrationType === "client" 
+              ? t.clientRegistration 
+              : formInfo?.registrationType === "seller" 
+                ? t.sellerRegistration 
+                : t.brokerRegistration}
           </CardTitle>
           <CardDescription>
-            {t.formExpires}{" "}
-            {formInfo?.expiresAt ? new Date(formInfo.expiresAt).toLocaleDateString(language === 'es' ? 'es-MX' : 'en-US') : t.notAvailable}.
+            {formInfo?.registrationType === "client" 
+              ? t.clientFormDescription
+              : `${t.formExpires} ${formInfo?.expiresAt ? new Date(formInfo.expiresAt).toLocaleDateString(language === 'es' ? 'es-MX' : 'en-US') : t.notAvailable}.`}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -487,8 +500,8 @@ export default function PublicLeadRegistration() {
               </div>
             </div>
 
-            {/* Seller-specific fields */}
-            {formInfo?.registrationType === "seller" && (
+            {/* Seller and Client fields - require email and phone */}
+            {(formInfo?.registrationType === "seller" || formInfo?.registrationType === "client") && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="email">{t.email} {t.required}</Label>

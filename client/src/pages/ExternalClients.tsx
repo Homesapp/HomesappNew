@@ -1530,7 +1530,7 @@ export default function ExternalClients() {
           </CardHeader>
           <CollapsibleContent>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 {/* Vendedor Link */}
                 <Card className="border-2">
                   <CardHeader className="pb-3">
@@ -1594,6 +1594,46 @@ export default function ExternalClients() {
                         });
                       }}
                       data-testid="button-copy-broker-link"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      {language === "es" ? "Copiar Link" : "Copy Link"}
+                    </Button>
+                  </CardContent>
+                </Card>
+                
+                {/* Client Link */}
+                <Card className="border-2 border-green-200 dark:border-green-800">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900">
+                        <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <CardTitle className="text-base">
+                        {language === "es" ? "Registro de Cliente" : "Client Registration"}
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      {language === "es" 
+                        ? "Comparte este link con clientes para que completen sus requisitos de búsqueda"
+                        : "Share this link with clients so they can complete their search requirements"}
+                    </p>
+                    <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
+                      {`${window.location.origin}/leads/client`}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/leads/client`);
+                        toast({
+                          title: language === "es" ? "Link copiado" : "Link copied",
+                          description: language === "es" ? "El link ha sido copiado al portapapeles" : "The link has been copied to clipboard",
+                        });
+                      }}
+                      data-testid="button-copy-client-link"
                     >
                       <Copy className="h-4 w-4 mr-2" />
                       {language === "es" ? "Copiar Link" : "Copy Link"}
