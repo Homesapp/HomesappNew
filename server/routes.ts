@@ -35286,6 +35286,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         
         // Get condominium name for unique slug generation
         let condoName = '';
+        let condoData: { name: string; logoUrl: string | null; primaryColor: string | null } | null = null;
         if (unit.condominiumId) {
           const condoForSlug = await db
             .select({ name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor })
@@ -35293,7 +35294,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
             .where(eq(externalCondominiums.id, unit.condominiumId))
             .limit(1);
           condoName = condoForSlug[0]?.name || '';
-          const condoData = condoForSlug[0] || null;
+          condoData = condoForSlug[0] || null;
         }
         
         // Use stored slug if exists, otherwise generate unique slug with condominium name
