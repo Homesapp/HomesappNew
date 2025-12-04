@@ -113,6 +113,8 @@ import Contracts from "@/pages/Contracts";
 import RoleRequests from "@/pages/RoleRequests";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
+import SellerApplicationPage from "@/pages/SellerApplicationPage";
+import OwnerApplicationPage from "@/pages/OwnerApplicationPage";
 import Help from "@/pages/Help";
 import SellerCommissions from "@/pages/SellerCommissions";
 import SellerReports from "@/pages/SellerReports";
@@ -265,6 +267,10 @@ function AuthenticatedApp() {
         <Route path="/favoritos" component={Favorites} />
         <Route path="/terminos" component={Terms} />
         <Route path="/privacidad" component={Privacy} />
+        <Route path="/aplicar-vendedor" component={SellerApplicationPage} />
+        <Route path="/aplicar-propietario" component={OwnerApplicationPage} />
+        <Route path="/apply-seller" component={SellerApplicationPage} />
+        <Route path="/apply-owner" component={OwnerApplicationPage} />
         <Route path="/offer/:token" component={PublicOfferForm} />
         <Route path="/public-rental-form/:token" component={PublicRentalForm} />
         <Route path="/public-owner-form/:token" component={PublicOwnerForm} />

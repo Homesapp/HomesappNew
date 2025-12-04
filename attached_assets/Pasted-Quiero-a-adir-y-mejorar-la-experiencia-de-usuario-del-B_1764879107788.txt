@@ -1,0 +1,144 @@
+Quiero añadir y mejorar la experiencia de usuario del BROKER (admin de una agencia, interna o externa) en Homesapp.
+
+En mi sistema ya existen roles relacionados con agencias externas (por ejemplo external_agency_admin, external_agency_accounting, etc.).
+Este rol de broker debe tener herramientas similares a las de un vendedor, pero con visión global de su agencia (equipo, leads, propiedades, rendimiento).
+
+1) Dashboard del broker
+
+Crea una vista de inicio para el rol de broker (ej. external_agency_admin), ruta sugerida: /broker/dashboard.
+
+En este dashboard mostrar:
+
+Resumen de leads de la agencia:
+
+leads nuevos esta semana,
+
+leads por etapa (nuevo, en contacto, cita programada, en proceso, cerrado),
+
+operaciones cerradas este mes (renta/venta).
+
+Rendimiento por vendedor:
+
+lista o pequeña gráfica con cada vendedor de la agencia y:
+
+nº de leads asignados,
+
+nº de cierres.
+
+botón “Ver leads de este vendedor”.
+
+Bloque de alertas:
+
+leads de la agencia sin contacto por más de X horas,
+
+properties con muchas vistas pero pocos leads (si ya tenemos métricas).
+
+2) Sección “Mi equipo” (vendedores)
+
+Crear una pantalla /broker/team donde el broker pueda ver a todos sus vendedores (usuarios con rol seller o equivalente bajo su agencyId).
+
+Para cada vendedor mostrar:
+
+nombre,
+
+email/WhatsApp,
+
+nº de leads activos,
+
+nº de cierres,
+
+última actividad.
+
+Acciones:
+
+Invitar nuevo vendedor (crear usuario con rol seller, asociado a la agency del broker).
+
+Ver detalle del vendedor:
+
+leads asignados,
+
+propiedades que maneja,
+
+rendimiento.
+
+Reasignar leads entre vendedores de la misma agencia.
+
+3) Sección “Mis leads de agencia”
+
+Crear una vista /broker/leads similar a la del admin global, pero filtrada por agencyId del broker.
+
+La tabla/lista debe permitir:
+
+filtrar por:
+
+vendedor asignado,
+
+estado del lead,
+
+tipo (cliente, propietario, etc.),
+
+fuente,
+
+fecha.
+
+ver ficha de cada lead (datos del cliente, propiedades de interés, timeline).
+
+reasignar un lead a otro vendedor de la misma agencia.
+
+4) Sección “Mis propiedades” de la agencia
+
+Crear una pantalla /broker/properties con todas las propiedades asociadas a la agencia del broker.
+
+Para cada propiedad mostrar:
+
+foto de portada,
+
+nombre/condominio,
+
+estado (publicada / en revisión / rentada),
+
+métricas simples (impresiones, leads generados, citas).
+
+Acciones:
+
+abrir ficha completa para ver detalles,
+
+ver qué vendedor está asignado a esa propiedad,
+
+abrir herramientas de Social Media para esa propiedad (si ya existe este módulo para sellers).
+
+5) UX y permisos
+
+Asegúrate de que el broker:
+
+vea solo leads, propiedades y vendedores de su agencyId,
+
+no tenga acceso a leads globales de otras agencias,
+
+no pueda modificar configuraciones globales de TRH.
+
+La UI debe ser consistente con:
+
+el panel del vendedor (Mis leads),
+
+el panel admin (Leads globales),
+
+el estilo general de Homesapp.
+
+En mobile:
+
+dashboards, tablas y cards deben verse en una columna,
+
+sin scroll horizontal,
+
+con filtros accesibles en panel desplegable.
+
+Al final, explícame:
+
+qué rutas nuevas tiene el broker (/broker/...),
+
+qué puede hacer en cada una (Dashboard, Equipo, Leads, Propiedades),
+
+cómo se filtra por agencyId en backend para que solo vea su propia información,
+
+y cómo se relaciona su vista con la de los vendedores y el admin global.

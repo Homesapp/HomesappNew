@@ -1,0 +1,237 @@
+Quiero unificar y mejorar todo el flujo de leads en Homesapp, tanto a nivel de proceso como de experiencia de usuario, para tres roles:
+
+Cliente (quien busca propiedad y eventualmente se convierte en inquilino).
+
+Vendedor / agente.
+
+Admin (TRH).
+
+Ya tenemos varias piezas (chatbot, formularios, portal, etc.), pero están un poco sueltas.
+Necesito que el sistema tenga:
+
+Un solo motor de leads,
+
+Formularios de ingreso coherentes,
+
+Una experiencia tipo CRM simple para el vendedor,
+
+Una bandeja global para el admin,
+
+Una vista clara de “Mis solicitudes” para el cliente.
+
+1) Motor de leads unificado
+
+Revisa las tablas existentes relacionadas con leads, solicitudes, applicants, etc.
+
+Diseña (y documenta en un .md) una entidad central leads o opportunities con campos mínimos:
+
+id
+
+tipo: cliente, propietario, vendedor
+
+estado (pipeline): prospect, lead, applicant, approved, tenant (o equivalente para propietario/vendedor: owner_lead, seller_applicant, etc.)
+
+fuente: chatbot, mapa, listado, formulario_propietario, formulario_vendedor, link_compartido, whatsapp_manual, etc.
+
+referencia a usuario (si ya está registrado),
+
+referencia a propiedad (si aplica),
+
+notas internas,
+
+fechas clave (creación, primer contacto, última actividad).
+
+Asegúrate de que:
+
+Chatbot,
+
+Formularios públicos,
+
+Botón “Quiero rentar / Agendar visita”,
+
+Onboarding de propietarios,
+
+Onboarding de vendedores,
+escriban en esta misma tabla, con el tipo y la fuente correctos.
+
+2) Formularios de ingreso coherentes
+
+Cliente que busca propiedad:
+
+Unifica el formulario para cualquier entrada (mapa, listado, ficha, chatbot) con estos campos mínimos:
+
+nombre,
+
+WhatsApp,
+
+presupuesto,
+
+zona deseada,
+
+fecha estimada de ingreso,
+
+tipo de operación (renta 12/6 meses, corta, compra).
+
+Este formulario debe crear/actualizar un lead:
+
+tipo cliente,
+
+estado inicial lead o applicant si está asociado a una propiedad concreta,
+
+fuente adecuada.
+
+Añade una barra de progreso y texto claro de “qué va a pasar después”.
+
+Mantener y conectar:
+
+Onboarding de propietarios (wizard tipo host).
+
+Onboarding de vendedores (wizard de aplicante).
+
+Asegúrate de que ambos también creen registros en la tabla central de leads con sus tipos y estados específicos.
+
+3) Experiencia del VENDEDOR (mini CRM)
+
+Crea una pantalla para rol seller (o ext. agency seller) tipo “Mis leads”.
+
+Esta pantalla debe permitir:
+
+Ver leads asignados al vendedor en formato:
+
+lista filtrable, y/o
+
+tablero Kanban por columnas:
+
+“Nuevos”, “En contacto”, “Cita programada”, “En proceso”, “Cerrado”.
+
+Filtros por:
+
+estado del lead,
+
+tipo de operación (renta/venta),
+
+propiedad asociada.
+
+Cada tarjeta de lead debe mostrar:
+
+nombre del cliente,
+
+propiedad (si aplica),
+
+presupuesto, zona,
+
+fuente,
+
+fecha de último movimiento.
+
+Desde la ficha de lead, el vendedor debe poder:
+
+cambiar estado (por ejemplo, vía dropdown),
+
+agendar una cita (creando el registro correspondiente y/o evento en calendario si ya está implementado),
+
+agregar notas internas,
+
+ver historial de interacciones (mensajes, cambios de estado).
+
+4) Experiencia del ADMIN con leads
+
+Crea/ajusta una vista de “Leads globales” para roles admin/TRH:
+
+vista en tabla con filtros por:
+
+tipo de lead (cliente/propietario/vendedor),
+
+estado,
+
+vendedor asignado,
+
+fuente,
+
+fecha de creación.
+
+métricas/resumen arriba:
+
+leads nuevos hoy,
+
+leads sin contacto (>X horas),
+
+leads por etapa,
+
+leads por vendedor.
+
+Acciones del admin:
+
+asignar un lead a un vendedor (o reasignar),
+
+cambiar estados (ej. aprobar vendedor, aprobar propietario),
+
+marcar leads como “cerrados / no cualifica”.
+
+Asegúrate de que admin pueda ver el timeline completo de un lead (ahora sí como auditoría).
+
+5) Experiencia del CLIENTE – “Mis solicitudes”
+
+Crea o mejora una pantalla “Mis solicitudes” para el cliente logueado:
+
+muestra todas sus solicitudes/leads tipo cliente,
+
+agrupa por propiedad, con:
+
+foto de portada,
+
+nombre de la propiedad,
+
+estado del proceso (ej. lead, applicant, approved, tenant),
+
+fecha de la última actualización.
+
+Para cada solicitud, representa visualmente el pipeline:
+
+Contacto recibido → Cita programada → En revisión → Aprobado → Contrato / Portal activo.
+
+Desde aquí:
+
+si estado = tenant y hay contrato/Portal, muestra botón “Abrir Portal” (Tenant Portal).
+
+si está en etapas previas, muestra textos claros de “qué falta” (ej. “Estamos revisando tu solicitud”, “Te falta enviar documentos X”, etc.).
+
+6) Detalles de UX generales
+
+Unificar estilos de:
+
+formularios de leads,
+
+tablas/listas de leads,
+
+tarjetas en dashboards.
+
+Mobile:
+
+Todos estos componentes (bandeja de leads para vendedor, lista global para admin, “Mis solicitudes” para cliente) deben funcionar bien en móviles:
+
+sin scroll horizontal,
+
+cards/listas en una columna,
+
+botones grandes.
+
+Feedback:
+
+Siempre que se cree un lead desde cualquier canal, mostrar al usuario final un mensaje de éxito con los próximos pasos.
+
+Para vendedor y admin, mostrar toasts o banners cuando se cambie el estado de un lead.
+
+Al final, por favor explíquenme:
+
+Qué estructura final de tabla(s) de leads está usando el sistema.
+
+Qué vistas nuevas o modificadas tienen:
+
+cliente (Mis solicitudes),
+
+vendedor (Mis leads / tablero),
+
+admin (leads globales).
+
+Cómo viaja un lead típico de cliente desde que entra por el homepage/mapa hasta que se convierte en tenant con Portal activo.

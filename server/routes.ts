@@ -284,6 +284,7 @@ import { registerSocialMediaRoutes } from "./routes-social-media";
 import { registerImpersonationRoutes } from "./routes-impersonation";
 import { logSellerActivity } from "./activityService";
 import { eq, and, or, not, inArray, desc, asc, sql, ne, isNull, isNotNull, gte, lte, lt, ilike } from "drizzle-orm";
+import { registerOnboardingRoutes } from "./onboardingRoutes";
 
 // Helper function to verify external agency ownership
 async function verifyExternalAgencyOwnership(req: any, res: any, agencyId: string): Promise<boolean> {
@@ -42662,6 +42663,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
   // Register social media routes for sellers
   registerSocialMediaRoutes(app);
   registerImpersonationRoutes(app);
+  registerOnboardingRoutes(app);
 
   // Register portal routes for tenant/owner portals
   registerPortalRoutes(
@@ -45672,3 +45674,9 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
   });
   return httpServer;
 }
+
+// =========================================================
+// SELLER & OWNER ONBOARDING APPLICATIONS - PLACEHOLDER
+// Routes to be implemented via additional file
+// =========================================================
+

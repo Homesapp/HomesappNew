@@ -9010,6 +9010,221 @@ export type InsertExternalSellerPayout = z.infer<typeof insertExternalSellerPayo
 export type ExternalSellerPayout = typeof externalSellerPayouts.$inferSelect;
 
 // =====================================================
+// SELLER APPLICATIONS - Public application for sellers/agents
+// =====================================================
+
+export const sellerApplicationStatusEnum = pgEnum("seller_application_status", [
+  "pending",         // Waiting for review
+  "under_review",    // Admin is reviewing
+  "approved",        // Approved - account created
+  "rejected",        // Rejected with reason
+  "requires_docs",   // Needs additional documentation
+]);
+
+export const sellerApplications = pgTable("seller_applications", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  
+  // Personal Information
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phoneCountryCode: varchar("phone_country_code", { length: 10 }).default("+52"),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  
+  // Professional Information
+  yearsOfExperience: integer("years_of_experience").default(0),
+  currentCompany: varchar("current_company", { length: 200 }), // Current real estate company if any
+  hasRealEstateLicense: boolean("has_real_estate_license").default(false),
+  licenseNumber: varchar("license_number", { length: 100 }),
+  specializations: text("specializations").array().default(sql`ARRAY[]::text[]`), // e.g., ["rentals", "sales", "luxury"]
+  zonesOfInterest: text("zones_of_interest").array().default(sql`ARRAY[]::text[]`), // e.g., ["Tulum Centro", "Aldea Zama"]
+  
+  // About / Motivation
+  motivation: text("motivation"), // Why do you want to join?
+  howDidYouHear: varchar("how_did_you_hear", { length: 200 }), // Source: referral, social media, etc.
+  referredBy: varchar("referred_by", { length: 200 }), // Name of referrer if applicable
+  
+  // Documents
+  idDocumentUrl: text("id_document_url"), // Government ID
+  idDocumentType: varchar("id_document_type", { length: 50 }), // INE, passport, driver's license
+  profilePhotoUrl: text("profile_photo_url"), // Professional photo
+  resumeUrl: text("resume_url"), // CV/Resume
+  additionalDocs: jsonb("additional_docs").default(sql`'[]'::jsonb`), // Array of {name, url}
+  
+  // Application Status
+  status: sellerApplicationStatusEnum("status").notNull().default("pending"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Target agency (optional - for agency-specific applications)
+  targetAgencyId: varchar("target_agency_id").references(() => externalAgencies.id, { onDelete: "set null" }),
+  
+  // Resulting user (when approved)
+  createdUserId: varchar("created_user_id").references(() => users.id, { onDelete: "set null" }),
+  
+  // Agreement
+  termsAccepted: boolean("terms_accepted").notNull().default(false),
+  termsAcceptedAt: timestamp("terms_accepted_at"),
+  privacyAccepted: boolean("privacy_accepted").notNull().default(false),
+  privacyAcceptedAt: timestamp("privacy_accepted_at"),
+  
+  // Metadata
+  ipAddress: varchar("ip_address", { length: 50 }),
+  userAgent: text("user_agent"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_seller_applications_status").on(table.status),
+  index("idx_seller_applications_email").on(table.email),
+  index("idx_seller_applications_created").on(table.createdAt),
+  index("idx_seller_applications_agency").on(table.targetAgencyId),
+]);
+
+export const insertSellerApplicationSchema = createInsertSchema(sellerApplications).omit({
+  id: true,
+  status: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  reviewNotes: true,
+  rejectionReason: true,
+  createdUserId: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  email: z.string().email("Email inválido"),
+  phone: z.string().min(10, "Teléfono debe tener al menos 10 dígitos"),
+  firstName: z.string().min(2, "Nombre debe tener al menos 2 caracteres"),
+  lastName: z.string().min(2, "Apellido debe tener al menos 2 caracteres"),
+  yearsOfExperience: z.coerce.number().min(0).optional(),
+  termsAccepted: z.boolean().refine(val => val === true, "Debes aceptar los términos"),
+  privacyAccepted: z.boolean().refine(val => val === true, "Debes aceptar la política de privacidad"),
+});
+
+export const updateSellerApplicationSchema = z.object({
+  status: z.enum(["pending", "under_review", "approved", "rejected", "requires_docs"]).optional(),
+  reviewNotes: z.string().optional(),
+  rejectionReason: z.string().optional(),
+});
+
+export type InsertSellerApplication = z.infer<typeof insertSellerApplicationSchema>;
+export type UpdateSellerApplication = z.infer<typeof updateSellerApplicationSchema>;
+export type SellerApplication = typeof sellerApplications.$inferSelect;
+
+// =====================================================
+// OWNER APPLICATIONS - Public application for property owners
+// =====================================================
+
+export const ownerApplicationStatusEnum = pgEnum("owner_application_status", [
+  "pending",         // Waiting for review
+  "under_review",    // Admin is reviewing
+  "approved",        // Approved - owner added
+  "rejected",        // Rejected with reason
+  "needs_info",      // Needs more property information
+]);
+
+export const ownerApplications = pgTable("owner_applications", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  
+  // Owner Information
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phoneCountryCode: varchar("phone_country_code", { length: 10 }).default("+52"),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  preferredLanguage: varchar("preferred_language", { length: 2 }).default("es"),
+  
+  // Property Information
+  propertyType: varchar("property_type", { length: 50 }), // condo, house, land, commercial
+  propertyAddress: text("property_address"),
+  propertyZone: varchar("property_zone", { length: 200 }), // Tulum Centro, Aldea Zama, etc.
+  condominiumName: varchar("condominium_name", { length: 200 }), // If applicable
+  numberOfBedrooms: integer("number_of_bedrooms"),
+  numberOfBathrooms: decimal("number_of_bathrooms", { precision: 3, scale: 1 }),
+  squareMeters: integer("square_meters"),
+  
+  // Investment Goals
+  rentalGoal: varchar("rental_goal", { length: 50 }), // long_term, short_term, both
+  expectedMonthlyRent: decimal("expected_monthly_rent", { precision: 12, scale: 2 }),
+  isCurrentlyRented: boolean("is_currently_rented").default(false),
+  availableFrom: date("available_from"),
+  
+  // Property Documents
+  propertyPhotos: jsonb("property_photos").default(sql`'[]'::jsonb`), // Array of URLs
+  ownershipDocUrl: text("ownership_doc_url"), // Escritura or proof of ownership
+  
+  // Additional Information
+  additionalNotes: text("additional_notes"),
+  howDidYouHear: varchar("how_did_you_hear", { length: 200 }),
+  referredBy: varchar("referred_by", { length: 200 }),
+  
+  // Application Status
+  status: ownerApplicationStatusEnum("status").notNull().default("pending"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Target agency
+  targetAgencyId: varchar("target_agency_id").references(() => externalAgencies.id, { onDelete: "set null" }),
+  
+  // Resulting records (when approved)
+  createdOwnerId: varchar("created_owner_id"), // Reference to external owner created
+  createdPropertyId: varchar("created_property_id"), // Reference to property draft created
+  
+  // Agreement
+  termsAccepted: boolean("terms_accepted").notNull().default(false),
+  termsAcceptedAt: timestamp("terms_accepted_at"),
+  privacyAccepted: boolean("privacy_accepted").notNull().default(false),
+  privacyAcceptedAt: timestamp("privacy_accepted_at"),
+  
+  // Metadata
+  ipAddress: varchar("ip_address", { length: 50 }),
+  userAgent: text("user_agent"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_owner_applications_status").on(table.status),
+  index("idx_owner_applications_email").on(table.email),
+  index("idx_owner_applications_created").on(table.createdAt),
+  index("idx_owner_applications_agency").on(table.targetAgencyId),
+  index("idx_owner_applications_zone").on(table.propertyZone),
+]);
+
+export const insertOwnerApplicationSchema = createInsertSchema(ownerApplications).omit({
+  id: true,
+  status: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  reviewNotes: true,
+  rejectionReason: true,
+  createdOwnerId: true,
+  createdPropertyId: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  email: z.string().email("Email inválido"),
+  phone: z.string().min(10, "Teléfono debe tener al menos 10 dígitos"),
+  firstName: z.string().min(2, "Nombre debe tener al menos 2 caracteres"),
+  lastName: z.string().min(2, "Apellido debe tener al menos 2 caracteres"),
+  termsAccepted: z.boolean().refine(val => val === true, "Debes aceptar los términos"),
+  privacyAccepted: z.boolean().refine(val => val === true, "Debes aceptar la política de privacidad"),
+});
+
+export const updateOwnerApplicationSchema = z.object({
+  status: z.enum(["pending", "under_review", "approved", "rejected", "needs_info"]).optional(),
+  reviewNotes: z.string().optional(),
+  rejectionReason: z.string().optional(),
+});
+
+export type InsertOwnerApplication = z.infer<typeof insertOwnerApplicationSchema>;
+export type UpdateOwnerApplication = z.infer<typeof updateOwnerApplicationSchema>;
+export type OwnerApplication = typeof ownerApplications.$inferSelect;
+
+// =====================================================
 // Public Chatbot Conversations - For homepage AI assistant
 // =====================================================
 
