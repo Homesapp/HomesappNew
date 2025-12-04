@@ -1,0 +1,137 @@
+Aquí hay dos piezas:
+
+PhotoEditor y BulkPhotoEditor (componentes de edición).
+
+La página SellerSocialMedia.tsx, donde el vendedor ve sus propiedades, media y abre el editor al hacer clic en una foto.
+
+a) Posibles bugs al hacer clic en fotos
+
+Revisando SellerSocialMedia.tsx vi cosas sospechosas que pueden generar errores justo cuando abres el editor:
+
+Configuración de watermark rota en el editor:
+
+En la parte donde construyes initialWatermark para <PhotoEditor /> hay una línea que se ve así (simplificado):
+
+position: watermarkConfig.watermarkPosition ...left" | "top-right" | "bottom-left" | "bottom-right" | "center",
+
+
+Eso parece que alguien pegó el tipo TypeScript dentro del código real. Eso rompería el build y puede explicar errores al intentar abrir el editor.
+
+Tipos cortados en BulkPhotoEditor:
+
+En la definición de onSave y del tipo devuelto por processImage aparecen textos tipo adjus...geAdjustments, que parecen cortes / artefactos de edición y no código válido.
+Si eso está así en el código real, TypeScript va a marcar error.
+
+Import raro de AlertDialog:
+
+La línea de import del AlertDialogHeader también tiene texto cortado con ..., lo que suena a código corrupto y puede generar errores de compilación.
+
+👉 Eso es exactamente el tipo de cosa que puede hacer que al clicar una foto y abrir el diálogo, el componente reviente.
+
+Qué pedirle a Replit sobre esto
+
+En la pantalla de Seller Social Media (archivo client/src/pages/SellerSocialMedia.tsx) y en los componentes PhotoEditor y BulkPhotoEditor estoy teniendo errores cuando hago clic en las fotos para editarlas.
+
+Revisen y limpien el código de estos puntos:
+
+Import de AlertDialog:
+
+Verifiquen que el import sea correcto, algo así como:
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+
+Quiten cualquier texto extraño con ... que pueda quedar entre los nombres.
+
+initialWatermark que se pasa a <PhotoEditor />:
+
+Corrijan la propiedad position para que sea un valor válido, por ejemplo:
+
+position: watermarkConfig.watermarkPosition || "bottom-right",
+
+
+No debe haber nada como "top-left" | "top-right" | ... dentro del código, eso es solo un tipo de TypeScript, no un valor.
+
+Tipos en BulkPhotoEditor:
+
+Revisen las definiciones de onSave y processImage en client/src/components/BulkPhotoEditor.tsx y asegúrense de que usen:
+
+adjustments: ImageAdjustments;
+
+
+sin textos cortados ni ....
+
+Defensas en el editor:
+
+Asegúrense de que <PhotoEditor /> solo se renderiza cuando imageUrl es una string válida (aunque creo que ya lo están controlando con editingPhotoUrl && (...)).
+
+Si la imagen falla al cargar, mostrar un mensaje amigable y no romper el componente.
+
+Pruebas manuales:
+
+Desde la vista de Seller Social Media:
+
+probar el botón “Editar fotos” (bulk),
+
+hacer clic en una miniatura específica,
+
+aplicar watermark y guardar,
+
+confirmar en consola que no hay errores.
+
+b) Mejoras de UX para el vendedor de redes sociales
+
+Más allá de bugs, esta pantalla tiene muchísimo potencial. Con lo que ya tienes en código, yo la organizaría para el vendedor así:
+
+Flujo en pasos claros:
+
+Paso 1: elegir propiedad.
+
+Paso 2: elegir foto (o lote de fotos).
+
+Paso 3: aplicar filtro / watermark.
+
+Paso 4: generar texto y hashtags (lo que ya estás haciendo con IA).
+
+Paso 5: guardar como template o marcar como “publicado”.
+
+Panel izquierdo / derecho:
+
+Izquierda: selector de propiedad + lista de media (fotos, videos) en grid.
+
+Derecha: editor principal (PhotoEditor) + vista previa del texto para redes.
+
+Acciones rápidas:
+
+Botón “Aplicar este filtro + watermark a todas las fotos de esta propiedad” (usa BulkPhotoEditor).
+
+Botones de plataforma: “Ver preview IG”, “Ver preview FB” (solo cambia formato/ratio y texto de ejemplo).
+
+Pequeños detalles:
+
+Mostrar contador de créditos IA y aviso claro si no puede generar más textos.
+
+En móvil, que se pueda usar con scroll vertical, sin cosas tiny.
+
+Puedes decirle algo así al Agent:
+
+Una vez que arreglen los errores, quiero que la experiencia de la pantalla de SellerSocialMedia sea mucho más guiada:
+
+Reorganizar en un layout tipo:
+
+Panel izquierdo: selección de propiedad + grid de fotos.
+
+Panel derecho: editor de foto (PhotoEditor) + texto y hashtags generados por IA.
+
+Añadir etiquetas claras de pasos (“1. Elige la propiedad”, “2. Elige las fotos”, “3. Edita y descarga / guarda”).
+
+Mejorar la versión móvil para que todo se pueda usar solo con scroll vertical (sin desbordes raros).
+
+El enfoque es que cualquier vendedor pueda entrar, elegir la propiedad, tocar una foto, editarla rápido con watermark y descargarla junto con un texto de redes listo para copiar/pegar.

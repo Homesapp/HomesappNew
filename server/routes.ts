@@ -38625,7 +38625,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       handleGenericError(res, error);
     }
   });
-  });
 
   app.delete("/api/external-rental-contracts/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {

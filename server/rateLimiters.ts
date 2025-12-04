@@ -68,6 +68,8 @@ export const tokenRegenerationLimiter = rateLimit({
 });
 
 // Portal login rate limiter - stricter than regular auth
+
+// Portal login rate limiter - stricter than regular auth
 export const portalLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 attempts per 15 minutes
@@ -77,9 +79,4 @@ export const portalLoginLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    // Rate limit by IP and access code combination
-    const accessCode = req.body?.accessCode || 'unknown';
-    return `${req.ip}-${accessCode}`;
-  },
 });
