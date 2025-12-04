@@ -1630,6 +1630,120 @@ export const insertRentalContractSchema = createInsertSchema(rentalContracts).om
 export type InsertRentalContract = z.infer<typeof insertRentalContractSchema>;
 export type RentalContract = typeof rentalContracts.$inferSelect;
 
+// Contract Document Type enum for internal contracts
+export const contractDocumentTypeEnum = pgEnum("contract_document_type", [
+  "ine_tenant",         // INE del inquilino
+  "ine_owner",          // INE del propietario
+  "contract_signed",    // Contrato firmado
+  "deposit_receipt",    // Comprobante de depósito
+  "inventory",          // Inventario
+  "photos_checkin",     // Fotos de check-in
+  "photos_checkout",    // Fotos de check-out
+  "addendum",           // Adendum
+  "payment_receipt",    // Comprobante de pago
+  "service_bill",       // Recibo de servicio
+  "income_proof",       // Comprobante de ingresos
+  "reference_letter",   // Carta de referencia
+  "other",              // Otro
+]);
+
+// Contract Document Category enum
+export const contractDocumentCategoryEnum = pgEnum("contract_document_category", [
+  "required",           // Documento requerido
+  "optional",           // Documento opcional
+  "generated",          // Documento generado por el sistema
+]);
+
+// Contract Documents table - Documentos asociados a contratos
+export const contractDocuments = pgTable("contract_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  
+  documentType: contractDocumentTypeEnum("document_type").notNull(),
+  category: contractDocumentCategoryEnum("category").notNull().default("optional"),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  fileUrl: text("file_url").notNull(),
+  fileName: varchar("file_name", { length: 255 }),
+  fileSize: integer("file_size"), // In bytes
+  mimeType: varchar("mime_type", { length: 100 }),
+  
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  
+  visibleToTenant: boolean("visible_to_tenant").notNull().default(false),
+  visibleToOwner: boolean("visible_to_owner").notNull().default(false),
+  
+  documentDate: date("document_date"),
+  expiresAt: timestamp("expires_at"),
+  
+  isVerified: boolean("is_verified").notNull().default(false),
+  verifiedBy: varchar("verified_by").references(() => users.id),
+  verifiedAt: timestamp("verified_at"),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_contract_documents_contract").on(table.rentalContractId),
+  index("idx_contract_documents_type").on(table.documentType),
+  index("idx_contract_documents_category").on(table.category),
+]);
+
+export const insertContractDocumentSchema = createInsertSchema(contractDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContractDocument = z.infer<typeof insertContractDocumentSchema>;
+export type ContractDocument = typeof contractDocuments.$inferSelect;
+
+// Contract Events table - Audit trail for contract status changes
+export const contractEventTypeEnum = pgEnum("contract_event_type", [
+  "status_change",      // Cambio de estado
+  "note_added",         // Nota agregada
+  "document_uploaded",  // Documento subido
+  "document_verified",  // Documento verificado
+  "payment_recorded",   // Pago registrado
+  "terms_signed",       // Términos firmados
+  "email_sent",         // Email enviado
+  "reminder_sent",      // Recordatorio enviado
+  "comment",            // Comentario general
+]);
+
+export const contractEvents = pgTable("contract_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rentalContractId: varchar("rental_contract_id").notNull().references(() => rentalContracts.id, { onDelete: "cascade" }),
+  
+  eventType: contractEventTypeEnum("event_type").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  previousStatus: rentalContractStatusEnum("previous_status"),
+  newStatus: rentalContractStatusEnum("new_status"),
+  
+  metadata: jsonb("metadata"), // Additional event data
+  
+  userId: varchar("user_id").references(() => users.id),
+  userName: varchar("user_name", { length: 255 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_contract_events_contract").on(table.rentalContractId),
+  index("idx_contract_events_type").on(table.eventType),
+  index("idx_contract_events_created").on(table.createdAt),
+]);
+
+export const insertContractEventSchema = createInsertSchema(contractEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContractEvent = z.infer<typeof insertContractEventSchema>;
+export type ContractEvent = typeof contractEvents.$inferSelect;
+
 // Contract Tenant Info table - Información del formato de renta del inquilino
 export const contractTenantInfo = pgTable("contract_tenant_info", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

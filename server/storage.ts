@@ -150,6 +150,12 @@ import {
   type InsertRentalPayment,
   type TenantMaintenanceRequest,
   type InsertTenantMaintenanceRequest,
+  contractDocuments,
+  type ContractDocument,
+  type InsertContractDocument,
+  contractEvents,
+  type ContractEvent,
+  type InsertContractEvent,
   type PropertyChangeRequest,
   type InsertPropertyChangeRequest,
   type PropertyLimitRequest,
@@ -912,6 +918,18 @@ export interface IStorage {
   getPendingPaymentsByOwner(ownerId: string): Promise<RentalPayment[]>;
   createTenantMaintenanceRequest(requestData: InsertTenantMaintenanceRequest): Promise<TenantMaintenanceRequest>;
   getTenantMaintenanceRequests(rentalContractId: string): Promise<TenantMaintenanceRequest[]>;
+  
+  // Contract Documents operations
+  getContractDocument(id: string): Promise<ContractDocument | undefined>;
+  getContractDocuments(rentalContractId: string): Promise<ContractDocument[]>;
+  createContractDocument(document: InsertContractDocument): Promise<ContractDocument>;
+  updateContractDocument(id: string, updates: Partial<InsertContractDocument>): Promise<ContractDocument>;
+  deleteContractDocument(id: string): Promise<void>;
+  
+  // Contract Events operations
+  getContractEvent(id: string): Promise<ContractEvent | undefined>;
+  getContractEvents(rentalContractId: string): Promise<ContractEvent[]>;
+  createContractEvent(event: InsertContractEvent): Promise<ContractEvent>;
   
   // Property Delivery Inventory operations
   getPropertyDeliveryInventory(rentalContractId: string): Promise<PropertyDeliveryInventory | undefined>;
@@ -5218,6 +5236,63 @@ export class DatabaseStorage implements IStorage {
       .from(tenantMaintenanceRequests)
       .where(eq(tenantMaintenanceRequests.rentalContractId, rentalContractId))
       .orderBy(desc(tenantMaintenanceRequests.createdAt));
+  }
+
+  // Contract Documents operations
+  async getContractDocument(id: string): Promise<ContractDocument | undefined> {
+    const [document] = await db
+      .select()
+      .from(contractDocuments)
+      .where(eq(contractDocuments.id, id));
+    return document;
+  }
+
+  async getContractDocuments(rentalContractId: string): Promise<ContractDocument[]> {
+    return await db
+      .select()
+      .from(contractDocuments)
+      .where(eq(contractDocuments.rentalContractId, rentalContractId))
+      .orderBy(desc(contractDocuments.createdAt));
+  }
+
+  async createContractDocument(document: InsertContractDocument): Promise<ContractDocument> {
+    const [newDocument] = await db.insert(contractDocuments).values(document).returning();
+    return newDocument;
+  }
+
+  async updateContractDocument(id: string, updates: Partial<InsertContractDocument>): Promise<ContractDocument> {
+    const [updated] = await db
+      .update(contractDocuments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(contractDocuments.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteContractDocument(id: string): Promise<void> {
+    await db.delete(contractDocuments).where(eq(contractDocuments.id, id));
+  }
+
+  // Contract Events operations
+  async getContractEvent(id: string): Promise<ContractEvent | undefined> {
+    const [event] = await db
+      .select()
+      .from(contractEvents)
+      .where(eq(contractEvents.id, id));
+    return event;
+  }
+
+  async getContractEvents(rentalContractId: string): Promise<ContractEvent[]> {
+    return await db
+      .select()
+      .from(contractEvents)
+      .where(eq(contractEvents.rentalContractId, rentalContractId))
+      .orderBy(desc(contractEvents.createdAt));
+  }
+
+  async createContractEvent(event: InsertContractEvent): Promise<ContractEvent> {
+    const [newEvent] = await db.insert(contractEvents).values(event).returning();
+    return newEvent;
   }
 
   // Property Delivery Inventory operations

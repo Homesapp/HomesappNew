@@ -19724,6 +19724,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Contract Documents endpoints
+  app.get("/api/contract-documents/:contractId", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const documents = await storage.getContractDocuments(contractId);
+      res.json(documents);
+    } catch (error: any) {
+      console.error("Error fetching contract documents:", error);
+      res.status(500).json({ message: "Failed to fetch contract documents" });
+    }
+  });
+
+  app.post("/api/contract-documents/:contractId", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const documentData = {
+        ...req.body,
+        rentalContractId: contractId,
+        uploadedBy: req.user?.id,
+      };
+      const document = await storage.createContractDocument(documentData);
+      
+      await storage.createContractEvent({
+        rentalContractId: contractId,
+        eventType: "document_uploaded",
+        title: `Documento subido: ${document.title}`,
+        description: `Se subió ${document.documentType}`,
+        userId: req.user?.id,
+        userName: req.user?.fullName || req.user?.username,
+      });
+      
+      res.status(201).json(document);
+    } catch (error: any) {
+      console.error("Error creating contract document:", error);
+      res.status(500).json({ message: "Failed to create contract document" });
+    }
+  });
+
+  app.patch("/api/contract-documents/:contractId/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { id, contractId } = req.params;
+      const updates = req.body;
+      
+      if (updates.isVerified && updates.isVerified === true) {
+        updates.verifiedBy = req.user?.id;
+        updates.verifiedAt = new Date();
+      }
+      
+      const document = await storage.updateContractDocument(id, updates);
+      
+      if (updates.isVerified) {
+        await storage.createContractEvent({
+          rentalContractId: contractId,
+          eventType: "document_verified",
+          title: `Documento verificado: ${document.title}`,
+          userId: req.user?.id,
+          userName: req.user?.fullName || req.user?.username,
+        });
+      }
+      
+      res.json(document);
+    } catch (error: any) {
+      console.error("Error updating contract document:", error);
+      res.status(500).json({ message: "Failed to update contract document" });
+    }
+  });
+
+  app.delete("/api/contract-documents/:contractId/:id", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteContractDocument(id);
+      res.status(204).send();
+    } catch (error: any) {
+      console.error("Error deleting contract document:", error);
+      res.status(500).json({ message: "Failed to delete contract document" });
+    }
+  });
+
+  // Contract Events endpoints
+  app.get("/api/contract-events/:contractId", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const events = await storage.getContractEvents(contractId);
+      res.json(events);
+    } catch (error: any) {
+      console.error("Error fetching contract events:", error);
+      res.status(500).json({ message: "Failed to fetch contract events" });
+    }
+  });
+
+  app.post("/api/contract-events/:contractId", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const { contractId } = req.params;
+      const eventData = {
+        ...req.body,
+        rentalContractId: contractId,
+        userId: req.user?.id,
+        userName: req.user?.fullName || req.user?.username,
+      };
+      const event = await storage.createContractEvent(eventData);
+      res.status(201).json(event);
+    } catch (error: any) {
+      console.error("Error creating contract event:", error);
+      res.status(500).json({ message: "Failed to create contract event" });
+    }
+  });
   // Admin Integrations Status endpoint
   app.get("/api/admin/integrations/status", isAuthenticated, requireRole(["master", "admin"]), async (req, res) => {
     try {
