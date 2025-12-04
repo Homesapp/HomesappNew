@@ -35366,7 +35366,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
   // Returns minimal data for fast map loading
   app.get("/api/public/map-markers", async (req, res) => {
     try {
-      const { status, propertyType, minPrice, maxPrice, bedrooms, bathrooms, petFriendly, zone, condominiumId } = req.query;
+      const { status, propertyType, minPrice, maxPrice, bedrooms, bathrooms, petFriendly, zone, condominiumId, north, south, east, west } = req.query;
       
       // Build where conditions - base conditions for approved/active properties with coordinates
       const conditions: any[] = [
@@ -35377,6 +35377,23 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         isNotNull(externalUnits.longitude)
       ];
       
+      
+      // Apply viewport bounds filtering (with 5% margin for smooth panning)
+      if (north && south && east && west) {
+        const n = parseFloat(north as string);
+        const s = parseFloat(south as string);
+        const e = parseFloat(east as string);
+        const w = parseFloat(west as string);
+        if (!isNaN(n) && !isNaN(s) && !isNaN(e) && !isNaN(w)) {
+          // Add 5% margin to bounds to prevent reloading on small movements
+          const latMargin = (n - s) * 0.05;
+          const lngMargin = (e - w) * 0.05;
+          conditions.push(sql`CAST(${externalUnits.latitude} AS numeric) >= ${s - latMargin}`);
+          conditions.push(sql`CAST(${externalUnits.latitude} AS numeric) <= ${n + latMargin}`);
+          conditions.push(sql`CAST(${externalUnits.longitude} AS numeric) >= ${w - lngMargin}`);
+          conditions.push(sql`CAST(${externalUnits.longitude} AS numeric) <= ${e + lngMargin}`);
+        }
+      }
       // Apply filters
       if (status && typeof status === 'string' && status !== 'all') {
         if (status === 'rent') {
