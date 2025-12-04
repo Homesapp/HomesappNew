@@ -1,0 +1,147 @@
+Quiero crear dos cuentas demo para probar bien el Portal 2.0:
+
+un INQUILINO demo
+
+un PROPIETARIO demo
+
+y que ambos estén vinculados al mismo contrato y a la misma propiedad.
+
+1) Usuarios demo
+
+Por favor crea:
+
+Usuario inquilino:
+
+email: demo.inquilino@homesapp.com
+
+nombre: Inquilino Demo TRH
+
+contraseña temporal (indícame cuál dejas)
+
+roles/permisos necesarios para que pueda:
+
+iniciar sesión normal,
+
+usar el Portal de inquilino (/portal/tenant).
+
+Usuario propietario:
+
+email: demo.propietario@homesapp.com
+
+nombre: Propietario Demo TRH
+
+contraseña temporal
+
+roles/permisos para usar el Portal de propietario (/portal/owner).
+
+2) Contrato demo compartido
+
+Crea una propiedad y contrato de prueba:
+
+Propiedad:
+
+nombre: “Departamento Demo – Aldea Zama”
+
+agencia: Tulum Rental Homes
+
+tipo: departamento 2 recámaras, 2 baños, amueblado, pet friendly.
+
+Contrato:
+
+estado: active
+
+fecha de inicio: hace 2 meses
+
+fecha de fin: dentro de 10 meses
+
+renta mensual: $25,000 MXN
+
+depósito: 1 mes
+
+asignado al inquilino demo y al propietario demo.
+
+3) Acceso al Portal (tokens)
+
+En la tabla external_portal_access_tokens, crea:
+
+Un token para el inquilino:
+
+role = 'tenant'
+
+contractId = contrato demo
+
+status = 'active'
+
+agencyId = TRH
+
+expiresAt a futuro o null.
+
+Un token para el propietario:
+
+role = 'owner'
+
+contractId = mismo contrato demo
+
+status = 'active'.
+
+Asegúrate de que pueda iniciar sesión en /portal con estos usuarios, y que el middleware reconozca correctamente el rol y el contrato.
+
+4) Datos de Portal para probar UX
+
+Por favor llena las tablas del Portal 2.0 con datos de ejemplo para este contrato:
+
+portal_service_configs:
+
+Renta mensual
+
+CFE
+
+Agua
+
+Internet
+
+portal_payment_records:
+
+2 pagos verified (meses anteriores),
+
+1 pago pending para el mes actual,
+
+1 pago overdue (para ver el estado vencido).
+
+portal_documents:
+
+Contrato de arrendamiento,
+
+1–2 recibos de pago,
+
+algún documento solo visible para propietario.
+
+portal_maintenance y portal_ticket_updates:
+
+1 ticket abierto (“Fuga en baño”),
+
+1 ticket resuelto (“Mantenimiento de A/C”).
+
+portal_messages:
+
+intercambios entre tenant y owner/TRH (algunos marcados como isInternal para owner/TRH).
+
+external_portal_chat_messages:
+
+2–3 mensajes de ejemplo de tenant con el chat IA.
+
+5) Resultado
+
+Al final, por favor dime:
+
+los emails + contraseñas finales de las dos cuentas demo,
+
+en qué URLs exactas puedo:
+
+iniciar sesión como inquilino demo y entrar a su Portal,
+
+iniciar sesión como propietario demo y entrar a su Portal.
+
+Quiero poder usar estas dos cuentas para probar toda la UX del Portal desde ambos lados (tenant y owner) y mostrarlo a terceros.
+
+Si lo ves más cómodo, puedes crear un script de “seed demo data” documentado en /scripts para poder regenerar estos datos cuando sea necesario.

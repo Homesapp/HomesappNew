@@ -21498,7 +21498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -22301,7 +22301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -24547,7 +24547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -24648,7 +24648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -26699,7 +26699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -30634,7 +30634,7 @@ ${{precio}}/mes
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -35494,7 +35494,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           includedServices: externalUnits.includedServices,
         })
         .from(externalUnits)
@@ -37406,7 +37406,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -37467,7 +37467,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -39734,7 +39734,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -40734,7 +40734,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
@@ -40748,7 +40748,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           petsAllowed: externalUnits.petFriendly,
           primaryImages: externalUnits.primaryImages,
           secondaryImages: externalUnits.secondaryImages,
-          furnished: externalUnits.furnished,
+          
           slug: externalUnits.slug,
           agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
