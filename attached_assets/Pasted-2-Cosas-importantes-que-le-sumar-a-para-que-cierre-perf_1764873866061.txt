@@ -1,0 +1,121 @@
+2. Cosas importantes que le sumaría (para que cierre perfecto con tu visión)
+A) Flujo desde “contrato creado” hasta “Portal activo”
+
+Ahora sabes cómo se entra, pero falta dejar escrito:
+
+Quién y cómo crea el external_portal_access_token:
+
+¿Lo crea el admin desde el panel cuando marca el contrato como “firmado”?
+
+¿Se crea automático al crear un contrato active?
+
+Qué pasa cuando se activa:
+
+Se genera el accessCode.
+
+Se envía:
+
+Email / WhatsApp al inquilino con:
+
+link /portal,
+
+código de acceso y pasos.
+
+Estado del pipeline: approved → tenant.
+
+👉 Le puedes pedir a Replit que:
+
+Automatice: al crear contrato activo → crear token + dejar listo para enviar invitación.
+
+Documente el flujo en un .md (que casi ya lo tienes con lo que pegaste).
+
+B) UX del Portal (lo que ve tenant/owner al entrar)
+
+La doc es muy backend, falta un cachito de “cómo se ve”:
+
+Pantalla inicial tenant:
+
+resumen de pagos próximos + botón “Registrar pago”,
+
+resumen de tickets + botón “Reportar problema”,
+
+mensajes sin leer.
+
+Pantalla inicial owner:
+
+resumen de pagos (pendientes vs verificados),
+
+tickets abiertos,
+
+alertas (pagos vencidos, ticket crítico).
+
+Puedes decirle a Replit algo como:
+
+“Con esta doc de Portal 2.0 implementa un Dashboard específico para tenant y otro para owner con estos bloques… (y pegamos lo que ya le habíamos escrito de Overview, Payments, Maintenance, etc.).”
+
+Ya tienes la base de datos; ahora es solo pintar experiencia bonita.
+
+C) Seguridad extra
+
+Tu diseño ya es bueno (tokens, hash, sesiones 7 días), pero yo agregaría:
+
+Rate limit en /portal/auth/login (para evitar brute force con códigos).
+
+Log de:
+
+últimos inicios de sesión (fecha, IP aproximada),
+
+intentos fallidos por token.
+
+Opción de revocar token desde admin:
+
+al revocar:
+
+invalida todas las sesiones de ese token,
+
+bloquea acceso inmediato a ese contrato.
+
+Eso se puede escribir como “mejoras de seguridad” para que el Agent las implemente.
+
+D) Conexión con “lista de contratos” cuando un usuario tiene varios
+
+Ya lo mencionamos antes, pero lo engancho a esta doc:
+
+Si un tenant/owner tiene más de un contrato activo:
+
+/portal/tenant debería mostrar primero una lista de contratos → luego entra al portal de uno.
+
+Esa lista puede usar datos de contract + portal_service_configs + portal_payment_records para mostrar un mini resumen de cada contrato.
+
+Añadir este comportamiento en la doc deja claro qué hacer en frontend.
+
+E) Multi-idioma y branding TRH / otras agencias
+
+Ya lo mencionas como “baja prioridad”, pero yo añadiría 2 detallitos:
+
+Guardar en external_portal_access_tokens o en contracts:
+
+preferredLanguage (es/en).
+
+brandId / agencyId (ya lo tienes) para mostrar logo, colores, etc.
+
+Así el Portal del mismo motor te sirve luego para Seaside Mahahual, etc., cambiando el branding.
+
+3. Cómo usar esta doc con Replit (tal cual)
+
+Lo que pegaría ahora al Agent sería algo del estilo:
+
+“Te voy a pegar la documentación de Portal 2.0 que define rutas, tablas, endpoints y permisos.
+Quiero que revises que el código actual realmente cumpla con esto y que, en lo que no cumpla, lo ajustes.”
+
+(pegas lo que acabas de poner)
+
+Luego:
+
+“Paso 1: valida que todas estas tablas existen con esta estructura o lo más cercana posible y que los endpoints que listamos están implementados.”
+
+“Paso 2: implementa el Dashboard de Overview para tenant y owner según estos criterios de UX…”
+
+“Paso 3: automatiza la creación del external_portal_access_token cuando un contrato pasa a estado activo y define el flujo de invitación.”
+
+Con eso conviertes esta doc en plan de trabajo real.
