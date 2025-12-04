@@ -1,0 +1,97 @@
+Prompt para Replit Agent – Sección Portal de rentas activas
+
+Quiero que diseñes e implementes correctamente la sección Portal para rentas activas en Homesapp.
+
+Este Portal será el espacio donde Inquilino y Propietario (y opcionalmente el equipo de Tulum Rental Homes) pueden gestionar todo lo relacionado con una renta activa: pagos, servicios, mantenimiento y comunicación básica.
+
+1) Contexto y acceso al Portal
+
+El Portal debe estar ligado a un contrato de renta activo (lease / rental contract).
+
+Solo deben ver el Portal:
+
+El Inquilino del contrato,
+
+El Propietario de la unidad,
+
+Y los roles internos de TRH que definamos (admin/agente).
+
+Flujo de acceso:
+
+Si un usuario tiene una sola renta activa, al entrar a “Portal” va directo al portal de esa renta.
+
+Si tiene varias rentas (propietario con varios departamentos, por ejemplo), primero ve una lista simple de contratos activos (propiedad, condominio, fechas) y elige uno para entrar.
+
+Cada Portal se entiende como “portal de un contrato específico”.
+
+2) Secciones del Portal
+
+Dentro del Portal de un contrato quiero, como mínimo, estas secciones (tabs o paneles):
+
+Resumen
+
+Datos principales del contrato:
+
+Propiedad / condominio,
+
+Inquilino(s),
+
+Propietario,
+
+Monto de renta, fecha de pago,
+
+Fechas de inicio y fin,
+
+Estado del contrato.
+
+Próximos eventos:
+
+Próxima renta,
+
+Próximo pago de servicio,
+
+Próxima visita de mantenimiento.
+
+Pagos y servicios
+
+Gestión de:
+
+Renta mensual,
+
+Luz,
+
+Agua,
+
+Internet,
+
+HOA/mantenimiento,
+
+“Otros” pagos extra.
+
+Mantenimientos y reportes
+
+Tickets de mantenimiento / problemas:
+
+reportados por el inquilino,
+
+gestionados por propietario/TRH.
+
+Comprobantes y documentos
+
+Subida de recibos de pago,
+
+Documentos del contrato (PDF contrato, anexos, inventario, etc.).
+
+Mensajes / chat básico
+
+Un hilo de conversación simple entre:
+
+Inquilino,
+
+Propietario,
+
+TRH (si aplica),
+
+Más mensajes del sistema (por ejemplo: “se registró pago de luz”, “se creó ticket de mantenimiento”).
+
+Si ya existe parte de esto, adáptalo; si no, créalo desde cero usando la estructura actual del proyecto.

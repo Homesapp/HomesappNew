@@ -35359,8 +35359,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           agencyId: externalUnits.agencyId,
           condominiumId: externalUnits.condominiumId,
           petsAllowed: externalUnits.petFriendly,
-          slug: externalUnits.slug,
-          agencySlug: externalAgencies.slug,
           includedServices: externalUnits.includedServices,
         })
         .from(externalUnits)
