@@ -526,14 +526,22 @@ export default function Properties() {
                 bathrooms={Number(property.bathrooms)}
                 area={Number(property.area)}
                 location={property.location}
+                colonyName={property.colonyName || undefined}
                 status={property.status}
                 image={property.primaryImages?.[property.coverImageIndex || 0] || property.images?.[0]}
+                petFriendly={property.petFriendly || false}
+                furnished={property.furnished || false}
+                rentalType={property.rentalType || undefined}
+                amenities={property.amenities as string[] | undefined}
+                hoaIncluded={property.hoaIncluded || false}
+                virtualTourUrl={property.virtualTourUrl || undefined}
                 externalAgencyName={property.externalAgencyName}
                 externalAgencyLogoUrl={property.externalAgencyLogoUrl}
                 onView={() => handleViewProperty(property.id)}
                 onEdit={canEditProperty(property) ? () => handleEditClick(property) : undefined}
                 onDelete={canEditProperty(property) ? () => handleDeleteClick(property.id) : undefined}
                 onSchedule={() => handleScheduleAppointment(property.id)}
+                showCompare={true}
               />
             ))
           ) : (

@@ -11,6 +11,8 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { RoleSelector } from "@/components/RoleSelector";
 import { AppSidebar } from "@/components/AppSidebar";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { ComparePropertiesProvider } from "@/contexts/ComparePropertiesContext";
+import { ComparePropertiesBar } from "@/components/ComparePropertiesBar";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -633,10 +635,13 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <LanguageProvider>
-            <TooltipProvider>
-              <AuthenticatedApp />
-              <Toaster />
-            </TooltipProvider>
+            <ComparePropertiesProvider>
+              <TooltipProvider>
+                <AuthenticatedApp />
+                <ComparePropertiesBar />
+                <Toaster />
+              </TooltipProvider>
+            </ComparePropertiesProvider>
           </LanguageProvider>
         </ThemeProvider>
       </QueryClientProvider>

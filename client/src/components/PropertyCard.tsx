@@ -3,8 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2, Droplet, Zap, Wifi, PawPrint, Building2, CheckCircle, XCircle, Flame, Trees, Waves } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Bed, Bath, Square, MapPin, Eye, Edit, Calendar, Trash2, Droplet, Zap, Wifi, PawPrint, Building2, CheckCircle, XCircle, Flame, Trees, Waves, GitCompareArrows } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useCompareProperties, CompareProperty } from "@/contexts/ComparePropertiesContext";
+import { useToast } from "@/hooks/use-toast";
 
 type IncludedServices = {
   basicServices?: {
@@ -51,6 +54,11 @@ export type PropertyCardProps = {
   status: "rent" | "sale" | "both";
   image?: string;
   petFriendly?: boolean;
+  furnished?: boolean;
+  rentalType?: string;
+  amenities?: string[];
+  hoaIncluded?: boolean;
+  virtualTourUrl?: string;
   includedServices?: IncludedServices;
   externalAgencyName?: string | null;
   externalAgencyLogoUrl?: string | null;
@@ -59,9 +67,11 @@ export type PropertyCardProps = {
   onDelete?: () => void;
   onSchedule?: () => void;
   showActions?: boolean;
+  showCompare?: boolean;
 };
 
 export function PropertyCard({
+  id,
   title,
   customListingTitle,
   price,
@@ -79,6 +89,11 @@ export function PropertyCard({
   status,
   image,
   petFriendly = false,
+  furnished,
+  rentalType,
+  amenities,
+  hoaIncluded,
+  virtualTourUrl,
   includedServices,
   externalAgencyName,
   externalAgencyLogoUrl,
@@ -87,8 +102,72 @@ export function PropertyCard({
   onDelete,
   onSchedule,
   showActions = true,
+  showCompare = false,
 }: PropertyCardProps) {
   const { t } = useLanguage();
+  const { toast } = useToast();
+  
+  let compareContext: ReturnType<typeof useCompareProperties> | null = null;
+  try {
+    compareContext = useCompareProperties();
+  } catch {
+    // Compare context not available, that's fine
+  }
+  
+  const isCompareSelected = compareContext?.isSelected(id) || false;
+  const canAddToCompare = compareContext?.canAdd || false;
+  
+  const handleCompareToggle = () => {
+    if (!compareContext) return;
+    
+    if (isCompareSelected) {
+      compareContext.removeProperty(id);
+      return;
+    }
+    
+    // Check if max is reached before adding
+    if (!canAddToCompare) {
+      toast({
+        title: t("property.maxCompareReached") || "Máximo alcanzado",
+        description: t("property.maxCompareDescription") || "Solo puedes comparar hasta 4 propiedades",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const displayTitle = customListingTitle || title;
+    const compareProperty: CompareProperty = {
+      id,
+      title: displayTitle || "Propiedad",
+      image,
+      price: typeof price === "number" ? price : 0,
+      salePrice: typeof salePrice === "number" ? salePrice : undefined,
+      currency: currency || "MXN",
+      bedrooms: typeof bedrooms === "number" ? bedrooms : 0,
+      bathrooms: typeof bathrooms === "number" ? bathrooms : 0,
+      area: typeof area === "number" ? area : 0,
+      location: location || "",
+      zone: colonyName,
+      condoName,
+      unitNumber,
+      status,
+      petFriendly: petFriendly || false,
+      furnished: furnished || false,
+      rentalType,
+      amenities: Array.isArray(amenities) ? amenities : [],
+      hoaIncluded: hoaIncluded || includedServices?.hoaMaintenance || false,
+      virtualTourUrl,
+    };
+    
+    const success = compareContext.addProperty(compareProperty);
+    if (!success) {
+      toast({
+        title: t("property.maxCompareReached") || "Máximo alcanzado",
+        description: t("property.maxCompareDescription") || "Solo puedes comparar hasta 4 propiedades",
+        variant: "destructive",
+      });
+    }
+  };
   
   const statusLabels = {
     rent: t("property.status.rent"),
@@ -128,7 +207,33 @@ export function PropertyCard({
             <Square className="h-12 w-12" />
           </div>
         )}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          {showCompare && compareContext && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={isCompareSelected ? "default" : "secondary"}
+                  size="icon"
+                  className="h-7 w-7 rounded-full shadow-md"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCompareToggle();
+                  }}
+                  disabled={!isCompareSelected && !canAddToCompare}
+                  data-testid={`button-compare-${id}`}
+                >
+                  <GitCompareArrows className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isCompareSelected 
+                  ? (t("property.removeFromCompare") || "Quitar de comparación")
+                  : canAddToCompare 
+                    ? (t("property.addToCompare") || "Añadir a comparación")
+                    : (t("property.maxCompareReached") || "Máximo alcanzado")}
+              </TooltipContent>
+            </Tooltip>
+          )}
           <Badge variant={statusVariants[status]}>{statusLabels[status]}</Badge>
         </div>
         {externalAgencyName && (
