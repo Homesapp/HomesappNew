@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, Save, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 
 const tenantFormSchema = z.object({
   // Datos Generales del Arrendatario
@@ -94,15 +94,18 @@ export default function ContractTenantForm() {
   const [currentSection, setCurrentSection] = useState(0);
 
   // Fetch contract and existing info
-  const { data: contractData } = useQuery({
+  const { data: contractData, isLoading: isLoadingContract, error: contractError } = useQuery({
     queryKey: ["/api/contracts", contractId],
     enabled: !!contractId,
+    retry: false,
   });
 
-  const { data: tenantInfo } = useQuery({
+  const { data: tenantInfo, isLoading: isLoadingInfo } = useQuery({
     queryKey: ["/api/contracts", contractId, "tenant-info"],
-    enabled: !!contractId,
+    enabled: !!contractId && !!contractData,
   });
+
+  const isLoading = isLoadingContract || isLoadingInfo;
 
   const form = useForm<TenantFormData>({
     resolver: zodResolver(tenantFormSchema),
@@ -1050,6 +1053,45 @@ export default function ContractTenantForm() {
   ];
 
   const currentSectionData = sections[currentSection];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" data-testid="container-loading-tenant-form">
+        <Card className="max-w-md w-full" data-testid="card-loading-tenant-form">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" data-testid="spinner-loading-tenant-form" />
+              <p className="text-muted-foreground" data-testid="text-loading-message">Cargando formulario...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state - contract not found
+  if (contractError || !contractData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" data-testid="container-error-tenant-form">
+        <Card className="max-w-md w-full" data-testid="card-error-tenant-form">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-destructive" data-testid="icon-error" />
+              <h2 className="text-xl font-semibold text-center" data-testid="text-error-title">Contrato no encontrado</h2>
+              <p className="text-muted-foreground text-center" data-testid="text-error-description">
+                {(contractError as any)?.message || 
+                  "Este enlace no es válido o el contrato ya no está disponible. Por favor contacta a tu agente."}
+              </p>
+              <Button onClick={() => navigate("/")} data-testid="button-go-home">
+                Ir al inicio
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-4xl py-8 px-4">

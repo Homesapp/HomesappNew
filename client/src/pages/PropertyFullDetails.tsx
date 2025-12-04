@@ -19,7 +19,7 @@ import {
   CheckCircle2, XCircle, Home, Wifi, Droplets, Zap, Flame, Wrench,
   ChevronLeft, ChevronRight, X, Dumbbell, Trees, Car, Shield,
   Waves, UtensilsCrossed, Dog, Wind, Snowflake, TrendingUp, StickyNote, Trash2,
-  Download, Copy, Archive, Share2, MessageCircle
+  Download, Copy, Archive, Share2, MessageCircle, AlertCircle, Loader2
 } from "lucide-react";
 import { type Property } from "@shared/schema";
 import { AppointmentSchedulingDialog } from "@/components/AppointmentSchedulingDialog";
@@ -69,9 +69,10 @@ export default function PropertyFullDetails() {
   const user = authUser || adminUser;
   const isAdminOrSeller = user?.role === "admin" || user?.role === "seller" || user?.role === "master";
 
-  const { data: property, isLoading } = useQuery<Property>({
+  const { data: property, isLoading, error: propertyError } = useQuery<Property>({
     queryKey: isSlugRoute ? ["/api/properties/by-slug", propertyIdentifier] : ["/api/properties", propertyIdentifier],
     enabled: !!propertyIdentifier,
+    retry: false,
   });
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<PropertyNote[]>({
@@ -213,9 +214,10 @@ export default function PropertyFullDetails() {
     return Star;
   };
 
-  if (isLoading || !property) {
+  // Loading state - using skeleton layout for property details page
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background" data-testid="container-loading-property">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
           <div className="container mx-auto flex h-16 items-center justify-between px-4">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
@@ -227,10 +229,13 @@ export default function PropertyFullDetails() {
           </div>
         </header>
         <div className="container mx-auto py-6 px-4">
-          <Skeleton className="h-8 w-32 mb-6" />
+          <div className="flex items-center gap-2 mb-6">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" data-testid="spinner-loading-property" />
+            <span className="text-muted-foreground" data-testid="text-loading-message">Cargando propiedad...</span>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              <Skeleton className="aspect-[16/10] rounded-2xl" />
+              <Skeleton className="aspect-[16/10] rounded-2xl" data-testid="skeleton-main-image" />
               <div className="flex gap-2">
                 <Skeleton className="h-20 flex-1 rounded-xl" />
                 <Skeleton className="h-20 flex-1 rounded-xl" />
@@ -239,10 +244,45 @@ export default function PropertyFullDetails() {
               </div>
             </div>
             <div className="space-y-4">
-              <Skeleton className="h-64 rounded-2xl" />
+              <Skeleton className="h-64 rounded-2xl" data-testid="skeleton-info-card" />
               <Skeleton className="h-48 rounded-2xl" />
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state - property not found
+  if (propertyError || !property) {
+    return (
+      <div className="min-h-screen bg-background" data-testid="container-error-property">
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+          <div className="container mx-auto flex h-16 items-center justify-between px-4">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
+              <div className="h-9 w-9 rounded-full bg-foreground flex items-center justify-center">
+                <Home className="h-4 w-4 text-background" />
+              </div>
+              <span className="font-semibold text-lg hidden sm:block">homes</span>
+            </div>
+          </div>
+        </header>
+        <div className="min-h-[60vh] flex items-center justify-center p-4">
+          <Card className="max-w-md w-full" data-testid="card-error-property">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center space-y-4">
+                <AlertCircle className="h-12 w-12 text-destructive" data-testid="icon-error" />
+                <h2 className="text-xl font-semibold text-center" data-testid="text-error-title">Propiedad no encontrada</h2>
+                <p className="text-muted-foreground text-center" data-testid="text-error-description">
+                  {(propertyError as any)?.message || 
+                    "Esta propiedad no existe o ya no está disponible."}
+                </p>
+                <Button onClick={() => setLocation("/")} data-testid="button-go-home">
+                  Ver todas las propiedades
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
