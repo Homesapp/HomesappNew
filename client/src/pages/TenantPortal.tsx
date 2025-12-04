@@ -257,7 +257,7 @@ export default function TenantPortal() {
     enabled: !!session,
   });
 
-  const { data: paymentSummary } = useQuery<PortalPaymentSummary>({
+  const { data: paymentSummary, isLoading: paymentSummaryLoading } = useQuery<PortalPaymentSummary>({
     queryKey: ["/api/portal/payments/summary"],
     queryFn: () => get("/api/portal/payments/summary"),
     enabled: !!session,
@@ -266,7 +266,7 @@ export default function TenantPortal() {
   const { data: portalDocuments = [], isLoading: portalDocumentsLoading } = useQuery<PortalDocument[]>({
     queryKey: ["/api/portal/documents"],
     queryFn: () => get("/api/portal/documents"),
-    enabled: !!session && activeTab === "documents",
+    enabled: !!session,
   });
 
   const { data: portalMessages = [], isLoading: portalMessagesLoading } = useQuery<PortalMessage[]>({
@@ -533,43 +533,60 @@ export default function TenantPortal() {
                 </CardContent>
               </Card>
 
-              {/* Payment Summary Card */}
-              {paymentSummary && (paymentSummary.pendingCount > 0 || paymentSummary.overdueCount > 0) && (
-                <Card className="md:col-span-2 lg:col-span-3 border-yellow-200 dark:border-yellow-900 bg-yellow-50/50 dark:bg-yellow-900/10">
-                  <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                      {t("tenant.paymentReminders", "Payment Reminders")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t("tenant.pendingPayments", "Pending Payments")}</p>
-                        <p className="text-xl font-bold">{paymentSummary.pendingCount}</p>
-                      </div>
-                      {paymentSummary.overdueCount > 0 && (
-                        <div>
-                          <p className="text-sm text-destructive">{t("tenant.overduePayments", "Overdue")}</p>
-                          <p className="text-xl font-bold text-destructive">{paymentSummary.overdueCount}</p>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t("tenant.totalDue", "Total Due")}</p>
-                        <p className="text-xl font-bold">{paymentSummary.currency} ${paymentSummary.totalDue.toLocaleString()}</p>
-                      </div>
+              {/* Portal 2.0 Payment Summary Card - Always shown */}
+              <Card className="md:col-span-2 lg:col-span-3">
+                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {t("tenant.paymentSummary", "Payment Summary")}
+                  </CardTitle>
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {paymentSummaryLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4" 
-                      onClick={() => setActiveTab("payments")}
-                      data-testid="button-view-payments"
-                    >
-                      {t("tenant.viewPayments", "View Payments")}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+                  ) : paymentSummary ? (
+                    <>
+                      <div className="grid gap-4 md:grid-cols-5">
+                        <div className="text-center p-3 rounded-lg bg-muted/50">
+                          <p className="text-2xl font-bold">{paymentSummary.currency} ${paymentSummary.totalDue.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">{t("tenant.totalDue", "Total Due")}</p>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-green-500/10">
+                          <p className="text-2xl font-bold text-green-600">{paymentSummary.currency} ${paymentSummary.totalPaid.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">{t("tenant.totalPaid", "Paid")}</p>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-primary/10">
+                          <p className="text-2xl font-bold text-primary">{paymentSummary.currency} ${paymentSummary.totalVerified.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">{t("tenant.verified", "Verified")}</p>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-yellow-500/10">
+                          <p className="text-2xl font-bold text-yellow-600">{paymentSummary.pendingCount}</p>
+                          <p className="text-xs text-muted-foreground">{t("tenant.pendingPayments", "Pending")}</p>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-red-500/10">
+                          <p className="text-2xl font-bold text-red-600">{paymentSummary.overdueCount}</p>
+                          <p className="text-xs text-muted-foreground">{t("tenant.overduePayments", "Overdue")}</p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4" 
+                        onClick={() => setActiveTab("payments")}
+                        data-testid="button-view-payments"
+                      >
+                        {t("tenant.viewPayments", "View Payments")}
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <CreditCard className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">{t("tenant.noPaymentData", "No payment data available")}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Unread Messages Indicator */}
               {unreadCount && unreadCount.unread > 0 && (
@@ -733,57 +750,60 @@ export default function TenantPortal() {
                 </Dialog>
               </div>
 
-              {/* Portal 2.0 Payment Records */}
-              {portalPayments.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">{t("tenant.scheduledPayments", "Scheduled Payments")}</CardTitle>
-                    <CardDescription>
-                      {t("tenant.scheduledPaymentsDesc", "Track your upcoming and completed payments")}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    {portalPaymentsLoading ? (
-                      <div className="flex items-center justify-center p-8">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      </div>
-                    ) : (
-                      <div className="divide-y">
-                        {portalPayments.map((payment) => (
-                          <div key={payment.id} className="flex items-center justify-between p-4 gap-4 flex-wrap" data-testid={`payment-row-${payment.id}`}>
-                            <div className="flex items-center gap-4">
-                              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                                payment.status === 'overdue' ? 'bg-destructive/10' : 
-                                payment.status === 'verified' ? 'bg-green-500/10' : 
-                                'bg-primary/10'
-                              }`}>
-                                <DollarSign className={`h-5 w-5 ${
-                                  payment.status === 'overdue' ? 'text-destructive' : 
-                                  payment.status === 'verified' ? 'text-green-600' : 
-                                  'text-primary'
-                                }`} />
-                              </div>
-                              <div>
-                                <p className="font-medium">{payment.category}</p>
-                                {payment.description && (
-                                  <p className="text-sm text-muted-foreground">{payment.description}</p>
-                                )}
-                                <p className="text-xs text-muted-foreground">
-                                  {t("tenant.dueDate", "Due")}: {format(new Date(payment.dueDate), "MMM d, yyyy", { locale: locale === "es" ? es : undefined })}
-                                </p>
-                              </div>
+              {/* Portal 2.0 Payment Records - Always shown */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">{t("tenant.scheduledPayments", "Scheduled Payments")}</CardTitle>
+                  <CardDescription>
+                    {t("tenant.scheduledPaymentsDesc", "Track your upcoming and completed payments")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {portalPaymentsLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : portalPayments.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">{t("tenant.noScheduledPayments", "No scheduled payments")}</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {portalPayments.map((payment) => (
+                        <div key={payment.id} className="flex items-center justify-between p-4 gap-4 flex-wrap" data-testid={`payment-row-${payment.id}`}>
+                          <div className="flex items-center gap-4">
+                            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                              payment.status === 'overdue' ? 'bg-destructive/10' : 
+                              payment.status === 'verified' ? 'bg-green-500/10' : 
+                              'bg-primary/10'
+                            }`}>
+                              <DollarSign className={`h-5 w-5 ${
+                                payment.status === 'overdue' ? 'text-destructive' : 
+                                payment.status === 'verified' ? 'text-green-600' : 
+                                'text-primary'
+                              }`} />
                             </div>
-                            <div className="flex items-center gap-4">
-                              <span className="font-medium">{payment.currency} ${payment.amount.toLocaleString()}</span>
-                              {getStatusBadge(payment.status)}
+                            <div>
+                              <p className="font-medium">{payment.category}</p>
+                              {payment.description && (
+                                <p className="text-sm text-muted-foreground">{payment.description}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                {t("tenant.dueDate", "Due")}: {format(new Date(payment.dueDate), "MMM d, yyyy", { locale: locale === "es" ? es : undefined })}
+                              </p>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                          <div className="flex items-center gap-4">
+                            <span className="font-medium">{payment.currency} ${payment.amount.toLocaleString()}</span>
+                            {getStatusBadge(payment.status)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Existing Receipts Section */}
               <Card>
@@ -1017,63 +1037,78 @@ export default function TenantPortal() {
                 </Card>
               </div>
 
-              {/* Portal 2.0 Documents - Grouped by Type */}
-              {portalDocuments.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">{t("tenant.sharedDocuments", "Shared Documents")}</h3>
-                    {portalDocumentsLoading ? (
-                      <div className="flex items-center justify-center p-8">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Group documents by type */}
-                        {Object.entries(
-                          portalDocuments.reduce((acc, doc) => {
-                            const type = doc.documentType || 'other';
-                            if (!acc[type]) acc[type] = [];
-                            acc[type].push(doc);
-                            return acc;
-                          }, {} as Record<string, PortalDocument[]>)
-                        ).map(([type, docs]) => (
-                          <Card key={type}>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-medium capitalize">{type.replace('_', ' ')}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                              <div className="divide-y">
-                                {docs.map((doc) => (
-                                  <a 
-                                    key={doc.id} 
-                                    href={doc.fileUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-4 p-4 hover-elevate"
-                                    data-testid={`doc-row-${doc.id}`}
-                                  >
-                                    <FileText className="h-5 w-5 text-muted-foreground" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium truncate">{doc.fileName}</p>
-                                      {doc.description && (
-                                        <p className="text-sm text-muted-foreground truncate">{doc.description}</p>
-                                      )}
-                                      <p className="text-xs text-muted-foreground">
-                                        {format(new Date(doc.createdAt), "MMM d, yyyy")}
-                                      </p>
-                                    </div>
-                                  </a>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
+              {/* Portal 2.0 Documents - Grouped by Type - Always shown */}
+              <Separator />
+              <div>
+                <h3 className="text-lg font-semibold mb-4">{t("tenant.sharedDocuments", "Shared Documents")}</h3>
+                {portalDocumentsLoading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
                   </div>
-                </>
-              )}
+                ) : portalDocuments.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                      <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">{t("tenant.noSharedDocuments", "No shared documents yet")}</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Group documents by type */}
+                    {Object.entries(
+                      portalDocuments.reduce((acc, doc) => {
+                        const type = doc.documentType || 'other';
+                        if (!acc[type]) acc[type] = [];
+                        acc[type].push(doc);
+                        return acc;
+                      }, {} as Record<string, PortalDocument[]>)
+                    ).map(([type, docs]) => {
+                      const documentTypeLabels: Record<string, string> = {
+                        lease: t("documents.typeLeaseContract", "Lease Contract"),
+                        contract: t("documents.typeContract", "Contract"),
+                        invoice: t("documents.typeInvoice", "Invoice"),
+                        receipt: t("documents.typeReceipt", "Receipt"),
+                        maintenance: t("documents.typeMaintenance", "Maintenance"),
+                        legal: t("documents.typeLegal", "Legal Documents"),
+                        other: t("documents.typeOther", "Other Documents"),
+                      };
+                      const typeLabel = documentTypeLabels[type] || type.replace('_', ' ');
+                      return (
+                      <Card key={type}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">{typeLabel}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="divide-y">
+                            {docs.map((doc) => (
+                              <a 
+                                key={doc.id} 
+                                href={doc.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-4 p-4 hover-elevate"
+                                data-testid={`doc-row-${doc.id}`}
+                              >
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{doc.fileName}</p>
+                                  {doc.description && (
+                                    <p className="text-sm text-muted-foreground truncate">{doc.description}</p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(doc.createdAt), "MMM d, yyyy")}
+                                  </p>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               <Separator />
 

@@ -1,0 +1,123 @@
+Quiero que mejores a fondo la experiencia de usuario del Mapa Interactivo público de Homesapp, con foco en:
+
+uso de logos de condominios,
+
+UI agradable (desktop y móvil),
+
+y una experiencia clara de búsqueda que anime a ver fichas y dejar datos (leads).
+
+1) Uso de logos de condominios
+
+Asegúrate de que para cada condominio podamos guardar:
+
+nombre,
+
+logo (URL),
+
+colores (opcional),
+
+zona.
+
+En el mapa:
+
+Si el condominio tiene logo, el marker debe mostrar un ícono circular con ese logo.
+
+Si no tiene logo, usa un marker con las iniciales del condominio y un color de fondo.
+
+En la lista de propiedades (al costado o debajo del mapa):
+
+Muestra el logo del condominio junto al nombre en cada tarjeta.
+
+2) Layout general del Mapa Interactivo
+
+En desktop:
+
+Mapa a la izquierda (60–70%).
+
+Lista de propiedades a la derecha (30–40%).
+
+En mobile:
+
+Mapa primero.
+
+Botón “Ver lista” que muestra las propiedades en una hoja deslizable (bottom sheet) o en una sección debajo.
+
+Arriba del mapa:
+
+Título: “Mapa Interactivo – Tulum Rental Homes”.
+
+Contador: “X propiedades encontradas”.
+
+Filtros esenciales visibles: tipo de operación, tipo de propiedad, zona, rango de precio, botón “Limpiar filtros”.
+
+3) Interacción mapa ↔ lista
+
+Cuando hago clic en un marker:
+
+resalta la tarjeta correspondiente en la lista (scroll automático si es necesario),
+
+abre un panel o tarjeta flotante con detalles mínimos y botones.
+
+Cuando hago clic en una tarjeta de la lista:
+
+centra el mapa en esa propiedad,
+
+resalta el marker (por ejemplo, con un tamaño mayor o un borde).
+
+4) Tarjetas y panel de detalle
+
+Tarjetas en la lista deben mostrar:
+
+logo + nombre del condominio,
+
+foto principal pequeña,
+
+precio,
+
+zona,
+
+badges: recámaras, baños, mascotas, tipo (long term / short term / venta).
+
+Al hacer clic en la tarjeta o marker, mostrar un panel flotante con:
+
+2–3 fotos,
+
+resumen de la propiedad,
+
+botones:
+
+“Ver detalle” (lleva a la ficha completa),
+
+“Quiero más info / Agendar visita” (dispara el flujo que convierte al usuario en lead).
+
+5) Mobile first y performance
+
+En mobile:
+
+No debe haber scroll horizontal.
+
+Las tarjetas en la lista deben ir en una sola columna, con botones grandes.
+
+Performance:
+
+No cargues todas las propiedades del sistema si hay muchas.
+
+Limita los resultados al área visible del mapa y añade paginación / “Cargar más” para la lista.
+
+Usa lazy loading de imágenes.
+
+Mientras se carga:
+
+Usa skeletons para el mapa y tarjetas en lugar de un spinner global.
+
+6) Resultado que quiero
+
+Al final, explícame:
+
+Qué cambios hiciste en el componente del Mapa Interactivo (UI y comportamiento).
+
+Cómo usas ahora los logos de condominios en el mapa y en la lista.
+
+Qué mejoras hay en la versión mobile.
+
+Qué hiciste a nivel performance para que se sienta más ligero.

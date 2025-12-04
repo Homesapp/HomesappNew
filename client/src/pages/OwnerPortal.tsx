@@ -218,6 +218,7 @@ export default function OwnerPortal() {
   const [chatInput, setChatInput] = useState("");
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [showServiceDialog, setShowServiceDialog] = useState(false);
+  const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
   const [showChargeDialog, setShowChargeDialog] = useState(false);
 
   const serviceForm = useForm<z.infer<typeof serviceAccountSchema>>({
@@ -290,7 +291,7 @@ export default function OwnerPortal() {
     enabled: !!session,
   });
 
-  const { data: paymentSummary } = useQuery<PortalPaymentSummary>({
+  const { data: paymentSummary, isLoading: paymentSummaryLoading } = useQuery<PortalPaymentSummary>({
     queryKey: ["/api/portal/payments/summary"],
     queryFn: () => get("/api/portal/payments/summary"),
     enabled: !!session,
@@ -305,7 +306,7 @@ export default function OwnerPortal() {
   const { data: portalDocuments = [], isLoading: portalDocumentsLoading } = useQuery<PortalDocument[]>({
     queryKey: ["/api/portal/documents"],
     queryFn: () => get("/api/portal/documents"),
-    enabled: !!session && activeTab === "documents",
+    enabled: !!session,
   });
 
   const { data: portalMessages = [], isLoading: portalMessagesLoading } = useQuery<PortalMessage[]>({
@@ -373,11 +374,13 @@ export default function OwnerPortal() {
     mutationFn: ({ id, ownerNotes }: { id: string; ownerNotes?: string }) => 
       post(`/api/portal/payments/${id}/verify`, { ownerNotes }),
     onSuccess: () => {
+      setProcessingPaymentId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments/summary"] });
       toast({ title: t("owner.paymentVerified", "Payment verified successfully") });
     },
     onError: (error: Error) => {
+      setProcessingPaymentId(null);
       toast({ title: t("common.error", "Error"), description: error.message, variant: "destructive" });
     },
   });
@@ -386,11 +389,13 @@ export default function OwnerPortal() {
     mutationFn: ({ id, ownerNotes }: { id: string; ownerNotes?: string }) => 
       post(`/api/portal/payments/${id}/reject`, { ownerNotes }),
     onSuccess: () => {
+      setProcessingPaymentId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portal/payments/summary"] });
       toast({ title: t("owner.paymentRejected", "Payment rejected") });
     },
     onError: (error: Error) => {
+      setProcessingPaymentId(null);
       toast({ title: t("common.error", "Error"), description: error.message, variant: "destructive" });
     },
   });
@@ -678,14 +683,18 @@ export default function OwnerPortal() {
                 </CardContent>
               </Card>
 
-              {/* Portal 2.0 Payment Summary */}
-              {paymentSummary && (
-                <Card className="lg:col-span-4">
-                  <CardHeader>
-                    <CardTitle>{t("owner.paymentSummary", "Payment Summary")}</CardTitle>
-                    <CardDescription>{t("owner.paymentSummaryDesc", "Overview of payment activity")}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+              {/* Portal 2.0 Payment Summary - Always shown */}
+              <Card className="lg:col-span-4">
+                <CardHeader>
+                  <CardTitle>{t("owner.paymentSummary", "Payment Summary")}</CardTitle>
+                  <CardDescription>{t("owner.paymentSummaryDesc", "Overview of payment activity")}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {paymentSummaryLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : paymentSummary ? (
                     <div className="grid gap-4 md:grid-cols-5">
                       <div className="text-center p-3 rounded-lg bg-muted/50">
                         <p className="text-2xl font-bold">{paymentSummary.currency} ${paymentSummary.totalDue.toLocaleString()}</p>
@@ -708,9 +717,14 @@ export default function OwnerPortal() {
                         <p className="text-xs text-muted-foreground">{t("owner.overduePayments", "Overdue")}</p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <DollarSign className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">{t("owner.noPaymentData", "No payment data available")}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
@@ -891,19 +905,23 @@ export default function OwnerPortal() {
                 </CardContent>
               </Card>
 
-              {/* Portal 2.0 Payment Records with Verification Workflow */}
-              {portalPayments.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{t("owner.portal2Payments", "Payment Records")}</CardTitle>
-                    <CardDescription>{t("owner.portal2PaymentsDesc", "View and verify all payment submissions")}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    {portalPaymentsLoading ? (
-                      <div className="flex items-center justify-center p-8">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      </div>
-                    ) : (
+              {/* Portal 2.0 Payment Records with Verification Workflow - Always shown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("owner.portal2Payments", "Payment Records")}</CardTitle>
+                  <CardDescription>{t("owner.portal2PaymentsDesc", "View and verify all payment submissions")}</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {portalPaymentsLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : portalPayments.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">{t("owner.noPaymentRecords", "No payment records yet")}</p>
+                    </div>
+                  ) : (
                       <div className="divide-y">
                         {portalPayments.map((payment) => (
                           <div key={payment.id} className="p-4 space-y-3" data-testid={`payment-record-${payment.id}`}>
@@ -974,20 +992,28 @@ export default function OwnerPortal() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => rejectPaymentMutation.mutate({ id: payment.id })}
-                                  disabled={rejectPaymentMutation.isPending}
+                                  onClick={() => {
+                                    setProcessingPaymentId(payment.id);
+                                    rejectPaymentMutation.mutate({ id: payment.id });
+                                  }}
+                                  disabled={processingPaymentId !== null}
                                   data-testid={`button-reject-payment-${payment.id}`}
                                 >
-                                  <XCircle className="h-4 w-4 mr-1" />
+                                  {processingPaymentId === payment.id && rejectPaymentMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                  {!(processingPaymentId === payment.id && rejectPaymentMutation.isPending) && <XCircle className="h-4 w-4 mr-1" />}
                                   {t("owner.rejectPayment", "Reject")}
                                 </Button>
                                 <Button
                                   size="sm"
-                                  onClick={() => verifyPaymentMutation.mutate({ id: payment.id })}
-                                  disabled={verifyPaymentMutation.isPending}
+                                  onClick={() => {
+                                    setProcessingPaymentId(payment.id);
+                                    verifyPaymentMutation.mutate({ id: payment.id });
+                                  }}
+                                  disabled={processingPaymentId !== null}
                                   data-testid={`button-verify-payment-${payment.id}`}
                                 >
-                                  <Check className="h-4 w-4 mr-1" />
+                                  {processingPaymentId === payment.id && verifyPaymentMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                  {!(processingPaymentId === payment.id && verifyPaymentMutation.isPending) && <Check className="h-4 w-4 mr-1" />}
                                   {t("owner.verifyPayment", "Verify")}
                                 </Button>
                               </div>
@@ -998,7 +1024,6 @@ export default function OwnerPortal() {
                     )}
                   </CardContent>
                 </Card>
-              )}
             </div>
           </TabsContent>
 
@@ -1266,65 +1291,82 @@ export default function OwnerPortal() {
                 </Card>
               </div>
 
-              {/* Portal 2.0 Documents - Grouped by Type */}
-              {portalDocuments.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">{t("owner.sharedDocuments", "Shared Documents")}</h3>
-                  {portalDocumentsLoading ? (
-                    <div className="flex items-center justify-center p-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Group documents by type */}
-                      {Object.entries(
-                        portalDocuments.reduce((acc, doc) => {
-                          const type = doc.documentType || 'other';
-                          if (!acc[type]) acc[type] = [];
-                          acc[type].push(doc);
-                          return acc;
-                        }, {} as Record<string, PortalDocument[]>)
-                      ).map(([type, docs]) => (
-                        <Card key={type}>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium capitalize">{type.replace('_', ' ')}</CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-0">
-                            <div className="divide-y">
-                              {docs.map((doc) => (
-                                <a 
-                                  key={doc.id} 
-                                  href={doc.fileUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-4 p-4 hover-elevate"
-                                  data-testid={`doc-row-${doc.id}`}
-                                >
-                                  <FileText className="h-5 w-5 text-muted-foreground" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium truncate">{doc.fileName}</p>
-                                    {doc.description && (
-                                      <p className="text-sm text-muted-foreground truncate">{doc.description}</p>
+              {/* Portal 2.0 Documents - Grouped by Type - Always shown */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">{t("owner.sharedDocuments", "Shared Documents")}</h3>
+                {portalDocumentsLoading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : portalDocuments.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                      <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">{t("owner.noSharedDocuments", "No shared documents yet")}</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Group documents by type */}
+                    {Object.entries(
+                      portalDocuments.reduce((acc, doc) => {
+                        const type = doc.documentType || 'other';
+                        if (!acc[type]) acc[type] = [];
+                        acc[type].push(doc);
+                        return acc;
+                      }, {} as Record<string, PortalDocument[]>)
+                    ).map(([type, docs]) => {
+                      const documentTypeLabels: Record<string, string> = {
+                        lease: t("documents.typeLeaseContract", "Lease Contract"),
+                        contract: t("documents.typeContract", "Contract"),
+                        invoice: t("documents.typeInvoice", "Invoice"),
+                        receipt: t("documents.typeReceipt", "Receipt"),
+                        maintenance: t("documents.typeMaintenance", "Maintenance"),
+                        legal: t("documents.typeLegal", "Legal Documents"),
+                        other: t("documents.typeOther", "Other Documents"),
+                      };
+                      const typeLabel = documentTypeLabels[type] || type.replace('_', ' ');
+                      return (
+                      <Card key={type}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">{typeLabel}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="divide-y">
+                            {docs.map((doc) => (
+                              <a 
+                                key={doc.id} 
+                                href={doc.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-4 p-4 hover-elevate"
+                                data-testid={`doc-row-${doc.id}`}
+                              >
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{doc.fileName}</p>
+                                  {doc.description && (
+                                    <p className="text-sm text-muted-foreground truncate">{doc.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>{format(new Date(doc.createdAt), "MMM d, yyyy")}</span>
+                                    <span>-</span>
+                                    <span className="capitalize">{doc.uploadedByRole}</span>
+                                    {doc.visibleToTenant && (
+                                      <Badge variant="secondary" className="text-xs">{t("owner.visibleToTenant", "Visible to Tenant")}</Badge>
                                     )}
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <span>{format(new Date(doc.createdAt), "MMM d, yyyy")}</span>
-                                      <span>-</span>
-                                      <span className="capitalize">{doc.uploadedByRole}</span>
-                                      {doc.visibleToTenant && (
-                                        <Badge variant="secondary" className="text-xs">{t("owner.visibleToTenant", "Visible to Tenant")}</Badge>
-                                      )}
-                                    </div>
                                   </div>
-                                </a>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </TabsContent>
 
