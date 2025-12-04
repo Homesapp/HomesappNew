@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ interface PortalTab {
   id: string;
   label: string;
   icon: typeof Home;
-  content: React.ReactNode;
+  content: ReactNode;
   badge?: string | number;
 }
 
@@ -48,7 +49,7 @@ interface PortalLayoutProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onLogout: () => void;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 export function PortalLayout({
@@ -146,15 +147,15 @@ export function PortalLayout({
 }
 
 interface PortalOverviewProps {
-  summaryCards: React.ReactNode;
+  summaryCards: ReactNode;
   quickActions?: {
     label: string;
     icon: typeof Home;
     onClick: () => void;
     variant?: "default" | "outline" | "secondary";
   }[];
-  recentActivity?: React.ReactNode;
-  contractDetails?: React.ReactNode;
+  recentActivity?: ReactNode;
+  contractDetails?: ReactNode;
 }
 
 export function PortalOverview({

@@ -217,6 +217,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
 
   const clientActivityGroup = [
     { titleKey: "sidebar.myAppointments", url: "/mis-citas", icon: Calendar, roles: ["cliente"] },
+    { titleKey: "sidebar.myApplications", url: "/mis-solicitudes", icon: ClipboardList, roles: ["cliente"] },
     { titleKey: "sidebar.externalAppointments", url: "/external-appointments", icon: Building2, roles: ["cliente", "owner"] },
     { titleKey: "sidebar.myOpportunities", url: "/mis-oportunidades", icon: Zap, roles: ["cliente"] },
     { titleKey: "sidebar.activeRentals", url: "/rentas-activas", icon: Home, roles: ["cliente"] },
