@@ -95,11 +95,11 @@ function getNextStep(currentStep: ChatFlowStep, userResponse: string, state: Con
     case "operation_type":
       return "name";
     case "name":
+      if (!isValidPhone(userResponse) && state.retryCount < 2) {
+        return "name";
+      }
       return "phone";
     case "phone":
-      if (!isValidPhone(userResponse) && state.retryCount < 2) {
-        return "phone";
-      }
       return "budget";
     case "budget":
       return "zone";
@@ -112,17 +112,15 @@ function getNextStep(currentStep: ChatFlowStep, userResponse: string, state: Con
     case "confirm_lead":
       return "lead_saved";
     case "lead_saved":
-      return "appointment_offer";
-    case "appointment_offer":
       if (userResponse.toLowerCase().includes("sí") || userResponse.toLowerCase().includes("si") || userResponse === "yes") {
-        return "appointment_date";
+        return "appointment_offer";
       }
       return "complete";
+    case "appointment_offer":
+      return "appointment_date";
     case "appointment_date":
       return "appointment_time";
     case "appointment_time":
-      return "appointment_saved";
-    case "appointment_saved":
       return "complete";
     default:
       return "complete";
@@ -151,38 +149,32 @@ function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?
       };
       
     case "name":
-      return {
-        message: "Mucho gusto 😊\n\n¿Me compartes tu número de WhatsApp para contactarte?",
-        inputType: "phone"
-      };
-      
-    case "phone":
-      if (state.retryCount > 0) {
+      if (state.retryCount > 0 && !state.leadData.phone) {
         return {
           message: "Por favor ingresa un número válido (10+ dígitos).\nEjemplo: +52 998 123 4567",
           inputType: "phone"
         };
       }
       return {
-        message: "¿Me compartes tu número de WhatsApp?",
+        message: "Mucho gusto 😊\n\n¿Me compartes tu número de WhatsApp para contactarte?",
         inputType: "phone"
       };
       
-    case "budget":
+    case "phone":
       return {
         message: "¿Cuál es tu presupuesto aproximado mensual?",
         quickReplies: BUDGET_RANGES.map(b => createQuickReply(b.value, b.label, b.value)),
         inputType: "text"
       };
       
-    case "zone":
+    case "budget":
       return {
         message: "¿En qué zona te gustaría?",
         quickReplies: ZONES.map(z => createQuickReply(z, z, z)),
         inputType: "text"
       };
       
-    case "move_date":
+    case "zone":
       return {
         message: "¿Para cuándo estás buscando mudarte?",
         quickReplies: [
@@ -194,7 +186,7 @@ function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?
         inputType: "text"
       };
       
-    case "bedrooms":
+    case "move_date":
       return {
         message: "¿Cuántas recámaras necesitas?",
         quickReplies: [
@@ -206,7 +198,7 @@ function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?
         inputType: "number"
       };
       
-    case "confirm_lead":
+    case "bedrooms":
       const summary = `📋 Confirmemos tus datos:\n\n` +
         `• Nombre: ${state.leadData.name || "No proporcionado"}\n` +
         `• WhatsApp: ${state.leadData.phone || "No proporcionado"}\n` +
@@ -224,15 +216,15 @@ function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?
         inputType: "none"
       };
       
-    case "lead_saved":
-      const name = state.leadData.name?.split(" ")[0] || "amigo";
+    case "confirm_lead":
+      const leadName = state.leadData.name?.split(" ")[0] || "amigo";
       return {
-        message: `¡Perfecto, ${name}! 🙌\n\nYa tenemos tus datos y un asesor de Tulum Rental Homes te contactará pronto por WhatsApp.`,
+        message: `¡Perfecto, ${leadName}! 🙌\n\nYa tenemos tus datos y un asesor de Tulum Rental Homes te contactará pronto por WhatsApp.`,
         inputType: "none",
         action: { type: "lead_created", data: { leadId: state.leadId } }
       };
       
-    case "appointment_offer":
+    case "lead_saved":
       return {
         message: "¿Te gustaría agendar una visita a alguna propiedad? 🏠",
         quickReplies: [
@@ -242,7 +234,7 @@ function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?
         inputType: "none"
       };
       
-    case "appointment_date":
+    case "appointment_offer":
       return {
         message: "¿En qué día te gustaría la visita?",
         quickReplies: [
@@ -254,7 +246,7 @@ function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?
         inputType: "date"
       };
       
-    case "appointment_time":
+    case "appointment_date":
       return {
         message: "¿En qué horario prefieres?",
         quickReplies: [
@@ -265,9 +257,9 @@ function getStepResponse(step: ChatFlowStep, state: ConversationState, leadName?
         inputType: "none"
       };
       
-    case "appointment_saved":
+    case "appointment_time":
       return {
-        message: "🎉 ¡Listo! He registrado tu solicitud de visita.\n\nUn asesor te confirmará la fecha y hora exacta por WhatsApp.",
+        message: "🎉 ¡Listo! He registrado tu solicitud de visita.\n\nUn asesor te confirmará la fecha y hora exacta por WhatsApp.\n\nPerfecto, " + (state.leadData.name?.split(" ")[0] || "amigo") + " 😊 ¡Que tengas excelente día!",
         inputType: "none",
         action: { type: "appointment_created", data: { appointmentId: state.appointmentId } }
       };
@@ -292,13 +284,13 @@ function processUserInput(step: ChatFlowStep, input: string, state: Conversation
   const newState = { ...state };
   
   switch (step) {
-    case "operation_type":
+    case "greeting":
       newState.leadData.operationType = input as any;
       break;
-    case "name":
+    case "operation_type":
       newState.leadData.name = input.trim();
       break;
-    case "phone":
+    case "name":
       if (isValidPhone(input)) {
         newState.leadData.phone = normalizePhone(input);
         newState.retryCount = 0;
@@ -306,22 +298,22 @@ function processUserInput(step: ChatFlowStep, input: string, state: Conversation
         newState.retryCount = (newState.retryCount || 0) + 1;
       }
       break;
-    case "budget":
+    case "phone":
       newState.leadData.budget = input;
       break;
-    case "zone":
+    case "budget":
       newState.leadData.zone = input;
       break;
-    case "move_date":
+    case "zone":
       newState.leadData.moveDate = input;
       break;
-    case "bedrooms":
+    case "move_date":
       newState.leadData.bedrooms = input;
       break;
-    case "appointment_date":
+    case "appointment_offer":
       newState.appointmentData.preferredDate = input;
       break;
-    case "appointment_time":
+    case "appointment_date":
       newState.appointmentData.preferredTime = input as any;
       break;
   }
