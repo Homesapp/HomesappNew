@@ -159,6 +159,7 @@ import {
   externalBrokers,
   insertExternalBrokerSchema,
   updateExternalBrokerSchema,
+  brokerTerms,
   externalLeads,
   externalLeadEmailSources,
   externalLeadEmailImportLogs,
@@ -34242,6 +34243,311 @@ ${{precio}}/mes
       handleGenericError(res, error);
     }
   });
+  // =========================================================
+  // PUBLIC BROKER REGISTRATION FLOW
+  // =========================================================
+  
+  // POST /api/public/brokers/register - Step 1: Register/upsert broker profile
+  app.post("/api/public/brokers/register", publicLeadRegistrationLimiter, async (req, res) => {
+    try {
+      const { 
+        firstName, 
+        lastName, 
+        email,
+        countryCode,
+        phone,
+        company,
+        isFreelancer,
+        referredBySellerId,
+        registrationSource
+      } = req.body;
+      
+      // Basic validation
+      if (!firstName || !lastName) {
+        return res.status(400).json({ message: "Nombre y apellido son requeridos" });
+      }
+      
+      if (!email && !phone) {
+        return res.status(400).json({ message: "Se requiere email o teléfono" });
+      }
+      
+      // Get first available external agency
+      const agencies = await storage.getExternalAgencies();
+      if (!agencies || agencies.length === 0) {
+        return res.status(500).json({ message: "No hay agencias disponibles" });
+      }
+      
+      const agencyId = agencies[0].id;
+      const fullPhone = phone ? `${countryCode || '+52'} ${phone}` : null;
+      
+      // Check if broker already exists by email or phone
+      let existingBroker = null;
+      if (email) {
+        const emailResults = await db.select()
+          .from(externalBrokers)
+          .where(and(
+            eq(externalBrokers.agencyId, agencyId),
+            eq(externalBrokers.email, email)
+          ))
+          .limit(1);
+        if (emailResults.length > 0) {
+          existingBroker = emailResults[0];
+        }
+      }
+      
+      if (!existingBroker && fullPhone) {
+        const phoneResults = await db.select()
+          .from(externalBrokers)
+          .where(and(
+            eq(externalBrokers.agencyId, agencyId),
+            eq(externalBrokers.phone, fullPhone)
+          ))
+          .limit(1);
+        if (phoneResults.length > 0) {
+          existingBroker = phoneResults[0];
+        }
+      }
+      
+      let brokerId: string;
+      
+      if (existingBroker) {
+        // Update existing broker
+        brokerId = existingBroker.id;
+        await db.update(externalBrokers)
+          .set({
+            firstName,
+            lastName,
+            email: email || existingBroker.email,
+            phone: fullPhone || existingBroker.phone,
+            phoneCountryCode: countryCode || existingBroker.phoneCountryCode,
+            company: isFreelancer ? null : (company || existingBroker.company),
+            isFreelancer: isFreelancer || false,
+            updatedAt: new Date(),
+          })
+          .where(eq(externalBrokers.id, brokerId));
+      } else {
+        // Create new broker
+        const [newBroker] = await db.insert(externalBrokers)
+          .values({
+            agencyId,
+            firstName,
+            lastName,
+            email: email || null,
+            phone: fullPhone,
+            phoneCountryCode: countryCode || "+52",
+            company: isFreelancer ? null : (company || null),
+            isFreelancer: isFreelancer || false,
+            referredBySellerId: referredBySellerId || null,
+            registrationSource: registrationSource || "public_link",
+            status: "active",
+          })
+          .returning();
+        brokerId = newBroker.id;
+      }
+      
+      // Fetch active broker terms
+      const termsResults = await db.select()
+        .from(brokerTerms)
+        .where(eq(brokerTerms.isActive, true))
+        .limit(1);
+      
+      const activeTerms = termsResults.length > 0 ? termsResults[0] : null;
+      
+      res.status(201).json({ 
+        success: true, 
+        brokerId,
+        isExisting: !!existingBroker,
+        termsRequired: true,
+        terms: activeTerms ? {
+          id: activeTerms.id,
+          version: activeTerms.version,
+          title: activeTerms.title,
+          content: activeTerms.content,
+        } : null,
+      });
+    } catch (error: any) {
+      console.error("Error registering broker:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // GET /api/public/broker-terms - Get active broker terms
+  app.get("/api/public/broker-terms", async (req, res) => {
+    try {
+      const termsResults = await db.select()
+        .from(brokerTerms)
+        .where(eq(brokerTerms.isActive, true))
+        .limit(1);
+      
+      if (termsResults.length === 0) {
+        return res.json({ terms: null });
+      }
+      
+      const terms = termsResults[0];
+      res.json({
+        terms: {
+          id: terms.id,
+          version: terms.version,
+          title: terms.title,
+          content: terms.content,
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching broker terms:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // POST /api/public/brokers/:brokerId/accept-terms - Step 2: Accept terms
+  app.post("/api/public/brokers/:brokerId/accept-terms", publicLeadRegistrationLimiter, async (req, res) => {
+    try {
+      const { brokerId } = req.params;
+      const { termsId, termsVersion, ipAddress, userAgent } = req.body;
+      
+      if (!termsId || !termsVersion) {
+        return res.status(400).json({ message: "Terms ID and version are required" });
+      }
+      
+      // Verify broker exists
+      const brokerResults = await db.select()
+        .from(externalBrokers)
+        .where(eq(externalBrokers.id, brokerId))
+        .limit(1);
+      
+      if (brokerResults.length === 0) {
+        return res.status(404).json({ message: "Broker not found" });
+      }
+      
+      const broker = brokerResults[0];
+      
+      // Update broker with terms acceptance
+      await db.update(externalBrokers)
+        .set({
+          termsAcceptedAt: new Date(),
+          termsVersion: termsVersion,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalBrokers.id, brokerId));
+      
+      // Also record in broker_terms_acceptances table for audit trail
+      // Note: This table references leadId, but we can create it when lead is created
+      
+      res.json({ 
+        success: true, 
+        message: "Terms accepted successfully",
+        brokerId,
+      });
+    } catch (error: any) {
+      console.error("Error accepting broker terms:", error);
+      handleGenericError(res, error);
+    }
+  });
+  
+  // POST /api/public/brokers/:brokerId/leads - Step 3: Register lead for this broker
+  app.post("/api/public/brokers/:brokerId/leads", publicLeadRegistrationLimiter, async (req, res) => {
+    try {
+      const { brokerId } = req.params;
+      const { 
+        firstName, 
+        lastName, 
+        phoneLast4,
+        contractDuration,
+        checkInDate,
+        hasPets,
+        budgetMin,
+        budgetMax,
+        bedrooms,
+        zone,
+        notes 
+      } = req.body;
+      
+      // Basic validation
+      if (!firstName || !lastName || !phoneLast4) {
+        return res.status(400).json({ message: "Nombre, apellido y últimos 4 dígitos del teléfono son requeridos" });
+      }
+      
+      if (phoneLast4.length !== 4) {
+        return res.status(400).json({ message: "Debe proporcionar exactamente 4 dígitos del teléfono" });
+      }
+      
+      // Verify broker exists and has accepted terms
+      const brokerResults = await db.select()
+        .from(externalBrokers)
+        .where(eq(externalBrokers.id, brokerId))
+        .limit(1);
+      
+      if (brokerResults.length === 0) {
+        return res.status(404).json({ message: "Broker no encontrado" });
+      }
+      
+      const broker = brokerResults[0];
+      
+      if (!broker.termsAcceptedAt) {
+        return res.status(400).json({ message: "Debe aceptar los términos y condiciones primero" });
+      }
+      
+      const agencyId = broker.agencyId;
+      
+      // Check for duplicate lead with 3-month expiry
+      const duplicateCheck = await storage.checkExternalLeadDuplicateWithExpiry(
+        agencyId, firstName, lastName, phoneLast4
+      );
+      
+      if (duplicateCheck && !duplicateCheck.isExpired) {
+        return res.status(409).json({
+          message: `Este lead ya fue registrado por ${duplicateCheck.sellerName || "otro vendedor/broker"}. Quedan ${duplicateCheck.daysRemaining} días para que expire.`,
+          duplicate: {
+            sellerName: duplicateCheck.sellerName,
+            daysRemaining: duplicateCheck.daysRemaining
+          }
+        });
+      }
+      
+      // Parse budget values
+      const parsedBudgetMin = budgetMin ? parseFloat(String(budgetMin)) : null;
+      const parsedBudgetMax = budgetMax ? parseFloat(String(budgetMax)) : null;
+      const estimatedRent = parsedBudgetMin || parsedBudgetMax || null;
+      
+      // Create lead linked to broker
+      const lead = await storage.createExternalLead({
+        agencyId,
+        firstName,
+        lastName,
+        phoneLast4,
+        brokerId,
+        contractDuration: contractDuration || null,
+        checkInDate: checkInDate ? new Date(checkInDate) : null,
+        hasPets: hasPets || null,
+        estimatedRentCost: estimatedRent ? Math.round(estimatedRent) : null,
+        budgetMin: parsedBudgetMin ? String(parsedBudgetMin) : null,
+        budgetMax: parsedBudgetMax ? String(parsedBudgetMax) : null,
+        bedrooms: bedrooms ? parseInt(String(bedrooms)) : null,
+        desiredNeighborhood: zone || null,
+        registrationType: "broker",
+        status: "nuevo_lead",
+        source: "public_broker_registration",
+        notes,
+      });
+      
+      // Update broker stats
+      await db.update(externalBrokers)
+        .set({
+          totalLeadsShared: sql`${externalBrokers.totalLeadsShared} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(externalBrokers.id, brokerId));
+      
+      res.status(201).json({ 
+        success: true, 
+        leadId: lead.id,
+        message: "Lead registrado exitosamente"
+      });
+    } catch (error: any) {
+      console.error("Error creating broker lead:", error);
+      handleGenericError(res, error);
+    }
+  });
+
   // GET /api/public/agency - Get public agency info (name, logo)
   app.get("/api/public/agency", async (req, res) => {
     try {

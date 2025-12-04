@@ -6479,6 +6479,17 @@ export const externalBrokers = pgTable("external_brokers", {
   notes: text("notes"),
   tags: text("tags").array().default(sql`ARRAY[]::text[]`),
   
+  // Freelancer flag
+  isFreelancer: boolean("is_freelancer").default(false), // true = freelancer, false = works for company
+  
+  // Terms Acceptance
+  termsAcceptedAt: timestamp("terms_accepted_at"), // When broker accepted commission terms
+  termsVersion: varchar("terms_version", { length: 50 }), // Version of terms accepted (e.g., "1.0")
+  
+  // Referral tracking
+  referredBySellerId: varchar("referred_by_seller_id").references(() => users.id, { onDelete: "set null" }), // Seller who invited this broker
+  registrationSource: varchar("registration_source", { length: 50 }).default("public_link"), // "public_link" | "seller_invite"
+  
   // Metadata
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -6489,6 +6500,7 @@ export const externalBrokers = pgTable("external_brokers", {
   index("idx_external_brokers_phone").on(table.phone),
   index("idx_external_brokers_status").on(table.status),
   index("idx_external_brokers_company").on(table.company),
+  index("idx_external_brokers_referred_by").on(table.referredBySellerId),
 ]);
 
 export const insertExternalBrokerSchema = createInsertSchema(externalBrokers).omit({
@@ -6500,6 +6512,8 @@ export const insertExternalBrokerSchema = createInsertSchema(externalBrokers).om
   totalLeadsShared: true,
   totalLeadsConverted: true,
   totalCommissionsEarned: true,
+  termsAcceptedAt: true, // Set by backend when terms are accepted
+  termsVersion: true, // Set by backend when terms are accepted
 });
 
 export const updateExternalBrokerSchema = insertExternalBrokerSchema.partial();
@@ -8102,6 +8116,10 @@ export const externalBrokersRelations = relations(externalBrokers, ({ one, many 
   }),
   createdByUser: one(users, {
     fields: [externalBrokers.createdBy],
+    references: [users.id],
+  }),
+  referredBySeller: one(users, {
+    fields: [externalBrokers.referredBySellerId],
     references: [users.id],
   }),
   leads: many(externalLeads),
