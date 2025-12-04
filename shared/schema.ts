@@ -61,6 +61,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "external_agency_concierge", // Conserje de agencia externa - recibe citas
   "external_agency_lawyer", // Abogado de agencia externa - elabora contratos
   "tenant", // Inquilino con acceso al portal
+  "sales_agent", // Agente de ventas Homesapp - maneja ventas exclusivamente
 ]);
 
 export const userStatusEnum = pgEnum("user_status", [
@@ -74,6 +75,58 @@ export const propertyStatusEnum = pgEnum("property_status", [
   "rent",
   "sale",
   "both",
+]);
+
+// Listing Type - tipo de operación específica del listing
+export const listingTypeEnum = pgEnum("listing_type", [
+  "rent_long",   // Renta a largo plazo (TRH)
+  "rent_short",  // Renta corta / vacacional
+  "sale",        // Venta (Homesapp)
+]);
+
+// Brand - marca bajo la cual opera el listing
+export const brandEnum = pgEnum("brand", [
+  "TRH",        // Tulum Rental Homes - exclusivo rentas
+  "HOMESAPP",   // Homesapp - exclusivo ventas
+]);
+
+// Lead Type - tipo de lead (comprador vs arrendatario)
+export const leadTypeEnum = pgEnum("lead_type", [
+  "renter",     // Lead buscando rentar
+  "buyer",      // Lead buscando comprar
+]);
+
+// Sale Offer Status - estados de oferta de compra
+export const saleOfferStatusEnum = pgEnum("sale_offer_status", [
+  "draft",           // Borrador
+  "sent",            // Enviada al propietario
+  "under_review",    // En revisión
+  "counteroffer",    // Contraoferta recibida
+  "accepted",        // Aceptada
+  "rejected",        // Rechazada
+  "expired",         // Expirada
+  "withdrawn",       // Retirada por comprador
+]);
+
+// Sale Offer Payment Method - método de pago
+export const salePaymentMethodEnum = pgEnum("sale_payment_method", [
+  "cash",          // Pago de contado
+  "credit",        // Crédito hipotecario
+  "mixed",         // Combinación
+  "financing",     // Financiamiento directo
+]);
+
+// Sale Contract Status - estados de contrato de compraventa
+export const saleContractStatusEnum = pgEnum("sale_contract_status", [
+  "draft",              // Borrador inicial
+  "pending_review",     // Pendiente de revisión legal
+  "review_approved",    // Revisión aprobada
+  "pending_signatures", // Pendiente de firmas
+  "partially_signed",   // Firmado parcialmente
+  "signed",             // Firmado por todas las partes
+  "notarization",       // En proceso de escrituración
+  "closed_sale",        // Venta cerrada/completada
+  "cancelled",          // Cancelado
 ]);
 
 export const appointmentTypeEnum = pgEnum("appointment_type", [
@@ -1132,6 +1185,10 @@ export const properties = pgTable("properties", {
   colonyId: varchar("colony_id").references(() => colonies.id),
   colonyName: text("colony_name"),
   status: propertyStatusEnum("status").notNull(),
+  // Campos de listing para separación de marcas TRH/Homesapp
+  listingType: listingTypeEnum("listing_type").default("rent_long"), // Tipo específico: rent_long, rent_short, sale
+  brand: brandEnum("brand").default("TRH"), // Marca: TRH para rentas, HOMESAPP para ventas
+  isExclusive: boolean("is_exclusive").notNull().default(true), // Si es exclusiva de la agencia
   unitType: text("unit_type").notNull().default("private"),
   condominiumId: varchar("condominium_id").notNull().references(() => condominiums.id),
   condoName: text("condo_name"),
@@ -1200,6 +1257,10 @@ export const properties = pgTable("properties", {
   index("idx_properties_condo_name").on(table.condoName),
   index("idx_properties_property_type").on(table.propertyType),
   index("idx_properties_slug").on(table.slug),
+  // Indexes for TRH/Homesapp brand separation
+  index("idx_properties_listing_type").on(table.listingType),
+  index("idx_properties_brand").on(table.brand),
+  index("idx_properties_brand_listing").on(table.brand, table.listingType),
   // Composite indexes for common query patterns
   index("idx_properties_active_status").on(table.active, table.status),
   index("idx_properties_active_published").on(table.active, table.published),
@@ -1441,6 +1502,7 @@ export const leads = pgTable("leads", {
   lastName: varchar("last_name").notNull(),
   email: varchar("email"), // Ya no es obligatorio
   phone: varchar("phone").notNull(), // WhatsApp obligatorio
+  leadType: leadTypeEnum("lead_type").notNull().default("renter"), // Tipo: renter (TRH) o buyer (Homesapp)
   status: leadStatusEnum("status").notNull().default("nuevo"),
   source: text("source").array().default(sql`ARRAY[]::text[]`), // Multi-select: web, referido, llamada, evento, carga manual, etc
   registeredById: varchar("registered_by_id").notNull().references(() => users.id), // Vendedor que registró el lead
@@ -1458,6 +1520,10 @@ export const leads = pgTable("leads", {
   unitType: text("unit_type").array().default(sql`ARRAY[]::text[]`), // Multi-select: "Departamento", "Casa", "Studio", etc
   emailVerified: boolean("email_verified").notNull().default(false), // Si el lead confirmó su email
   validUntil: timestamp("valid_until").notNull(), // Fecha de expiración del lead (3 meses por defecto)
+  // Campos específicos para compradores (buyer leads)
+  buyerPaymentMethod: salePaymentMethodEnum("buyer_payment_method"), // Método de pago preferido
+  buyerPreapproved: boolean("buyer_preapproved").default(false), // Si tiene pre-aprobación bancaria
+  buyerTimeframe: varchar("buyer_timeframe"), // Plazo para comprar: "inmediato", "3 meses", "6 meses", etc
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2672,6 +2738,227 @@ export const insertOfferSchema = createInsertSchema(offers).omit({
 
 export type InsertOffer = z.infer<typeof insertOfferSchema>;
 export type Offer = typeof offers.$inferSelect;
+
+// ==========================================
+// SALE OFFERS - Ofertas de Compra (Homesapp)
+// ==========================================
+export const saleOffers = pgTable("sale_offers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Referencias principales
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  leadId: varchar("lead_id").references(() => leads.id, { onDelete: "set null" }), // Lead comprador
+  buyerId: varchar("buyer_id").references(() => users.id), // Si el lead ya es usuario
+  agentId: varchar("agent_id").notNull().references(() => users.id), // Agente de ventas Homesapp
+  
+  // Información del comprador (puede venir del lead o ser ingresada manualmente)
+  buyerFirstName: varchar("buyer_first_name").notNull(),
+  buyerLastName: varchar("buyer_last_name").notNull(),
+  buyerEmail: varchar("buyer_email"),
+  buyerPhone: varchar("buyer_phone").notNull(),
+  buyerNationality: varchar("buyer_nationality"),
+  buyerOccupation: varchar("buyer_occupation"),
+  
+  // Detalles de la oferta de compra
+  offeredPrice: decimal("offered_price", { precision: 12, scale: 2 }).notNull(), // Precio ofrecido
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  paymentMethod: salePaymentMethodEnum("payment_method").notNull(), // contado, crédito, mixto
+  downPayment: decimal("down_payment", { precision: 12, scale: 2 }), // Monto de enganche
+  downPaymentPercent: decimal("down_payment_percent", { precision: 5, scale: 2 }), // Porcentaje de enganche
+  
+  // Financiamiento (si aplica)
+  financingBank: varchar("financing_bank"), // Banco para crédito
+  financingPreapproved: boolean("financing_preapproved").default(false), // Pre-aprobado
+  financingAmount: decimal("financing_amount", { precision: 12, scale: 2 }), // Monto del crédito
+  
+  // Fechas propuestas
+  proposedSigningDate: timestamp("proposed_signing_date"), // Fecha propuesta para firma
+  proposedClosingDate: timestamp("proposed_closing_date"), // Fecha propuesta para escrituración
+  proposedDeliveryDate: timestamp("proposed_delivery_date"), // Fecha propuesta de entrega
+  
+  // Condiciones especiales
+  conditions: text("conditions"), // Condiciones de la oferta (muebles incluidos, reparaciones, etc.)
+  includedItems: text("included_items").array().default(sql`ARRAY[]::text[]`), // Items incluidos
+  excludedItems: text("excluded_items").array().default(sql`ARRAY[]::text[]`), // Items excluidos
+  specialRequests: text("special_requests"),
+  
+  // Estado de la oferta
+  status: saleOfferStatusEnum("status").notNull().default("draft"),
+  expirationDate: timestamp("expiration_date"), // Fecha de vencimiento de la oferta
+  
+  // Contraoferta (si aplica)
+  counterOfferPrice: decimal("counter_offer_price", { precision: 12, scale: 2 }),
+  counterOfferConditions: text("counter_offer_conditions"),
+  counterOfferDate: timestamp("counter_offer_date"),
+  
+  // Historial de negociación
+  negotiationRound: integer("negotiation_round").default(0),
+  negotiationHistory: jsonb("negotiation_history"), // Array de cambios en la negociación
+  
+  // Documentos adjuntos
+  documents: text("documents").array().default(sql`ARRAY[]::text[]`), // URLs de documentos
+  
+  // Notas internas
+  internalNotes: text("internal_notes"),
+  buyerNotes: text("buyer_notes"), // Notas visibles para el comprador
+  
+  // Firma digital
+  digitalSignature: text("digital_signature"),
+  signedAt: timestamp("signed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_sale_offers_property").on(table.propertyId),
+  index("idx_sale_offers_lead").on(table.leadId),
+  index("idx_sale_offers_agent").on(table.agentId),
+  index("idx_sale_offers_status").on(table.status),
+  index("idx_sale_offers_created").on(table.createdAt),
+]);
+
+export const insertSaleOfferSchema = createInsertSchema(saleOffers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSaleOffer = z.infer<typeof insertSaleOfferSchema>;
+export type SaleOffer = typeof saleOffers.$inferSelect;
+
+// ==========================================
+// SALE CONTRACTS - Contratos de Compraventa (Homesapp)
+// ==========================================
+export const saleContracts = pgTable("sale_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Referencias principales
+  saleOfferId: varchar("sale_offer_id").notNull().references(() => saleOffers.id, { onDelete: "cascade" }),
+  propertyId: varchar("property_id").notNull().references(() => properties.id, { onDelete: "cascade" }),
+  
+  // Partes del contrato
+  buyerId: varchar("buyer_id").references(() => users.id), // Comprador
+  sellerId: varchar("seller_id").notNull().references(() => users.id), // Propietario/Vendedor
+  agentId: varchar("agent_id").notNull().references(() => users.id), // Agente de ventas
+  
+  // Información del comprador
+  buyerFullName: varchar("buyer_full_name").notNull(),
+  buyerEmail: varchar("buyer_email"),
+  buyerPhone: varchar("buyer_phone").notNull(),
+  buyerAddress: text("buyer_address"),
+  buyerIdentification: varchar("buyer_identification"), // RFC, CURP, Pasaporte
+  buyerIdentificationType: varchar("buyer_identification_type"), // RFC, CURP, Passport
+  
+  // Información del vendedor
+  sellerFullName: varchar("seller_full_name").notNull(),
+  sellerEmail: varchar("seller_email"),
+  sellerPhone: varchar("seller_phone").notNull(),
+  sellerAddress: text("seller_address"),
+  sellerIdentification: varchar("seller_identification"),
+  sellerIdentificationType: varchar("seller_identification_type"),
+  
+  // Tipo de contrato
+  contractType: varchar("contract_type").notNull().default("promissory"), // promissory (promesa), deed (escritura)
+  
+  // Detalles financieros
+  salePrice: decimal("sale_price", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+  downPayment: decimal("down_payment", { precision: 12, scale: 2 }),
+  paymentMethod: salePaymentMethodEnum("payment_method").notNull(),
+  
+  // Información del notario (si aplica)
+  notaryName: varchar("notary_name"),
+  notaryNumber: varchar("notary_number"),
+  notaryCity: varchar("notary_city"),
+  notaryState: varchar("notary_state"),
+  
+  // Fechas importantes
+  contractDate: timestamp("contract_date"), // Fecha del contrato
+  signingDate: timestamp("signing_date"), // Fecha de firma
+  closingDate: timestamp("closing_date"), // Fecha de escrituración
+  deliveryDate: timestamp("delivery_date"), // Fecha de entrega
+  
+  // Estado del contrato
+  status: saleContractStatusEnum("status").notNull().default("draft"),
+  
+  // Contenido del contrato
+  contractContent: text("contract_content"), // Contenido del contrato en texto/HTML
+  contractTemplateId: varchar("contract_template_id"), // Plantilla usada
+  
+  // Documentos
+  contractDocumentUrl: text("contract_document_url"), // PDF del contrato
+  deedDocumentUrl: text("deed_document_url"), // Escritura (si existe)
+  supportingDocuments: text("supporting_documents").array().default(sql`ARRAY[]::text[]`),
+  
+  // Firmas
+  buyerSignature: text("buyer_signature"),
+  buyerSignedAt: timestamp("buyer_signed_at"),
+  sellerSignature: text("seller_signature"),
+  sellerSignedAt: timestamp("seller_signed_at"),
+  witnessSignatures: jsonb("witness_signatures"), // Array de firmas de testigos
+  
+  // Pagos registrados
+  paymentsReceived: jsonb("payments_received"), // Array de pagos: [{date, amount, concept, receipt}]
+  
+  // Comisiones
+  commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("5.00"),
+  commissionAmount: decimal("commission_amount", { precision: 12, scale: 2 }),
+  commissionPaidAt: timestamp("commission_paid_at"),
+  
+  // Notas
+  internalNotes: text("internal_notes"),
+  publicNotes: text("public_notes"),
+  
+  // Cancelación (si aplica)
+  cancelledAt: timestamp("cancelled_at"),
+  cancellationReason: text("cancellation_reason"),
+  cancelledBy: varchar("cancelled_by").references(() => users.id),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_sale_contracts_offer").on(table.saleOfferId),
+  index("idx_sale_contracts_property").on(table.propertyId),
+  index("idx_sale_contracts_buyer").on(table.buyerId),
+  index("idx_sale_contracts_seller").on(table.sellerId),
+  index("idx_sale_contracts_agent").on(table.agentId),
+  index("idx_sale_contracts_status").on(table.status),
+  index("idx_sale_contracts_created").on(table.createdAt),
+]);
+
+export const insertSaleContractSchema = createInsertSchema(saleContracts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSaleContract = z.infer<typeof insertSaleContractSchema>;
+export type SaleContract = typeof saleContracts.$inferSelect;
+
+// ==========================================
+// SALE CONTRACT EVENTS - Timeline de eventos de contratos de venta
+// ==========================================
+export const saleContractEvents = pgTable("sale_contract_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  saleContractId: varchar("sale_contract_id").notNull().references(() => saleContracts.id, { onDelete: "cascade" }),
+  eventType: varchar("event_type").notNull(), // status_change, document_upload, payment_received, note_added, signature_collected
+  title: varchar("title").notNull(),
+  description: text("description"),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  metadata: jsonb("metadata"), // Datos adicionales según el tipo de evento
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_sale_contract_events_contract").on(table.saleContractId),
+  index("idx_sale_contract_events_type").on(table.eventType),
+  index("idx_sale_contract_events_created").on(table.createdAt),
+]);
+
+export const insertSaleContractEventSchema = createInsertSchema(saleContractEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSaleContractEvent = z.infer<typeof insertSaleContractEventSchema>;
+export type SaleContractEvent = typeof saleContractEvents.$inferSelect;
 
 // Budgets/Quotes table (presupuestos y cotizaciones)
 export const budgets = pgTable("budgets", {
