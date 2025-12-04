@@ -11,7 +11,6 @@ async function testDriveAccess() {
     console.log("\nChecking for OAuth credentials...");
     console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "SET" : "NOT SET");
     console.log("GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "SET" : "NOT SET");
-    console.log("GOOGLE_REFRESH_TOKEN:", process.env.GOOGLE_REFRESH_TOKEN ? "SET" : "NOT SET");
   }
   
   // Try to use the Sheets client method
