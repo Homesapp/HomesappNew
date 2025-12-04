@@ -1,0 +1,289 @@
+3) Detalle de Pagos y Servicios
+
+Quiero que esta sea una sección muy útil y clara.
+
+3.1. Configuración de servicios y fechas
+
+Para cada Portal (contrato):
+
+Debe haber una lista configurable de servicios:
+
+Luz
+
+Agua
+
+Internet
+
+HOA / Mantenimiento
+
+Otros (campo libre con nombre)
+
+Para cada servicio configurado guardar:
+
+service_type (luz, agua, etc.)
+
+provider_name (CFE, etc., opcional)
+
+payment_frequency (mensual, bimestral, eventual)
+
+next_due_date (próxima fecha de pago)
+
+amount esperado (si aplica)
+
+quién es el responsable principal del pago: tenant, owner, shared.
+
+El Inquilino debe poder ver todo y, según permisos, editar solo algunos campos; el Propietario / TRH debería tener control completo de configuración.
+
+3.2. Registro de pagos
+
+Para cada servicio y para la renta:
+
+Crear una entidad de payment record con:
+
+date_due
+
+date_paid (si ya se pagó)
+
+amount
+
+category (renta, luz, agua, etc.)
+
+status (pendiente, pagado, retrasado, verificado)
+
+receipt_url (comprobante subido)
+
+notes
+
+El Inquilino debe poder:
+
+marcar un pago como realizado,
+
+subir el comprobante (imagen o PDF),
+
+dejar un comentario corto.
+
+El Propietario/TRH debe poder:
+
+marcar el pago como verificado o rechazado,
+
+agregar nota interna.
+
+UI deseada:
+
+Tabla/lista por meses, con:
+
+Renta,
+
+Servicios,
+
+Estado (pendiente/pagado/verificado),
+
+Icono si tiene comprobante.
+
+Filtros por:
+
+categoría,
+
+mes,
+
+estado.
+
+3.3. Recordatorios
+
+De momento basta con lógica interna:
+
+Para cada pago con date_due en el futuro, marcar en la interfaz si está:
+
+Próximo (< 7 días),
+
+Vencido (> 0 días después de date_due sin date_paid).
+
+Mostrar estos estados tanto en el Resumen como en Pagos.
+
+4) Mantenimientos y reportes de problemas
+
+Crear un sistema de tickets por contrato:
+
+Campos mínimos del ticket:
+
+id
+
+portal_id / contract_id
+
+created_by (tenant/owner/TRH)
+
+title
+
+description
+
+category (plomería, electricidad, electrodomésticos, etc.)
+
+priority (baja/media/alta)
+
+status (abierto, en progreso, resuelto, cerrado)
+
+assigned_to (TRH, propietario, proveedor externo)
+
+created_at, updated_at
+
+lista de adjuntos (fotos/videos opcionales)
+
+Funcionamiento:
+
+El Inquilino puede:
+
+crear tickets,
+
+adjuntar fotos,
+
+comentar el estado.
+
+El Propietario/TRH puede:
+
+cambiar status (ej. de abierto a en progreso),
+
+asignar responsable,
+
+agregar notas.
+
+UI:
+
+Lista de tickets con filtros por:
+
+estado,
+
+categoría,
+
+prioridad.
+
+Detalle del ticket muestra:
+
+timeline de cambios,
+
+comentarios.
+
+5) Comprobantes y documentos
+
+Quiero una sección donde se vean:
+
+Comprobantes de pago (enlazados a los registros de pago).
+
+Documentos del contrato:
+
+Contrato principal,
+
+Anexos,
+
+Inventario de muebles,
+
+Otros PDFs.
+
+Requisitos:
+
+Mostrar tipo de documento, fecha de subida y quién lo subió.
+
+Permitir descarga desde el Portal (lectura para inquilino y propietario).
+
+Para evitar desorden, enlaza los comprobantes a los registros de pago y, en esta sección, muestra un “archivo plano” agrupado por mes/categoría.
+
+6) Mensajes / Chat del Portal
+
+No necesito algo tan complejo como WhatsApp, pero sí:
+
+Un hilo de mensajes asociado al contrato:
+
+sender (tenant/owner/TRH/sistema),
+
+texto,
+
+fecha,
+
+opcionales adjuntos.
+
+UI tipo chat simple:
+
+burbujas,
+
+ordenado por fecha.
+
+Integración con eventos del Portal:
+
+automatiza algunos mensajes de sistema, por ejemplo:
+
+“Se registró pago de luz por X MXN el día Y.”
+
+“Nuevo ticket de mantenimiento creado: [título].”
+
+Permisos:
+
+Inquilino y Propietario pueden escribir,
+
+TRH también,
+
+mensajes internos (solo TRH/propietario) pueden marcarse como internal y no mostrarse al inquilino.
+
+7) Roles y permisos
+
+Es importante que respetes bien quién ve qué:
+
+Inquilino:
+
+Ve todo lo relacionado con su contrato,
+
+Puede:
+
+registrar pagos y subir comprobantes,
+
+crear tickets de mantenimiento,
+
+escribir en el chat,
+
+ver documentos.
+
+No debe poder:
+
+editar datos del contrato,
+
+cambiar configuración de servicios si así lo definimos (solo ciertos campos tal vez).
+
+Propietario:
+
+Ve todo lo del contrato,
+
+Puede:
+
+editar configuración de servicios,
+
+validar pagos,
+
+gestionar tickets,
+
+subir documentos,
+
+escribir en el chat.
+
+TRH (admin/agente):
+
+Ve todos los Portales,
+
+Tiene permisos de super admin sobre tickets, pagos, documentos y chat.
+
+8) UX: diseño general
+
+La sección Portal debe estar bien organizada en tabs o subtabs:
+
+Resumen
+
+Pagos
+
+Mantenimiento
+
+Documentos
+
+Mensajes
+
+En mobile, asegúrate de que:
+
+no haya scroll horizontal,
+
+los componentes clave (próximo pago, botón “Reportar problema”, botón “Registrar pago”) estén visibles rápidamente.
