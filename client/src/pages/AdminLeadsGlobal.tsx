@@ -1,0 +1,755 @@
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Plus,
+  Search,
+  Filter,
+  Users,
+  Phone,
+  Mail,
+  Calendar,
+  DollarSign,
+  Clock,
+  Send,
+  Eye,
+  MoreVertical,
+  CheckCircle2,
+  XCircle,
+  User,
+  Building2,
+  BedDouble,
+  TrendingUp,
+  FileText,
+  ArrowRight,
+  MapPin,
+  UserPlus,
+  Inbox,
+  BarChart3,
+  Download,
+  RefreshCw,
+  AlertCircle,
+  UserCheck,
+} from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { ExternalLeadWithActiveCard, User as UserType } from "@shared/schema";
+import { format, formatDistanceToNow, subDays, startOfWeek, startOfMonth } from "date-fns";
+import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+
+type LeadStatus = 
+  | "nuevo_lead"
+  | "cita_coordinada"
+  | "interesado"
+  | "oferta_enviada"
+  | "oferta_completada"
+  | "formato_enviado"
+  | "formato_completado"
+  | "proceso_renta"
+  | "renta_concretada"
+  | "perdido"
+  | "muerto";
+
+interface StatusConfig {
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
+const STATUS_CONFIG: Record<LeadStatus, StatusConfig> = {
+  nuevo_lead: { label: "Nuevo", color: "bg-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  cita_coordinada: { label: "Cita", color: "bg-purple-500", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  interesado: { label: "Interesado", color: "bg-cyan-500", bgColor: "bg-cyan-100 dark:bg-cyan-900/30" },
+  oferta_enviada: { label: "Oferta Enviada", color: "bg-yellow-500", bgColor: "bg-yellow-100 dark:bg-yellow-900/30" },
+  oferta_completada: { label: "Oferta OK", color: "bg-orange-500", bgColor: "bg-orange-100 dark:bg-orange-900/30" },
+  formato_enviado: { label: "Formato", color: "bg-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
+  formato_completado: { label: "Formato OK", color: "bg-teal-500", bgColor: "bg-teal-100 dark:bg-teal-900/30" },
+  proceso_renta: { label: "En Proceso", color: "bg-indigo-500", bgColor: "bg-indigo-100 dark:bg-indigo-900/30" },
+  renta_concretada: { label: "Concretada", color: "bg-green-500", bgColor: "bg-green-100 dark:bg-green-900/30" },
+  perdido: { label: "Perdido", color: "bg-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
+  muerto: { label: "Muerto", color: "bg-gray-500", bgColor: "bg-gray-100 dark:bg-gray-800" },
+};
+
+function MetricCard({ 
+  title, 
+  value, 
+  icon: Icon, 
+  trend,
+  trendUp,
+  colorClass = "text-primary bg-primary/10",
+}: { 
+  title: string; 
+  value: number | string; 
+  icon: typeof TrendingUp; 
+  trend?: string;
+  trendUp?: boolean;
+  colorClass?: string;
+}) {
+  return (
+    <Card className="hover-elevate" data-testid={`metric-${title.toLowerCase().replace(/\s/g, '-')}`}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
+            <p className="text-2xl font-bold mt-1">{value}</p>
+            {trend && (
+              <p className={cn(
+                "text-xs mt-1",
+                trendUp ? "text-green-600" : "text-muted-foreground"
+              )}>
+                {trend}
+              </p>
+            )}
+          </div>
+          <div className={cn("p-3 rounded-lg shrink-0", colorClass)}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusPipeline({ leads }: { leads: ExternalLeadWithActiveCard[] }) {
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    leads.forEach(lead => {
+      counts[lead.status] = (counts[lead.status] || 0) + 1;
+    });
+    return counts;
+  }, [leads]);
+
+  const pipelineStatuses: LeadStatus[] = [
+    "nuevo_lead",
+    "cita_coordinada",
+    "interesado",
+    "oferta_enviada",
+    "oferta_completada",
+    "formato_enviado",
+    "formato_completado",
+    "proceso_renta",
+    "renta_concretada",
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <BarChart3 className="h-4 w-4" />
+          Pipeline de Ventas
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-1 overflow-x-auto pb-2">
+          {pipelineStatuses.map((status, index) => {
+            const config = STATUS_CONFIG[status];
+            const count = statusCounts[status] || 0;
+            return (
+              <div 
+                key={status} 
+                className="flex flex-col items-center min-w-[80px]"
+                data-testid={`pipeline-stage-${status}`}
+              >
+                <div 
+                  className={cn(
+                    "w-full h-12 rounded-lg flex items-center justify-center",
+                    config.bgColor
+                  )}
+                >
+                  <span className="text-lg font-bold">{count}</span>
+                </div>
+                <span className="text-xs text-muted-foreground mt-1 text-center truncate w-full">
+                  {config.label}
+                </span>
+                {index < pipelineStatuses.length - 1 && (
+                  <ArrowRight className="h-3 w-3 text-muted-foreground/50 absolute right-0" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AssignLeadDialog({ 
+  lead, 
+  open, 
+  onOpenChange,
+  sellers,
+  onAssign,
+}: { 
+  lead: ExternalLeadWithActiveCard | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  sellers: UserType[];
+  onAssign: (leadId: string, sellerId: string) => void;
+}) {
+  const [selectedSeller, setSelectedSeller] = useState("");
+
+  if (!lead) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Asignar Lead
+          </DialogTitle>
+          <DialogDescription>
+            Asigna a {lead.firstName} {lead.lastName} a un vendedor
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <Select value={selectedSeller} onValueChange={setSelectedSeller}>
+            <SelectTrigger data-testid="select-assign-seller">
+              <SelectValue placeholder="Seleccionar vendedor" />
+            </SelectTrigger>
+            <SelectContent>
+              {sellers.map(seller => (
+                <SelectItem key={seller.id} value={seller.id}>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs">
+                        {seller.firstName?.[0]}{seller.lastName?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    {seller.firstName} {seller.lastName}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            data-testid="button-cancel-assign"
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={() => {
+              if (selectedSeller) {
+                onAssign(lead.id, selectedSeller);
+                onOpenChange(false);
+              }
+            }}
+            disabled={!selectedSeller}
+            data-testid="button-confirm-assign"
+          >
+            <UserCheck className="h-4 w-4 mr-2" />
+            Asignar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function AdminLeadsGlobal() {
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sellerFilter, setSellerFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState("inbox");
+  const [assignDialogLead, setAssignDialogLead] = useState<ExternalLeadWithActiveCard | null>(null);
+
+  const { data: leads = [], isLoading } = useQuery<ExternalLeadWithActiveCard[]>({
+    queryKey: ["/api/external-leads"],
+  });
+
+  const { data: sellers = [] } = useQuery<UserType[]>({
+    queryKey: ["/api/external/sellers"],
+    queryFn: async () => {
+      const res = await fetch("/api/external/sellers", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ leadId, sellerId }: { leadId: string; sellerId: string }) => {
+      return apiRequest(`/api/external-leads/${leadId}/reassign`, {
+        method: "POST",
+        body: JSON.stringify({ sellerId }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] });
+      toast({ title: "Lead asignado", description: "El lead fue asignado correctamente" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "No se pudo asignar el lead", variant: "destructive" });
+    },
+  });
+
+  const filteredLeads = useMemo(() => {
+    const now = new Date();
+    
+    return leads.filter((lead) => {
+      const matchesSearch = !searchQuery || 
+        `${lead.firstName} ${lead.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.phone?.includes(searchQuery);
+      
+      const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+      const matchesSeller = sellerFilter === "all" || lead.sellerId === sellerFilter || 
+        (sellerFilter === "unassigned" && !lead.sellerId);
+
+      let matchesDate = true;
+      if (dateFilter !== "all") {
+        const createdAt = new Date(lead.createdAt);
+        switch (dateFilter) {
+          case "today":
+            matchesDate = createdAt >= subDays(now, 1);
+            break;
+          case "week":
+            matchesDate = createdAt >= startOfWeek(now, { locale: es });
+            break;
+          case "month":
+            matchesDate = createdAt >= startOfMonth(now);
+            break;
+        }
+      }
+      
+      return matchesSearch && matchesStatus && matchesSeller && matchesDate;
+    });
+  }, [leads, searchQuery, statusFilter, sellerFilter, dateFilter]);
+
+  const unassignedLeads = useMemo(() => 
+    leads.filter(l => !l.sellerId && l.status === "nuevo_lead"),
+    [leads]
+  );
+
+  const metrics = useMemo(() => {
+    const total = leads.length;
+    const unassigned = leads.filter(l => !l.sellerId).length;
+    const newToday = leads.filter(l => {
+      const createdAt = new Date(l.createdAt);
+      return createdAt >= subDays(new Date(), 1);
+    }).length;
+    const completed = leads.filter(l => l.status === "renta_concretada").length;
+    const conversionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    return { total, unassigned, newToday, completed, conversionRate };
+  }, [leads]);
+
+  const handleAssign = (leadId: string, sellerId: string) => {
+    assignMutation.mutate({ leadId, sellerId });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 p-4 md:p-6 border-b bg-background">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold" data-testid="text-page-title">
+              Inbox Global de Leads
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Vista general de todos los leads de la agencia
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] })}
+              data-testid="button-refresh"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualizar
+            </Button>
+            <Button 
+              onClick={() => navigate("/external/leads/new")}
+              data-testid="button-create-lead"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Lead
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+          <MetricCard 
+            title="Total Leads" 
+            value={metrics.total} 
+            icon={Users}
+            colorClass="bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+          />
+          <MetricCard 
+            title="Sin Asignar" 
+            value={metrics.unassigned} 
+            icon={AlertCircle}
+            colorClass="bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400"
+          />
+          <MetricCard 
+            title="Hoy" 
+            value={metrics.newToday} 
+            icon={Calendar}
+            colorClass="bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400"
+          />
+          <MetricCard 
+            title="Cerradas" 
+            value={metrics.completed} 
+            icon={CheckCircle2}
+            colorClass="bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400"
+          />
+          <MetricCard 
+            title="Conversión" 
+            value={`${metrics.conversionRate}%`} 
+            icon={TrendingUp}
+            colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"
+          />
+        </div>
+
+        <div className="mt-4">
+          <StatusPipeline leads={leads} />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+          <div className="border-b px-4 md:px-6">
+            <TabsList className="h-12">
+              <TabsTrigger value="inbox" className="flex items-center gap-2" data-testid="tab-inbox">
+                <Inbox className="h-4 w-4" />
+                Inbox
+                {unassignedLeads.length > 0 && (
+                  <Badge variant="destructive" className="ml-1" data-testid="badge-unassigned-count">
+                    {unassignedLeads.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="all" className="flex items-center gap-2" data-testid="tab-all">
+                <Users className="h-4 w-4" />
+                Todos
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 p-4 md:px-6 border-b">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre, email o teléfono..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+                data-testid="input-search"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-40" data-testid="select-status-filter">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <Separator className="my-1" />
+                {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                  <SelectItem key={key} value={key}>
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-2 h-2 rounded-full", config.color)} />
+                      {config.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sellerFilter} onValueChange={setSellerFilter}>
+              <SelectTrigger className="w-full md:w-48" data-testid="select-seller-filter">
+                <SelectValue placeholder="Vendedor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los vendedores</SelectItem>
+                <SelectItem value="unassigned">Sin asignar</SelectItem>
+                <Separator className="my-1" />
+                {sellers.map(seller => (
+                  <SelectItem key={seller.id} value={seller.id}>
+                    {seller.firstName} {seller.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-full md:w-32" data-testid="select-date-filter">
+                <SelectValue placeholder="Fecha" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo</SelectItem>
+                <SelectItem value="today">Hoy</SelectItem>
+                <SelectItem value="week">Esta semana</SelectItem>
+                <SelectItem value="month">Este mes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <TabsContent value="inbox" className="flex-1 m-0 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-4 md:p-6">
+                {unassignedLeads.length === 0 ? (
+                  <Card className="p-8 text-center">
+                    <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="font-medium">Inbox vacío</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No hay leads nuevos sin asignar
+                    </p>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {unassignedLeads.map(lead => {
+                      const status = STATUS_CONFIG[lead.status as LeadStatus] || STATUS_CONFIG.nuevo_lead;
+                      const budget = lead.activeCard?.budget || lead.budget;
+                      
+                      return (
+                        <Card 
+                          key={lead.id} 
+                          className="hover-elevate"
+                          data-testid={`inbox-lead-card-${lead.id}`}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <Avatar className="h-10 w-10">
+                                  <AvatarFallback className="bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300">
+                                    {lead.firstName?.[0]}{lead.lastName?.[0]}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium truncate">
+                                      {lead.firstName} {lead.lastName}
+                                    </span>
+                                    <Badge variant="outline" className="text-xs bg-orange-50 dark:bg-orange-950/30">
+                                      Sin asignar
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                    {budget && (
+                                      <span className="flex items-center gap-1">
+                                        <DollarSign className="h-3 w-3" />
+                                        ${Number(budget).toLocaleString()}
+                                      </span>
+                                    )}
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true, locale: es })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => setAssignDialogLead(lead)}
+                                  data-testid={`button-assign-${lead.id}`}
+                                >
+                                  <UserPlus className="h-4 w-4 mr-2" />
+                                  Asignar
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/external/leads/${lead.id}`)}
+                                  data-testid={`button-view-${lead.id}`}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="all" className="flex-1 m-0 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-4 md:p-6">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                  </div>
+                ) : filteredLeads.length === 0 ? (
+                  <Card className="p-8 text-center">
+                    <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="font-medium">No hay leads</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No se encontraron leads con los filtros aplicados
+                    </p>
+                  </Card>
+                ) : (
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Lead</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Vendedor</TableHead>
+                          <TableHead>Presupuesto</TableHead>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead className="w-[100px]">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredLeads.map(lead => {
+                          const status = STATUS_CONFIG[lead.status as LeadStatus] || STATUS_CONFIG.nuevo_lead;
+                          const budget = lead.activeCard?.budget || lead.budget;
+                          const seller = sellers.find(s => s.id === lead.sellerId);
+
+                          return (
+                            <TableRow 
+                              key={lead.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => navigate(`/external/leads/${lead.id}`)}
+                              data-testid={`table-row-${lead.id}`}
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="text-xs">
+                                      {lead.firstName?.[0]}{lead.lastName?.[0]}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <div className="font-medium text-sm">
+                                      {lead.firstName} {lead.lastName}
+                                    </div>
+                                    {lead.phone && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {lead.phone}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={cn("text-xs text-white", status.color)}>
+                                  {status.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {seller ? (
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarFallback className="text-xs">
+                                        {seller.firstName?.[0]}{seller.lastName?.[0]}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm">{seller.firstName}</span>
+                                  </div>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs bg-orange-50 dark:bg-orange-950/30">
+                                    Sin asignar
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {budget ? `$${Number(budget).toLocaleString()}` : "-"}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {format(new Date(lead.createdAt), "d MMM", { locale: es })}
+                              </TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={(e) => e.stopPropagation()}
+                                      data-testid={`button-actions-${lead.id}`}
+                                    >
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem 
+                                      onClick={(e) => { e.stopPropagation(); navigate(`/external/leads/${lead.id}`); }}
+                                      data-testid={`menu-view-${lead.id}`}
+                                    >
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      Ver Detalle
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={(e) => { e.stopPropagation(); setAssignDialogLead(lead); }}
+                                      data-testid={`menu-assign-${lead.id}`}
+                                    >
+                                      <UserPlus className="mr-2 h-4 w-4" />
+                                      {seller ? "Reasignar" : "Asignar"}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    {lead.phone && (
+                                      <DropdownMenuItem 
+                                        onClick={(e) => { 
+                                          e.stopPropagation(); 
+                                          window.open(`https://wa.me/${lead.phone?.replace(/\D/g, '')}`, '_blank');
+                                        }}
+                                        data-testid={`menu-whatsapp-${lead.id}`}
+                                      >
+                                        <SiWhatsapp className="mr-2 h-4 w-4 text-green-600" />
+                                        WhatsApp
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <AssignLeadDialog
+        lead={assignDialogLead}
+        open={!!assignDialogLead}
+        onOpenChange={(open) => !open && setAssignDialogLead(null)}
+        sellers={sellers}
+        onAssign={handleAssign}
+      />
+    </div>
+  );
+}

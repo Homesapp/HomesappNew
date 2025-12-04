@@ -181,6 +181,8 @@ import ExternalClients from "@/pages/ExternalClients";
 import ExternalMessages from "@/pages/ExternalMessages";
 import ExternalSellersManagement from "@/pages/ExternalSellersManagement";
 import ExternalLeadDetail from "@/pages/ExternalLeadDetail";
+import SellerLeadsCRM from "@/pages/SellerLeadsCRM";
+import AdminLeadsGlobal from "@/pages/AdminLeadsGlobal";
 import ExternalClientEdit from "@/pages/ExternalClientEdit";
 import ExternalContracts from "@/pages/ExternalContracts";
 import ExternalAgencyUsers from "@/pages/ExternalAgencyUsers";
@@ -590,6 +592,8 @@ function AuthenticatedApp() {
                   </ProtectedRoute>
                 )}
               </Route>
+              <Route path="/external/seller-crm" component={SellerLeadsCRM} />
+              <Route path="/external/admin-leads" component={AdminLeadsGlobal} />
               <Route path="/external/leads/:id" component={ExternalLeadDetail} />
               <Route path="/external/clients/:id" component={ExternalClientEdit} />
               <Route path="/external/clients" component={ExternalClients} />
