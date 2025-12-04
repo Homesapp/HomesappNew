@@ -291,6 +291,12 @@ export default function InteractiveMap() {
 
   const { data: markersResponse, isLoading, isFetching } = useQuery<{ markers: MapMarker[]; total: number }>({
     queryKey: ["/api/public/map-markers", queryParams],
+    queryFn: async () => {
+      const url = queryParams ? `/api/public/map-markers?${queryParams}` : '/api/public/map-markers';
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch markers");
+      return res.json();
+    },
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
     enabled: !!mapBounds,
