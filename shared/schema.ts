@@ -468,7 +468,8 @@ export const clientIncidentStatusEnum = pgEnum("client_incident_status", [
 
 export const leadRegistrationTypeEnum = pgEnum("lead_registration_type", [
   "broker", // Broker externo - solo últimos 4 dígitos del teléfono
-  "seller"  // Vendedor interno - datos completos
+  "seller", // Vendedor interno - datos completos
+  "client"  // Cliente - registro público de requisitos del cliente
 ]);
 
 export const externalLeadStatusEnum = pgEnum("external_lead_status", [
@@ -6703,7 +6704,7 @@ export const insertExternalLeadRegistrationTokenSchema = createInsertSchema(exte
 
 // Schema simplificado para crear links desde el frontend (solo requiere registrationType)
 export const createLeadRegistrationLinkSchema = z.object({
-  registrationType: z.enum(["broker", "seller"]),
+  registrationType: z.enum(["broker", "seller", "client"]),
 });
 
 export type InsertExternalLeadRegistrationToken = z.infer<typeof insertExternalLeadRegistrationTokenSchema>;
