@@ -14,13 +14,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   Home, MapPin, Bed, Bath, DollarSign, Filter, Building2, ChevronLeft,
   Search, SlidersHorizontal, RotateCcw, List, Eye, PawPrint, Calendar, Loader2, ChevronDown,
-  Sofa, Heart, MessageCircle, Image as ImageIcon
+  Sofa, Heart, MessageCircle, Image as ImageIcon, LogOut, UserCircle
 } from "lucide-react";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useAuth } from "@/hooks/useAuth";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 interface MapMarker {
@@ -709,6 +719,72 @@ export default function InteractiveMap() {
 
   const MapSkeleton = () => (<div className="w-full h-full bg-muted animate-pulse flex items-center justify-center"><div className="text-center space-y-4"><img src={logoIcon} alt="HomesApp" className="h-16 w-auto mx-auto opacity-50" /><div className="flex items-center justify-center gap-2"><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div></div><p className="text-sm text-muted-foreground">{language === "es" ? "Cargando mapa..." : "Loading map..."}</p></div></div>);
 
+  const MapUserMenu = () => {
+    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+    
+    const handleLoginClick = () => {
+      const currentPath = window.location.pathname + window.location.search;
+      setLocation(`/login?redirect=${encodeURIComponent(currentPath)}`);
+    };
+
+    const handleLogout = async () => {
+      try {
+        await fetch("/api/logout", { method: "GET", credentials: "include" });
+        window.location.href = "/";
+      } catch (error) {
+        window.location.href = "/";
+      }
+    };
+
+    if (authLoading) return <Skeleton className="h-8 w-20 rounded" />;
+
+    if (!isAuthenticated || !user) {
+      return (
+        <Button variant="outline" size="sm" onClick={handleLoginClick} data-testid="button-login">
+          {language === "es" ? "Entrar" : "Login"}
+        </Button>
+      );
+    }
+
+    const fullName = user?.firstName && user?.lastName 
+      ? `${user.firstName} ${user.lastName}`
+      : user?.email || "Usuario";
+    const initials = user?.firstName && user?.lastName
+      ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+      : user?.email?.[0]?.toUpperCase() || "U";
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="gap-2" data-testid="button-user-menu">
+            <Avatar className="h-7 w-7">
+              <AvatarImage src={user.profileImageUrl || undefined} alt={fullName} />
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{fullName}</p>
+              <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setLocation("/perfil")} data-testid="menu-item-profile">
+            <UserCircle className="mr-2 h-4 w-4" />
+            <span>{language === "es" ? "Mi perfil" : "My profile"}</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout} data-testid="menu-item-logout">
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>{language === "es" ? "Cerrar sesión" : "Logout"}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -742,6 +818,7 @@ export default function InteractiveMap() {
             </Sheet>
             <Button variant="outline" size="sm" className="lg:hidden gap-2" onClick={() => setMobileListOpen(true)} data-testid="button-mobile-list"><List className="h-4 w-4" /><span className="hidden sm:inline">{language === "es" ? "Lista" : "List"}</span></Button>
             <LanguageToggle />
+            <MapUserMenu />
           </div>
         </div>
       </header>

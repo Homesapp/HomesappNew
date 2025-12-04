@@ -56,6 +56,35 @@ export default function Login() {
     },
   });
 
+  const getRedirectUrl = (): string | null => {
+    const params = new URLSearchParams(searchString);
+    const redirect = params.get("redirect");
+    
+    if (!redirect) return null;
+    
+    const trimmed = redirect.trim();
+    
+    if (!trimmed || trimmed.length === 0) return null;
+    
+    if (!/^\/[a-zA-Z0-9\-_/.?=&%#]*$/.test(trimmed)) {
+      return null;
+    }
+    
+    if (trimmed.startsWith("//") || 
+        trimmed.toLowerCase().includes("javascript:") ||
+        trimmed.toLowerCase().includes("data:") ||
+        trimmed.toLowerCase().includes("vbscript:")) {
+      return null;
+    }
+    
+    const blockedPaths = ["/login", "/register", "/logout"];
+    if (blockedPaths.some(path => trimmed.toLowerCase().startsWith(path))) {
+      return null;
+    }
+    
+    return trimmed;
+  };
+
   const loginMutation = useMutation({
     mutationFn: async (data: FormData) => {
       return await apiRequest("POST", "/api/auth/login", data);
@@ -63,6 +92,13 @@ export default function Login() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       const userData = await queryClient.fetchQuery({ queryKey: ["/api/auth/user"] });
+      
+      const redirectUrl = getRedirectUrl();
+      
+      if (redirectUrl && redirectUrl !== "/login" && redirectUrl !== "/register") {
+        setLocation(redirectUrl);
+        return;
+      }
       
       if (userData && typeof userData === 'object' && 'role' in userData) {
         const role = (userData as any).role;

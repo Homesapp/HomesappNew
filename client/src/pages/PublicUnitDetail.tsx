@@ -57,6 +57,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import type { ExternalUnit } from "@shared/schema";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 import { PropertyMap } from "@/components/external/PropertyMap";
+import { PublicHeader } from "@/components/PublicHeader";
 
 export default function PublicUnitDetail() {
   const [matchUnidad, paramsUnidad] = useRoute("/unidad/:id");
@@ -244,45 +245,7 @@ export default function PublicUnitDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            className="min-h-[44px] gap-2"
-            onClick={() => setLocation("/")}
-            data-testid="button-back-home"
-          >
-            <img src={logoIcon} alt="HomesApp" className="h-14 w-auto" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="min-h-[44px] min-w-[44px]"
-              data-testid="button-share"
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                toast({
-                  title: language === "es" ? "Link copiado" : "Link copied",
-                  description: language === "es" ? "El link ha sido copiado al portapapeles" : "The link has been copied to clipboard",
-                });
-              }}
-            >
-              <Share2 className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="min-h-[44px] min-w-[44px]"
-              data-testid="button-favorite"
-              onClick={() => setShowFavoriteDialog(true)}
-            >
-              <Heart className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PublicHeader showPlatformButton={false} />
 
       {/* Image Gallery */}
       <div className="relative bg-muted">

@@ -1,0 +1,198 @@
+Quiero mejorar la experiencia completa en el detalle de los listings públicos:
+
+que la ficha sea más clara y atractiva,
+
+que el flujo de envío de lead sea sencillo,
+
+y que tenga sentido con la creación de cuenta y “Mis solicitudes”.
+
+1) Estructura de la ficha pública de propiedad
+
+En la vista pública de un listing (renta TRH o venta Homesapp), quiero:
+
+Encabezado con:
+
+breadcrumbs,
+
+título de la propiedad,
+
+etiquetas (Renta 12 meses, Venta, Pet friendly, Amueblado, etc.),
+
+marca (Tulum Rental Homes o Homesapp según listingType/brand).
+
+Layout principal:
+
+Galería (fotos, y si existe virtualTourUrl, mostrar botón claro “Ver tour virtual 3D”).
+
+Bloque de info rápida:
+
+precio (al mes o de venta),
+
+zona, recámaras, baños, m²,
+
+si incluye mantenimiento o no,
+
+ID/código de la unidad.
+
+Secciones o tabs:
+
+Descripción,
+
+Características / amenities,
+
+Zona y alrededores (Neighborhood Insights),
+
+Mapa.
+
+En desktop, una card lateral sticky con:
+
+precio,
+
+botones:
+
+Agendar visita (CTA principal),
+
+Solicitar información,
+
+(opcional) Iniciar proceso / Aplicar.
+
+En mobile, la card de precio + CTAs debe ser visible arriba y/o fija abajo.
+
+2) Flujo de lead desde la ficha (usuario no logueado)
+
+Al hacer clic en Agendar visita o Solicitar información:
+
+Paso 1 – Tipo de solicitud
+
+Mostrar un modal o panel con opciones:
+
+Agendar visita,
+
+Pedir más información,
+
+(opcional) Iniciar proceso de renta/compra.
+
+Campo de mensaje opcional para que el usuario agregue detalles.
+
+Paso 2 – Datos de contacto
+
+Si el usuario no tiene sesión:
+
+pedir:
+
+Nombre,
+
+WhatsApp,
+
+Email.
+
+incluir checkbox:
+
+Crear cuenta para seguir mi proceso (Mis solicitudes).
+
+botón principal: Enviar solicitud.
+
+Comportamiento al enviar:
+
+Crear un lead ligado a:
+
+el listing / propiedad,
+
+el tipo de acción (visita / info / aplicación),
+
+el canal public_listing,
+
+y, si no existía, crear un usuario “cliente” con esos datos de contacto.
+
+Si es un email nuevo:
+
+crear usuario básico,
+
+enviar email para que pueda definir contraseña más adelante.
+
+Si marcó “Crear cuenta”:
+
+tras el envío, ofrecerle ir a una pantalla rápida para definir contraseña,
+
+o saltar este paso y hacerlo luego.
+
+Feedback al usuario:
+
+Después de enviar, mostrar:
+
+mensaje tipo:
+
+“✅ Recibimos tu solicitud para [Propiedad]. Te contactaremos por WhatsApp o correo.”
+
+botones:
+
+Seguir viendo propiedades,
+
+Crear/ver mi cuenta o Ver mis solicitudes si ya está logueado.
+
+3) Flujo cuando el usuario ya está logueado
+
+Si el usuario tiene sesión (respuesta válida de /api/auth/user):
+
+el formulario debe aparecer pre-llenado con su nombre, email y WhatsApp,
+
+solo elige tipo de solicitud y mensaje (opcional),
+
+hace clic en Enviar.
+
+El lead se asocia a su usuario y debe aparecer en:
+
+la sección “Mis solicitudes” que ya estamos implementando.
+
+4) Conexión con “Mis solicitudes”
+
+Cada lead creado desde una ficha pública debe:
+
+aparecer en “Mis solicitudes” del cliente (cuando tiene cuenta),
+
+con:
+
+propiedad asociada,
+
+tipo de solicitud,
+
+estado (ej. Contacto enviado, Cita programada, En revisión, Aprobado).
+
+Cuando el vendedor/agent cambie el estado del lead en el Kanban:
+
+el cliente debe ver actualizaciones visibles en “Mis solicitudes”.
+
+5) UX y detalles adicionales
+
+Validar que:
+
+no se permitan envíos de leads sin WhatsApp o email (mostrar mensaje claro).
+
+Mostrar siempre:
+
+ID/código de la unidad,
+
+marca (Tulum Rental Homes o Homesapp),
+
+tipo de operación (renta/venta).
+
+Asegurar que:
+
+la ficha se vea limpia en mobile,
+
+no haya scroll horizontal,
+
+los buttons de contacto sean fáciles de tocar.
+
+Al final, por favor explíquenme:
+
+qué cambios hicieron en la ficha pública de listing (componentes, secciones),
+
+cómo quedó el flujo de lead desde una ficha para usuario anónimo y logueado,
+
+cómo se crean/conectan los usuarios (cuenta light) con los leads,
+
+y cómo se refleja todo esto en “Mis solicitudes”.
+
+El objetivo es que el detalle de la propiedad se sienta como un flujo completo:
+ver → interesarse → mandar solicitud → (si quiere) crear cuenta → seguir su proceso.

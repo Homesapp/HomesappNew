@@ -31,7 +31,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import JSZip from "jszip";
-import { LanguageToggle } from "@/components/LanguageToggle";
+import { PublicHeader } from "@/components/PublicHeader";
 
 interface PropertyNote {
   id: string;
@@ -218,16 +218,7 @@ export default function PropertyFullDetails() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background" data-testid="container-loading-property">
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-          <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
-              <div className="h-9 w-9 rounded-full bg-foreground flex items-center justify-center">
-                <Home className="h-4 w-4 text-background" />
-              </div>
-              <span className="font-semibold text-lg hidden sm:block">homes</span>
-            </div>
-          </div>
-        </header>
+        <PublicHeader />
         <div className="container mx-auto py-6 px-4">
           <div className="flex items-center gap-2 mb-6">
             <Loader2 className="h-5 w-5 animate-spin text-primary" data-testid="spinner-loading-property" />
@@ -257,16 +248,7 @@ export default function PropertyFullDetails() {
   if (propertyError || !property) {
     return (
       <div className="min-h-screen bg-background" data-testid="container-error-property">
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-          <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
-              <div className="h-9 w-9 rounded-full bg-foreground flex items-center justify-center">
-                <Home className="h-4 w-4 text-background" />
-              </div>
-              <span className="font-semibold text-lg hidden sm:block">homes</span>
-            </div>
-          </div>
-        </header>
+        <PublicHeader />
         <div className="min-h-[60vh] flex items-center justify-center p-4">
           <Card className="max-w-md w-full" data-testid="card-error-property">
             <CardContent className="pt-6">
@@ -405,42 +387,7 @@ export default function PropertyFullDetails() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Minimalist Header */}
-      {!isAuthenticated && (
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <div 
-              className="flex items-center gap-3 cursor-pointer" 
-              onClick={() => setLocation("/")}
-            >
-              <div className="h-9 w-9 rounded-full bg-foreground flex items-center justify-center">
-                <Home className="h-4 w-4 text-background" />
-              </div>
-              <span className="font-semibold text-lg hidden sm:block">homes</span>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <LanguageToggle />
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full text-xs sm:text-sm"
-                onClick={() => setLocation("/login")}
-                data-testid="button-login"
-              >
-                Entrar
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-full text-xs sm:text-sm"
-                onClick={() => setLocation("/register")}
-                data-testid="button-register"
-              >
-                Registro
-              </Button>
-            </div>
-          </div>
-        </header>
-      )}
+      {!isAuthenticated && <PublicHeader showPlatformButton={false} />}
 
       <div className="container mx-auto py-4 sm:py-6 px-4">
         {/* Back Button */}

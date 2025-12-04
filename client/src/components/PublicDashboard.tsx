@@ -9,9 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { type Colony, type Condominium } from "@shared/schema";
-import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
-import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
+import { PublicHeader } from "@/components/PublicHeader";
 
 const FloatingChat = lazy(() => import("@/components/FloatingChat").then(m => ({ default: m.FloatingChat })));
 
@@ -214,43 +213,7 @@ export default function PublicDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setLocation("/")}>
-            <img src={logoIcon} alt="HomesApp" className="h-14 w-auto" data-testid="img-logo-header" />
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Button 
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              onClick={() => setLocation("/mapa-interactivo")}
-              data-testid="button-interactive-map"
-              title={t("public.interactiveMap") || "Mapa Interactivo"}
-            >
-              <Map className="h-5 w-5" />
-            </Button>
-            <LanguageToggle />
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full text-xs sm:text-sm"
-              onClick={() => setLocation("/login")}
-              data-testid="button-login"
-            >
-              {t("public.login") || "Entrar"}
-            </Button>
-            <Button
-              size="sm"
-              className="rounded-full text-xs sm:text-sm"
-              onClick={() => setLocation("/register")}
-              data-testid="button-register"
-            >
-              {t("public.register") || "Registro"}
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <div className="bg-gradient-to-b from-muted/30 to-background py-8 sm:py-12 md:py-14">
         <div className="container mx-auto px-4 text-center">
