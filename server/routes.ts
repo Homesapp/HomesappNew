@@ -276,6 +276,7 @@ import {
   sellerSocialMediaReminders,
   insertSellerSocialMediaTemplateSchema,
   insertSellerSocialMediaReminderSchema,
+  type ExternalAgencyListResponse,
 } from "@shared/schema";
 import { db } from "./db";
 import { registerPortalRoutes } from "./portal-routes";
@@ -22239,8 +22240,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // External Agencies Routes
   
-  // GET /api/external-agencies/summary - Optimized paginated summary endpoint
+  // GET /api/external-agencies/summary - Optimized paginated summary endpoint with caching and performance logging
   app.get("/api/external-agencies/summary", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    const startTime = performance.now();
+    const SLOW_QUERY_THRESHOLD_MS = 500;
+    
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
@@ -22263,14 +22267,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         options.search = search;
       }
       
-      if (req.user?.role === "external_agency_admin") {
-        options.createdBy = req.user.id;
+      const createdBy = req.user?.role === "external_agency_admin" ? req.user.id : undefined;
+      if (createdBy) {
+        options.createdBy = createdBy;
+      }
+      
+      // Try to get from cache first (2min TTL for frequently changing data)
+      const cacheKey = CacheKeys.externalAgencySummaryList(page, limit, search || '', isActive, createdBy);
+      const cached = await cache.get<ExternalAgencyListResponse>(cacheKey);
+      
+      if (cached) {
+        const duration = performance.now() - startTime;
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Perf] GET /api/external-agencies/summary (cached) - ${duration.toFixed(2)}ms`);
+        }
+        return res.json(cached);
       }
       
       const result = await storage.getExternalAgenciesSummary(options);
+      
+      // Cache the result for 2 minutes
+      await cache.set(cacheKey, result, 120);
+      
+      const duration = performance.now() - startTime;
+      
+      // Log performance metrics in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Perf] GET /api/external-agencies/summary - ${duration.toFixed(2)}ms (${result.agencies.length} agencies, page ${page})`);
+      }
+      
+      // Warn if query is slow
+      if (duration > SLOW_QUERY_THRESHOLD_MS) {
+        console.warn(`[Perf Warning] Slow query: GET /api/external-agencies/summary took ${duration.toFixed(2)}ms (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)`);
+      }
+      
       res.json(result);
     } catch (error: any) {
-      console.error("Error fetching external agencies summary:", error);
+      const duration = performance.now() - startTime;
+      console.error(`[Perf Error] GET /api/external-agencies/summary failed after ${duration.toFixed(2)}ms:`, error);
       handleGenericError(res, error);
     }
   });
@@ -22359,6 +22393,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await createAuditLog(req, "create", "external_agency", agency.id, `Created external agency for user ${assignedUserId}`);
+
+      // Invalidate external agencies summary cache
+      await cache.invalidatePattern(CacheKeys.externalAgencySummaryPattern());
       res.status(201).json(agency);
     } catch (error: any) {
       console.error("Error creating external agency:", error);
@@ -22393,6 +22430,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       await createAuditLog(req, "create", "external_agency", agency.id, "Self-registered external agency");
+
+      // Invalidate external agencies summary cache
+      await cache.invalidatePattern(CacheKeys.externalAgencySummaryPattern());
       res.status(201).json(agency);
     } catch (error: any) {
       console.error("Error registering external agency:", error);
@@ -22441,11 +22481,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUserRole(newCreatedBy, "external_agency_admin");
         
         await createAuditLog(req, "update", "external_agency", id, `Reassigned agency from user ${currentAgency.createdBy} to ${newCreatedBy}`);
+
+        // Invalidate external agencies summary cache
+        await cache.invalidatePattern(CacheKeys.externalAgencySummaryPattern());
         res.json(agency);
       } else {
         // No user reassignment, just update agency data
         const agency = await storage.updateExternalAgency(id, updateData);
         await createAuditLog(req, "update", "external_agency", id, "Updated external agency");
+        // Invalidate external agencies summary cache
+        await cache.invalidatePattern(CacheKeys.externalAgencySummaryPattern());
         res.json(agency);
       }
     } catch (error: any) {
@@ -22461,6 +22506,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const agency = await storage.toggleExternalAgencyActive(id, isActive);
       
       await createAuditLog(req, "update", "external_agency", id, `${isActive ? 'Activated' : 'Deactivated'} external agency`);
+
+      // Invalidate external agencies summary cache
+      await cache.invalidatePattern(CacheKeys.externalAgencySummaryPattern());
       res.json(agency);
     } catch (error: any) {
       console.error("Error toggling external agency status:", error);
@@ -22474,6 +22522,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteExternalAgency(id);
       
       await createAuditLog(req, "delete", "external_agency", id, "Deleted external agency");
+
+      // Invalidate external agencies summary cache
+      await cache.invalidatePattern(CacheKeys.externalAgencySummaryPattern());
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting external agency:", error);

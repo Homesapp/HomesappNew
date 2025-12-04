@@ -5091,6 +5091,46 @@ export interface ExternalAgencyListResponse {
   totalPages: number;
 }
 
+// External Agency Stats - Pre-calculated KPI summaries for performance
+export const externalAgencyStats = pgTable("external_agency_stats", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }).unique(),
+  
+  // Pre-calculated counts
+  propertiesCount: integer("properties_count").notNull().default(0),
+  unitsCount: integer("units_count").notNull().default(0),
+  leadsCount: integer("leads_count").notNull().default(0),
+  activeLeadsCount: integer("active_leads_count").notNull().default(0),
+  contractsCount: integer("contracts_count").notNull().default(0),
+  activeContractsCount: integer("active_contracts_count").notNull().default(0),
+  
+  // Financial KPIs (monthly)
+  monthlyRentCollected: integer("monthly_rent_collected").notNull().default(0), // In cents
+  monthlyCommissions: integer("monthly_commissions").notNull().default(0), // In cents
+  pendingPayments: integer("pending_payments").notNull().default(0), // In cents
+  
+  // Activity metrics
+  appointmentsThisMonth: integer("appointments_this_month").notNull().default(0),
+  ticketsOpen: integer("tickets_open").notNull().default(0),
+  
+  // Timestamps
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agency_stats_agency").on(table.agencyId),
+  index("idx_external_agency_stats_last_calc").on(table.lastCalculatedAt),
+]);
+
+export const insertExternalAgencyStatsSchema = createInsertSchema(externalAgencyStats).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyStats = z.infer<typeof insertExternalAgencyStatsSchema>;
+export type ExternalAgencyStats = typeof externalAgencyStats.$inferSelect;
+
 // External Agency Integrations - Configuraciones de integraciones por agencia
 export const externalAgencyIntegrations = pgTable("external_agency_integrations", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

@@ -264,6 +264,13 @@ export const CacheKeys = {
   externalSellerMetrics: (userId: string, agencyId: string) => `external:seller:metrics:${userId}:${agencyId}`,
   publicProperties: (limit: number, offset: number, hasCoordinates?: boolean) => 
     `public:properties:${limit}:${offset}:${hasCoordinates || false}`,
+  
+  // External Agency Admin caches (2min TTL for frequently changing data)
+  externalAgencySummaryList: (page: number, limit: number, search: string, isActive?: boolean, createdBy?: string) => 
+    `external:agencies:summary:${page}:${limit}:${search || 'all'}:${isActive ?? 'all'}:${createdBy || 'all'}`,
+  externalAgencyStats: (agencyId: string) => `external:agency:stats:${agencyId}`,
+  // Invalidation pattern for all agency summaries
+  externalAgencySummaryPattern: () => 'external:agencies:summary:*',
 } as const;
 
 /**

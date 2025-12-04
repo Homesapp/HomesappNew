@@ -1,0 +1,96 @@
+Tengo un problema con la página Mapa Interactivo pública (/mapa-interactivo):
+
+En la interfaz aparece “0 propiedades” y el mensaje de “Sin resultados” incluso cuando todos los filtros están en “Todos” y el rango de precio está completo.
+
+Yo sí tengo propiedades en el sistema, así que el mapa debería mostrar markers y la lista de propiedades.
+
+Necesito que revises y dejes funcionando correctamente el Mapa Interactivo público.
+En concreto:
+
+1) Revisar la consulta de backend
+
+Identifica qué endpoint de la API usa el Mapa Interactivo para cargar propiedades.
+
+Prueba ese endpoint sin filtros (todos los tipos de operación, todos los tipos de propiedad, todas las zonas, todo el rango de precio) y verifica:
+
+¿Está regresando una lista vacía?
+
+¿Aplica algún filtro por defecto (is_public, agency_id, status, etc.) que pueda estar dejando todo en 0?
+
+Asegúrate de que para el mapa público:
+
+Se devuelvan todas las propiedades que deberían ser visibles públicamente para Tulum Rental Homes.
+
+Se apliquen correctamente las condiciones de visibilidad (ej. is_published, is_public, status = active) pero sin excluir propiedades válidas por error.
+
+Si el problema es que las propiedades no tienen coordenadas:
+
+Identifica qué campos usa el mapa (lat, lng, dirección, condominio, etc.).
+
+Ajusta la consulta o el proceso de carga para que se incluyan solo las propiedades que tienen coordenadas válidas,
+
+y documenta qué hace falta para que una propiedad se vea en el mapa (por ejemplo: que tenga lat/lng o que el condominio tenga coordenadas).
+
+2) Revisar filtros y estado inicial
+
+Verifica que el estado inicial del Mapa Interactivo no aplique filtros ocultos.
+
+Si todos los filtros están en “Todos” y el rango de precio es completo, la API no debería enviar filtros restrictivos.
+
+Comprueba que el botón “Limpiar filtros” realmente resetea:
+
+tipo de operación,
+
+tipo de propiedad,
+
+zona/colonia,
+
+condominio,
+
+rango de precio,
+
+recámaras, baños, acepta mascotas, etc.
+
+Asegúrate de que al limpiar filtros:
+
+el contador de propiedades se actualice correctamente (por ejemplo, “X propiedades”),
+
+y el mapa muestre markers si hay resultados.
+
+3) Render del mapa y contador de propiedades
+
+Confirma que:
+
+Si la API devuelve propiedades, el contador en la esquina superior (n propiedades) se actualiza.
+
+El mapa coloca un marker por cada propiedad con coordenadas válidas.
+
+Si la API sí devuelve propiedades pero el mapa sigue mostrando “Sin resultados”:
+
+Corrige el código del frontend para que use correctamente la respuesta del endpoint.
+
+Asegúrate de que el estado del componente se actualiza cuando llegan los datos.
+
+Mantén el mensaje de “Sin resultados” solo cuando realmente la lista de propiedades viene vacía después de aplicar filtros.
+
+4) Prueba completa
+
+Haz tú mismo esta prueba:
+
+Entra a /mapa-interactivo sin filtros (todo en “Todos” y rango de precio completo).
+
+Verifica que:
+
+El contador muestre el número real de propiedades públicas.
+
+Se vean markers en el mapa.
+
+Aplica uno o dos filtros (ej. zona, precio) y confirma que el número de propiedades y los markers se actualizan correctamente.
+
+Al final, explícame:
+
+Qué estaba causando que el mapa mostrara 0 propiedades,
+
+Qué cambios hiciste en el endpoint, filtros y frontend,
+
+Y qué condiciones debe cumplir una propiedad para aparecer en el mapa público de Tulum Rental Homes.
