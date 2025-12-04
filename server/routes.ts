@@ -21902,7 +21902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let condominiumName = null;
         
         if (unit?.condominiumId) {
-          const [condo] = await db.select({ name: externalCondominiums.name })
+          const [condo] = await db.select({ name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor })
             .from(externalCondominiums)
             .where(eq(externalCondominiums.id, unit.condominiumId));
           condominiumName = condo?.name || null;
@@ -22224,7 +22224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch condominium names
       const withCondos = await Promise.all(units.map(async (unit) => {
         if (unit.condominiumId) {
-          const [condo] = await db.select({ name: externalCondominiums.name })
+          const [condo] = await db.select({ name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor })
             .from(externalCondominiums)
             .where(eq(externalCondominiums.id, unit.condominiumId));
           return { ...unit, condominiumName: condo?.name || null };
@@ -34652,7 +34652,7 @@ ${{precio}}/mes
       // Get condominium name if condominiumId exists
       let condominiumName = unit.condominiumName || null;
       if (!condominiumName && unit.condominiumId) {
-        const condoResult = await db.select({ name: externalCondominiums.name })
+        const condoResult = await db.select({ name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor })
           .from(externalCondominiums)
           .where(eq(externalCondominiums.id, unit.condominiumId))
           .limit(1);
@@ -34855,7 +34855,7 @@ ${{precio}}/mes
           // Get condo name for better source tracking
           let condoName = unit.condominiumName || '';
           if (!condoName && unit.condominiumId) {
-            const condo = await db.select({ name: externalCondominiums.name })
+            const condo = await db.select({ name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor })
               .from(externalCondominiums)
               .where(eq(externalCondominiums.id, unit.condominiumId))
               .limit(1);
@@ -35203,18 +35203,19 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         let condoName = '';
         if (unit.condominiumId) {
           const condoForSlug = await db
-            .select({ name: externalCondominiums.name })
+            .select({ name: externalCondominiums.name, logoUrl: externalCondominiums.logoUrl, primaryColor: externalCondominiums.primaryColor })
             .from(externalCondominiums)
             .where(eq(externalCondominiums.id, unit.condominiumId))
             .limit(1);
           condoName = condoForSlug[0]?.name || '';
+          const condoData = condoForSlug[0] || null;
         }
         
         // Use stored slug if exists, otherwise generate unique slug with condominium name
         let unitSlug: string;
         if (unit.slug) {
           unitSlug = unit.slug;
-        } else if (condoData) {
+        } else if (condoName) {
           // Include condominium name in slug for uniqueness
           unitSlug = generateSlug(`${condoName}-${unit.unitNumber}`);
         } else {
