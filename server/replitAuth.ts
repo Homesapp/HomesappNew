@@ -513,7 +513,7 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
       };
     }
     
-    if (!allowedRoles.includes(userRole)) {
+    if (!userRole || !allowedRoles.includes(userRole)) {
       return res.status(403).json({ message: "Forbidden: insufficient permissions" });
     }
 
