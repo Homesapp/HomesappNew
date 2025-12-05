@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { PropertyMap } from "@/components/external/PropertyMap";
 import { PublicHeader } from "@/components/PublicHeader";
-import { PublicPropertyCard } from "@/components/PublicPropertyCard";
+import { UnifiedPropertyCard, type PropertyStatus } from "@/components/UnifiedPropertyCard";
 
 interface SearchFilters {
   query?: string;
@@ -532,38 +532,44 @@ export default function PropertySearch() {
                     ? `/p/${property.slug}` 
                     : `/propiedad/${property.id}/completo`;
               
-              const status = (property.status || '').toLowerCase();
-              const isSaleOnly = status.includes('sale') && !status.includes('rent');
-              const isRentOnly = status.includes('rent') && !status.includes('sale');
-              const isBoth = status.includes('sale') && status.includes('rent');
-              
-              const priceType = isSaleOnly ? 'sale' : isRentOnly ? 'rent' : isBoth ? 'both' : 'rent';
-              const rentPrice = property.rentPrice || property.price || 0;
-              const salePrice = property.salePrice || 0;
-              const displayPrice = isSaleOnly ? salePrice : rentPrice;
+              const getPropertyStatus = (): PropertyStatus => {
+                const s = (property.status || '').toLowerCase();
+                if (s === 'available' || s === 'rent' || s.includes('rent')) return 'available';
+                if (s === 'occupied') return 'occupied';
+                if (s === 'reserved') return 'reserved';
+                if (s === 'sold') return 'sold';
+                if (s === 'rented') return 'rented';
+                return 'available';
+              };
               
               return (
-                <PublicPropertyCard
+                <UnifiedPropertyCard
                   key={property.id}
                   id={property.id}
-                  title={getPropertyTitle(property)}
+                  title={property.title || "Propiedad"}
+                  unitNumber={property.unitNumber}
                   location={property.location}
-                  price={displayPrice}
-                  salePrice={isBoth ? salePrice : undefined}
+                  zone={property.zone}
+                  condominiumName={property.condominiumName || property.condoName}
+                  rentPrice={property.rentPrice || property.price}
+                  salePrice={property.salePrice}
                   currency={property.currency || "MXN"}
-                  priceType={priceType}
                   bedrooms={property.bedrooms}
                   bathrooms={property.bathrooms}
                   area={property.area}
+                  status={getPropertyStatus()}
                   images={property.primaryImages || []}
-                  rating={property.rating || Math.floor(Math.random() * 2) + 3}
-                  isFavorite={favoriteIds.has(property.id)}
                   petFriendly={property.petsAllowed}
                   furnished={property.hasFurniture}
                   hasParking={property.hasParking}
                   hasAC={property.hasAC}
                   includedServices={property.includedServices}
+                  context="public"
+                  isFavorite={favoriteIds.has(property.id)}
                   onClick={() => setLocation(propertyUrl)}
+                  onView={() => setLocation(propertyUrl)}
+                  onContact={() => setLocation(propertyUrl + "?contact=true")}
+                  onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
                   onFavorite={() => {
                     const syntheticEvent = { stopPropagation: () => {} } as React.MouseEvent;
                     handleToggleFavorite(syntheticEvent, property.id);

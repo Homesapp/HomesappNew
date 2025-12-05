@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Colony, type Condominium } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicHeader } from "@/components/PublicHeader";
-import { PublicPropertyCard } from "@/components/PublicPropertyCard";
+import { UnifiedPropertyCard, type PropertyStatus } from "@/components/UnifiedPropertyCard";
 import { homepageContent } from "@/lib/homepageContent";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
@@ -264,7 +264,7 @@ export default function PublicDashboard() {
               Ver más <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {propertiesLoading ? (
               <>
                 <PropertyCardSkeleton />
@@ -280,45 +280,43 @@ export default function PublicDashboard() {
                     ? `/propiedad-externa/${property.id}` 
                     : `/propiedad/${property.id}/completo`;
                 
-                const getTitle = () => {
-                  const condoName = property.condominiumName || property.condoName || '';
-                  const unitNum = property.unitNumber || '';
-                  if (condoName && unitNum) return `${condoName} - #${unitNum}`;
-                  if (condoName) return condoName;
-                  return property.title || "Propiedad";
+                const getPropertyStatus = (): PropertyStatus => {
+                  const s = (property.status || '').toLowerCase();
+                  if (s === 'available' || s === 'rent' || s.includes('rent')) return 'available';
+                  if (s === 'occupied') return 'occupied';
+                  if (s === 'reserved') return 'reserved';
+                  if (s === 'sold') return 'sold';
+                  if (s === 'rented') return 'rented';
+                  return 'available';
                 };
                 
-                const status = (property.status || '').toLowerCase();
-                const isSaleOnly = status.includes('sale') && !status.includes('rent');
-                const isRentOnly = status.includes('rent') && !status.includes('sale');
-                const isBoth = status.includes('sale') && status.includes('rent');
-                
-                const priceType = isSaleOnly ? 'sale' : isRentOnly ? 'rent' : isBoth ? 'both' : 'rent';
-                const rentPrice = property.rentPrice || property.price || 0;
-                const salePrice = property.salePrice || 0;
-                const displayPrice = isSaleOnly ? salePrice : rentPrice;
-                
                 return (
-                  <PublicPropertyCard
+                  <UnifiedPropertyCard
                     key={property.id}
                     id={property.id}
-                    title={getTitle()}
+                    title={property.title || "Propiedad"}
+                    unitNumber={property.unitNumber}
                     location={property.location}
-                    price={displayPrice}
-                    salePrice={isBoth ? salePrice : undefined}
+                    zone={property.zone}
+                    condominiumName={property.condominiumName || property.condoName}
+                    rentPrice={property.rentPrice || property.price}
+                    salePrice={property.salePrice}
                     currency={property.currency || "MXN"}
-                    priceType={priceType}
                     bedrooms={property.bedrooms}
                     bathrooms={property.bathrooms}
                     area={property.area}
+                    status={getPropertyStatus()}
                     images={property.primaryImages || []}
-                    rating={property.rating || Math.floor(Math.random() * 2) + 3}
                     petFriendly={property.petsAllowed}
                     furnished={property.hasFurniture}
                     hasParking={property.hasParking}
                     hasAC={property.hasAC}
                     includedServices={property.includedServices}
+                    context="public"
                     onClick={() => setLocation(propertyUrl)}
+                    onView={() => setLocation(propertyUrl)}
+                    onContact={() => setLocation(propertyUrl + "?contact=true")}
+                    onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
                   />
                 );
               })
@@ -394,45 +392,43 @@ export default function PublicDashboard() {
                     ? `/propiedad-externa/${property.id}` 
                     : `/propiedad/${property.id}/completo`;
                 
-                const getTitle = () => {
-                  const condoName = property.condominiumName || property.condoName || '';
-                  const unitNum = property.unitNumber || '';
-                  if (condoName && unitNum) return `${condoName} - #${unitNum}`;
-                  if (condoName) return condoName;
-                  return property.title || "Propiedad";
+                const getPropertyStatus = (): PropertyStatus => {
+                  const s = (property.status || '').toLowerCase();
+                  if (s === 'available' || s === 'rent' || s.includes('rent')) return 'available';
+                  if (s === 'occupied') return 'occupied';
+                  if (s === 'reserved') return 'reserved';
+                  if (s === 'sold') return 'sold';
+                  if (s === 'rented') return 'rented';
+                  return 'available';
                 };
                 
-                const status = (property.status || '').toLowerCase();
-                const isSaleOnly = status.includes('sale') && !status.includes('rent');
-                const isRentOnly = status.includes('rent') && !status.includes('sale');
-                const isBoth = status.includes('sale') && status.includes('rent');
-                
-                const priceType = isSaleOnly ? 'sale' : isRentOnly ? 'rent' : isBoth ? 'both' : 'rent';
-                const rentPrice = property.rentPrice || property.price || 0;
-                const salePrice = property.salePrice || 0;
-                const displayPrice = isSaleOnly ? salePrice : rentPrice;
-                
                 return (
-                  <PublicPropertyCard
+                  <UnifiedPropertyCard
                     key={property.id}
                     id={property.id}
-                    title={getTitle()}
+                    title={property.title || "Propiedad"}
+                    unitNumber={property.unitNumber}
                     location={property.location}
-                    price={displayPrice}
-                    salePrice={isBoth ? salePrice : undefined}
+                    zone={property.zone}
+                    condominiumName={property.condominiumName || property.condoName}
+                    rentPrice={property.rentPrice || property.price}
+                    salePrice={property.salePrice}
                     currency={property.currency || "MXN"}
-                    priceType={priceType}
                     bedrooms={property.bedrooms}
                     bathrooms={property.bathrooms}
                     area={property.area}
+                    status={getPropertyStatus()}
                     images={property.primaryImages || []}
-                    rating={property.rating || Math.floor(Math.random() * 2) + 3}
                     petFriendly={property.petsAllowed}
                     furnished={property.hasFurniture}
                     hasParking={property.hasParking}
                     hasAC={property.hasAC}
                     includedServices={property.includedServices}
+                    context="public"
                     onClick={() => setLocation(propertyUrl)}
+                    onView={() => setLocation(propertyUrl)}
+                    onContact={() => setLocation(propertyUrl + "?contact=true")}
+                    onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
                   />
                 );
               })
