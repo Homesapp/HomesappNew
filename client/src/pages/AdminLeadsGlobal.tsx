@@ -72,16 +72,19 @@ import { cn } from "@/lib/utils";
 
 type LeadStatus = 
   | "nuevo_lead"
+  | "opciones_enviadas"
   | "cita_coordinada"
+  | "cita_concretada"
+  | "cita_cancelada"
+  | "reprogramar_cita"
   | "interesado"
   | "oferta_enviada"
-  | "oferta_completada"
-  | "formato_enviado"
-  | "formato_completado"
+  | "formato_renta_enviado"
   | "proceso_renta"
   | "renta_concretada"
-  | "perdido"
-  | "muerto";
+  | "no_responde"
+  | "muerto"
+  | "no_dar_servicio";
 
 interface StatusConfig {
   label: string;
@@ -90,17 +93,20 @@ interface StatusConfig {
 }
 
 const STATUS_CONFIG: Record<LeadStatus, StatusConfig> = {
-  nuevo_lead: { label: "Nuevo", color: "bg-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
-  cita_coordinada: { label: "Cita", color: "bg-purple-500", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  nuevo_lead: { label: "Nuevo Lead", color: "bg-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  opciones_enviadas: { label: "Opciones Enviadas", color: "bg-sky-500", bgColor: "bg-sky-100 dark:bg-sky-900/30" },
+  cita_coordinada: { label: "Cita Coordinada", color: "bg-purple-500", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  cita_concretada: { label: "Cita Concretada", color: "bg-violet-500", bgColor: "bg-violet-100 dark:bg-violet-900/30" },
+  cita_cancelada: { label: "Cita Cancelada", color: "bg-rose-500", bgColor: "bg-rose-100 dark:bg-rose-900/30" },
+  reprogramar_cita: { label: "Reprogramar", color: "bg-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
   interesado: { label: "Interesado", color: "bg-cyan-500", bgColor: "bg-cyan-100 dark:bg-cyan-900/30" },
   oferta_enviada: { label: "Oferta Enviada", color: "bg-yellow-500", bgColor: "bg-yellow-100 dark:bg-yellow-900/30" },
-  oferta_completada: { label: "Oferta OK", color: "bg-orange-500", bgColor: "bg-orange-100 dark:bg-orange-900/30" },
-  formato_enviado: { label: "Formato", color: "bg-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
-  formato_completado: { label: "Formato OK", color: "bg-teal-500", bgColor: "bg-teal-100 dark:bg-teal-900/30" },
+  formato_renta_enviado: { label: "Formato Renta", color: "bg-orange-500", bgColor: "bg-orange-100 dark:bg-orange-900/30" },
   proceso_renta: { label: "En Proceso", color: "bg-indigo-500", bgColor: "bg-indigo-100 dark:bg-indigo-900/30" },
   renta_concretada: { label: "Concretada", color: "bg-green-500", bgColor: "bg-green-100 dark:bg-green-900/30" },
-  perdido: { label: "Perdido", color: "bg-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
+  no_responde: { label: "No Responde", color: "bg-slate-500", bgColor: "bg-slate-100 dark:bg-slate-900/30" },
   muerto: { label: "Muerto", color: "bg-gray-500", bgColor: "bg-gray-100 dark:bg-gray-800" },
+  no_dar_servicio: { label: "No Dar Servicio", color: "bg-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
 };
 
 function MetricCard({ 
@@ -154,12 +160,14 @@ function StatusPipeline({ leads }: { leads: ExternalLeadWithActiveCard[] }) {
 
   const pipelineStatuses: LeadStatus[] = [
     "nuevo_lead",
+    "opciones_enviadas",
     "cita_coordinada",
+    "cita_concretada",
+    "cita_cancelada",
+    "reprogramar_cita",
     "interesado",
     "oferta_enviada",
-    "oferta_completada",
-    "formato_enviado",
-    "formato_completado",
+    "formato_renta_enviado",
     "proceso_renta",
     "renta_concretada",
   ];

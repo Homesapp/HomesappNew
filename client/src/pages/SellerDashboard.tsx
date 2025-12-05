@@ -128,12 +128,20 @@ export default function SellerDashboard() {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, { es: string; en: string }> = {
-      nuevo_lead: { es: "Nuevo", en: "New" },
+      nuevo_lead: { es: "Nuevo Lead", en: "New Lead" },
+      opciones_enviadas: { es: "Opciones", en: "Options" },
       cita_coordinada: { es: "Cita", en: "Scheduled" },
+      cita_concretada: { es: "Cita OK", en: "Completed" },
+      cita_cancelada: { es: "Cancelada", en: "Cancelled" },
+      reprogramar_cita: { es: "Reprogramar", en: "Reschedule" },
       interesado: { es: "Interesado", en: "Interested" },
       oferta_enviada: { es: "Oferta", en: "Offer Sent" },
+      formato_renta_enviado: { es: "Formato", en: "Form Sent" },
+      proceso_renta: { es: "Proceso", en: "Process" },
       renta_concretada: { es: "Renta", en: "Rented" },
-      perdido: { es: "Perdido", en: "Lost" },
+      no_responde: { es: "No Responde", en: "No Response" },
+      muerto: { es: "Muerto", en: "Dead" },
+      no_dar_servicio: { es: "No Servicio", en: "No Service" },
     };
     return labels[status]?.[language] || status;
   };

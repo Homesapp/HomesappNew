@@ -1126,16 +1126,19 @@ export default function SellerPropertyCatalog() {
     switch (status) {
       case "nuevo": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
       case "nuevo_lead": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "interesado": return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200";
-      case "contactado": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "opciones_enviadas": return "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200";
       case "cita_coordinada": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
-      case "cita_agendada": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
-      case "en_negociacion": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
-      case "oferta_enviada": return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200";
-      case "proceso_renta": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      case "rentado": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
-      case "perdido": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
-      case "descartado": return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+      case "cita_concretada": return "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200";
+      case "cita_cancelada": return "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200";
+      case "reprogramar_cita": return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+      case "interesado": return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200";
+      case "oferta_enviada": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "formato_renta_enviado": return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+      case "proceso_renta": return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200";
+      case "renta_concretada": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "no_responde": return "bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200";
+      case "muerto": return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+      case "no_dar_servicio": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
       default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
     }
   };
@@ -1144,16 +1147,19 @@ export default function SellerPropertyCatalog() {
     const labels: Record<string, string> = {
       nuevo: "Nuevo",
       nuevo_lead: "Nuevo Lead",
-      interesado: "Interesado",
-      contactado: "Contactado",
+      opciones_enviadas: "Opciones Enviadas",
       cita_coordinada: "Cita Coordinada",
-      cita_agendada: "Cita Agendada",
-      en_negociacion: "En Negociación",
+      cita_concretada: "Cita Concretada",
+      cita_cancelada: "Cita Cancelada",
+      reprogramar_cita: "Reprogramar Cita",
+      interesado: "Interesado",
       oferta_enviada: "Oferta Enviada",
-      proceso_renta: "En Proceso",
-      rentado: "Rentado",
-      perdido: "Perdido",
-      descartado: "Descartado"
+      formato_renta_enviado: "Formato Renta",
+      proceso_renta: "Proceso de Renta",
+      renta_concretada: "Renta Concretada",
+      no_responde: "No Responde",
+      muerto: "Muerto",
+      no_dar_servicio: "No Dar Servicio"
     };
     return labels[status] || status;
   };

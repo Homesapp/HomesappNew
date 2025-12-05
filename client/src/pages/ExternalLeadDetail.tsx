@@ -102,16 +102,19 @@ import { LeadFloatingActionButton } from "@/components/external/LeadFloatingActi
 
 const LEAD_STATUS_OPTIONS = [
   { value: "nuevo_lead", label: { es: "Nuevo Lead", en: "New Lead" }, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300" },
+  { value: "opciones_enviadas", label: { es: "Opciones Enviadas", en: "Options Sent" }, color: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300" },
   { value: "cita_coordinada", label: { es: "Cita Coordinada", en: "Appointment Scheduled" }, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300" },
-  { value: "interesado", label: { es: "Interesado", en: "Interested" }, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" },
-  { value: "oferta_enviada", label: { es: "Oferta Enviada", en: "Offer Sent" }, color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300" },
-  { value: "oferta_completada", label: { es: "Oferta Completada", en: "Offer Completed" }, color: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300" },
-  { value: "formato_enviado", label: { es: "Formato Enviado", en: "Form Sent" }, color: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300" },
-  { value: "formato_completado", label: { es: "Formato Completado", en: "Form Completed" }, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300" },
-  { value: "proceso_renta", label: { es: "Proceso de Renta", en: "Rental Process" }, color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300" },
+  { value: "cita_concretada", label: { es: "Cita Concretada", en: "Appointment Completed" }, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300" },
+  { value: "cita_cancelada", label: { es: "Cita Cancelada", en: "Appointment Cancelled" }, color: "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300" },
+  { value: "reprogramar_cita", label: { es: "Reprogramar Cita", en: "Reschedule" }, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" },
+  { value: "interesado", label: { es: "Interesado", en: "Interested" }, color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300" },
+  { value: "oferta_enviada", label: { es: "Oferta Enviada", en: "Offer Sent" }, color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300" },
+  { value: "formato_renta_enviado", label: { es: "Formato Renta Enviado", en: "Rental Form Sent" }, color: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300" },
+  { value: "proceso_renta", label: { es: "Proceso de Renta", en: "Rental Process" }, color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300" },
   { value: "renta_concretada", label: { es: "Renta Concretada", en: "Rental Completed" }, color: "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300" },
-  { value: "perdido", label: { es: "Perdido", en: "Lost" }, color: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" },
+  { value: "no_responde", label: { es: "No Responde", en: "No Response" }, color: "bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300" },
   { value: "muerto", label: { es: "Muerto", en: "Dead" }, color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+  { value: "no_dar_servicio", label: { es: "No Dar Servicio", en: "Do Not Service" }, color: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" },
 ];
 
 const formatBudgetRange = (min?: number | string | null, max?: number | string | null): string => {
@@ -363,9 +366,7 @@ export default function ExternalLeadDetail() {
 
   const isInterestedStatus = lead?.status === "interesado" || 
     lead?.status === "oferta_enviada" ||
-    lead?.status === "oferta_completada" ||
-    lead?.status === "formato_enviado" ||
-    lead?.status === "formato_completado" ||
+    lead?.status === "formato_renta_enviado" ||
     lead?.status === "proceso_renta" || 
     lead?.status === "renta_concretada";
 

@@ -57,16 +57,19 @@ import LeadKanbanView from "@/components/external/LeadKanbanView";
 
 type LeadStatus = 
   | "nuevo_lead"
+  | "opciones_enviadas"
   | "cita_coordinada"
+  | "cita_concretada"
+  | "cita_cancelada"
+  | "reprogramar_cita"
   | "interesado"
   | "oferta_enviada"
-  | "oferta_completada"
-  | "formato_enviado"
-  | "formato_completado"
+  | "formato_renta_enviado"
   | "proceso_renta"
   | "renta_concretada"
-  | "perdido"
-  | "muerto";
+  | "no_responde"
+  | "muerto"
+  | "no_dar_servicio";
 
 interface StatusConfig {
   label: string;
@@ -76,17 +79,20 @@ interface StatusConfig {
 }
 
 const STATUS_CONFIG: Record<LeadStatus, StatusConfig> = {
-  nuevo_lead: { label: "Nuevo", labelEn: "New", color: "bg-blue-500", icon: User },
+  nuevo_lead: { label: "Nuevo Lead", labelEn: "New Lead", color: "bg-blue-500", icon: User },
+  opciones_enviadas: { label: "Opciones Enviadas", labelEn: "Options Sent", color: "bg-sky-500", icon: Send },
   cita_coordinada: { label: "Cita Coordinada", labelEn: "Appointment", color: "bg-purple-500", icon: Calendar },
+  cita_concretada: { label: "Cita Concretada", labelEn: "Completed", color: "bg-violet-500", icon: CheckCircle2 },
+  cita_cancelada: { label: "Cita Cancelada", labelEn: "Cancelled", color: "bg-rose-500", icon: XCircle },
+  reprogramar_cita: { label: "Reprogramar", labelEn: "Reschedule", color: "bg-amber-500", icon: Calendar },
   interesado: { label: "Interesado", labelEn: "Interested", color: "bg-cyan-500", icon: TrendingUp },
   oferta_enviada: { label: "Oferta Enviada", labelEn: "Offer Sent", color: "bg-yellow-500", icon: Send },
-  oferta_completada: { label: "Oferta Completada", labelEn: "Offer Done", color: "bg-orange-500", icon: FileText },
-  formato_enviado: { label: "Formato Enviado", labelEn: "Form Sent", color: "bg-amber-500", icon: FileText },
-  formato_completado: { label: "Formato OK", labelEn: "Form OK", color: "bg-teal-500", icon: CheckCircle2 },
+  formato_renta_enviado: { label: "Formato Renta", labelEn: "Rental Form", color: "bg-orange-500", icon: FileText },
   proceso_renta: { label: "En Proceso", labelEn: "In Process", color: "bg-indigo-500", icon: Building2 },
   renta_concretada: { label: "Concretada", labelEn: "Completed", color: "bg-green-500", icon: CheckCircle2 },
-  perdido: { label: "Perdido", labelEn: "Lost", color: "bg-red-500", icon: XCircle },
+  no_responde: { label: "No Responde", labelEn: "No Response", color: "bg-slate-500", icon: XCircle },
   muerto: { label: "Muerto", labelEn: "Dead", color: "bg-gray-500", icon: XCircle },
+  no_dar_servicio: { label: "No Dar Servicio", labelEn: "No Service", color: "bg-red-500", icon: XCircle },
 };
 
 function LeadQuickView({ 
@@ -458,7 +464,7 @@ export default function SellerLeadsCRM() {
 
   const metrics = useMemo(() => {
     const total = leads.length;
-    const active = leads.filter(l => !["perdido", "muerto", "renta_concretada"].includes(l.status)).length;
+    const active = leads.filter(l => !["no_dar_servicio", "muerto", "renta_concretada"].includes(l.status)).length;
     const newThisWeek = leads.filter(l => {
       const createdAt = new Date(l.createdAt);
       const weekAgo = new Date();

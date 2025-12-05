@@ -4412,13 +4412,19 @@ export default function ExternalClients() {
                           onValueChange={field.onChange}
                           options={[
                             { value: "nuevo_lead", label: language === "es" ? "Nuevo Lead" : "New Lead" },
+                            { value: "opciones_enviadas", label: language === "es" ? "Opciones Enviadas" : "Options Sent" },
                             { value: "cita_coordinada", label: language === "es" ? "Cita Coordinada" : "Appointment Scheduled" },
+                            { value: "cita_concretada", label: language === "es" ? "Cita Concretada" : "Appointment Completed" },
+                            { value: "cita_cancelada", label: language === "es" ? "Cita Cancelada" : "Appointment Cancelled" },
+                            { value: "reprogramar_cita", label: language === "es" ? "Reprogramar Cita" : "Reschedule" },
                             { value: "interesado", label: language === "es" ? "Interesado" : "Interested" },
                             { value: "oferta_enviada", label: language === "es" ? "Oferta Enviada" : "Offer Sent" },
+                            { value: "formato_renta_enviado", label: language === "es" ? "Formato Renta Enviado" : "Rental Form Sent" },
                             { value: "proceso_renta", label: language === "es" ? "Proceso de Renta" : "Rental Process" },
                             { value: "renta_concretada", label: language === "es" ? "Renta Concretada" : "Rental Completed" },
-                            { value: "perdido", label: language === "es" ? "Perdido" : "Lost" },
+                            { value: "no_responde", label: language === "es" ? "No Responde" : "No Response" },
                             { value: "muerto", label: language === "es" ? "Muerto" : "Dead" },
+                            { value: "no_dar_servicio", label: language === "es" ? "No Dar Servicio" : "Do Not Service" },
                           ]}
                           placeholder={language === "es" ? "Seleccionar estado" : "Select status"}
                           searchPlaceholder={language === "es" ? "Buscar estado..." : "Search status..."}

@@ -94,13 +94,19 @@ const ACTIVITY_COLORS: Record<ActivityType, string> = {
 
 const STATUS_LABELS: Record<string, { es: string; en: string }> = {
   nuevo_lead: { es: "Nuevo Lead", en: "New Lead" },
+  opciones_enviadas: { es: "Opciones Enviadas", en: "Options Sent" },
   cita_coordinada: { es: "Cita Coordinada", en: "Appointment Scheduled" },
+  cita_concretada: { es: "Cita Concretada", en: "Appointment Completed" },
+  cita_cancelada: { es: "Cita Cancelada", en: "Appointment Cancelled" },
+  reprogramar_cita: { es: "Reprogramar Cita", en: "Reschedule" },
   interesado: { es: "Interesado", en: "Interested" },
   oferta_enviada: { es: "Oferta Enviada", en: "Offer Sent" },
+  formato_renta_enviado: { es: "Formato Renta Enviado", en: "Rental Form Sent" },
   proceso_renta: { es: "Proceso de Renta", en: "Rental Process" },
   renta_concretada: { es: "Renta Concretada", en: "Rental Completed" },
-  perdido: { es: "Lead Perdido", en: "Lead Lost" },
+  no_responde: { es: "No Responde", en: "No Response" },
   muerto: { es: "Lead Muerto", en: "Dead Lead" },
+  no_dar_servicio: { es: "No Dar Servicio", en: "Do Not Service" },
 };
 
 export default function LeadCRMTabs({ lead }: LeadCRMTabsProps) {
