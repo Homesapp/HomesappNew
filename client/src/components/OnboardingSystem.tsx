@@ -1073,9 +1073,24 @@ export function FirstStepsChecklist({
 
   const progress = (completedCount / checklist.length) * 100;
 
+  const handleDismissCelebration = () => {
+    hideChecklist(userRole);
+    setShowCelebration(false);
+    setIsHidden(true);
+  };
+
   if (showCelebration) {
     return (
-      <Card className={cn("border-green-500/50 bg-green-50 dark:bg-green-950/20", className)} data-testid="card-first-steps-complete">
+      <Card className={cn("border-green-500/50 bg-green-50 dark:bg-green-950/20 relative", className)} data-testid="card-first-steps-complete">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30"
+          onClick={handleDismissCelebration}
+          data-testid="button-dismiss-celebration"
+        >
+          <X className="h-4 w-4" />
+        </Button>
         <CardContent className="py-8 text-center">
           <div className="flex justify-center mb-4">
             <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
