@@ -90,6 +90,7 @@ interface MaintenanceTicket {
   createdAt: string;
   resolvedAt?: string;
   resolution?: string;
+  updates?: TicketUpdate[];
 }
 
 interface ChatMessage {
@@ -1154,7 +1155,7 @@ export default function TenantPortal() {
                   ) : (
                     <div className="divide-y">
                       {tickets.map((ticket) => (
-                        <div key={ticket.id} className="p-4 space-y-2" data-testid={`ticket-row-${ticket.id}`}>
+                        <div key={ticket.id} className="p-4 space-y-3" data-testid={`ticket-row-${ticket.id}`}>
                           <div className="flex items-center justify-between gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
                               <Badge variant="outline">{ticket.type}</Badge>
@@ -1165,15 +1166,83 @@ export default function TenantPortal() {
                             {getStatusBadge(ticket.status)}
                           </div>
                           <p className="text-sm">{ticket.description}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {t("tenant.created", "Created")}: {format(new Date(ticket.createdAt), "MMM d, yyyy")}
-                          </p>
-                          {ticket.resolution && (
-                            <div className="mt-2 p-2 bg-muted rounded-md">
-                              <p className="text-sm font-medium">{t("tenant.resolution", "Resolution")}:</p>
-                              <p className="text-sm text-muted-foreground">{ticket.resolution}</p>
+                          
+                          {/* Timeline of updates */}
+                          <div className="mt-3 ml-2 border-l-2 border-muted pl-4 space-y-3">
+                            {/* Created event */}
+                            <div className="relative">
+                              <div className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-primary" />
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(ticket.createdAt), "MMM d, yyyy 'at' h:mm a", { locale: locale === "es" ? es : undefined })}
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium mt-1">{t("tenant.ticketCreated", "Ticket created")}</p>
                             </div>
-                          )}
+                            
+                            {/* Updates from API */}
+                            {ticket.updates?.map((update, idx) => (
+                              <div key={update.id} className="relative" data-testid={`ticket-update-${update.id}`}>
+                                <div className={`absolute -left-[21px] top-1 h-3 w-3 rounded-full ${
+                                  update.updateType === 'status_change' ? 'bg-blue-500' :
+                                  update.updateType === 'comment' ? 'bg-green-500' :
+                                  update.updateType === 'resolved' ? 'bg-primary' :
+                                  'bg-muted-foreground'
+                                }`} />
+                                <div className="flex items-center gap-2">
+                                  {update.updateType === 'status_change' && <Info className="h-3 w-3 text-blue-500" />}
+                                  {update.updateType === 'comment' && <MessageSquare className="h-3 w-3 text-green-500" />}
+                                  {update.updateType === 'resolved' && <CheckCircle2 className="h-3 w-3 text-primary" />}
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(update.createdAt), "MMM d, yyyy 'at' h:mm a", { locale: locale === "es" ? es : undefined })}
+                                  </span>
+                                  {update.updatedByName && (
+                                    <Badge variant="outline" className="text-xs h-5">
+                                      {update.updatedByName}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {update.updateType === 'status_change' && update.previousStatus && update.newStatus && (
+                                  <p className="text-sm mt-1">
+                                    {t("tenant.statusChanged", "Status changed")}: 
+                                    <span className="text-muted-foreground ml-1">{update.previousStatus}</span>
+                                    <span className="mx-1">→</span>
+                                    <span className="font-medium">{update.newStatus}</span>
+                                  </p>
+                                )}
+                                {update.comment && (
+                                  <p className="text-sm mt-1 text-muted-foreground">{update.comment}</p>
+                                )}
+                                {update.attachmentUrl && (
+                                  <a 
+                                    href={update.attachmentUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-1"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    {t("tenant.viewAttachment", "View attachment")}
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                            
+                            {/* Resolution event */}
+                            {ticket.resolution && (
+                              <div className="relative">
+                                <div className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-green-600" />
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                  <span className="text-xs text-muted-foreground">
+                                    {ticket.resolvedAt ? format(new Date(ticket.resolvedAt), "MMM d, yyyy 'at' h:mm a", { locale: locale === "es" ? es : undefined }) : t("tenant.resolved", "Resolved")}
+                                  </span>
+                                </div>
+                                <p className="text-sm font-medium mt-1">{t("tenant.ticketResolved", "Ticket resolved")}</p>
+                                <p className="text-sm text-muted-foreground mt-1">{ticket.resolution}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
