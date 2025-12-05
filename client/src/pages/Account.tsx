@@ -11,6 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Profile from "./Profile";
+import { NotificationPreferences } from "@/components/NotificationSystem";
 
 const roleLabels: Record<string, { es: string; en: string }> = {
   cliente: { es: "Cliente", en: "Client" },
@@ -261,6 +262,14 @@ export default function Account() {
       <Separator className="my-6" />
 
       <Profile />
+
+      <Separator className="my-6" />
+
+      <Card className="mb-6" data-testid="card-notification-preferences">
+        <CardContent className="p-6">
+          <NotificationPreferences />
+        </CardContent>
+      </Card>
     </div>
   );
 }

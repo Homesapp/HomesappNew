@@ -82,6 +82,7 @@ import AdminCondominiums from "@/pages/AdminCondominiums";
 import CondominiumDetails from "@/pages/CondominiumDetails";
 import AdminSuggestions from "@/pages/AdminSuggestions";
 import AdminChatbotConfig from "@/pages/AdminChatbotConfig";
+import AdminFeedbackManagement from "@/pages/AdminFeedbackManagement";
 import AdminSidebarConfig from "@/pages/admin/SidebarConfig";
 import PropertyInvitations from "@/pages/admin/PropertyInvitations";
 import AdminPropertyOwnerTerms from "@/pages/AdminPropertyOwnerTerms";
@@ -487,6 +488,7 @@ function AuthenticatedApp() {
               <Route path="/admin/condominiums" component={AdminCondominiums} />
               <Route path="/admin/hoa" component={HoaManagement} />
               <Route path="/admin/chatbot-config" component={AdminChatbotConfig} />
+              <Route path="/admin/feedback" component={AdminFeedbackManagement} />
               <Route path="/admin/sidebar-config" component={AdminSidebarConfig} />
               <Route path="/admin/create-user" component={CreateUser} />
               <Route path="/admin/income" component={AdminIncome} />
