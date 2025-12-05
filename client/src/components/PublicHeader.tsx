@@ -11,7 +11,12 @@ import {
   Settings,
   ChevronDown,
   Home,
-  Map
+  Map,
+  Globe,
+  Heart,
+  Key,
+  User,
+  Menu
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -20,7 +25,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -135,6 +148,11 @@ export function PublicHeader({ showPlatformButton = true }: PublicHeaderProps) {
     }
   };
 
+  const isInternalPage = () => {
+    const internalPaths = ['/admin', '/external', '/seller', '/owner/dashboard', '/portal', '/mis-solicitudes'];
+    return internalPaths.some(path => location.startsWith(path));
+  };
+
   const getMenuItems = () => {
     if (isImpersonating) {
       return [
@@ -145,12 +163,15 @@ export function PublicHeader({ showPlatformButton = true }: PublicHeaderProps) {
 
     const items: Array<{ label: string; icon: any; href: string; separator?: boolean }> = [];
 
+    items.push({ label: t("userMenu.myAccount") || "Mi cuenta", icon: UserCircle, href: "/account" });
+
     switch (actualUser.role) {
       case "cliente":
-        items.push({ label: t("userMenu.myAccount") || "Mi cuenta", icon: UserCircle, href: "/perfil" });
+        items.push({ label: t("userMenu.myFavorites") || "Mis favoritos", icon: Heart, href: "/favoritos" });
         items.push({ label: t("userMenu.myApplications") || "Mis solicitudes", icon: FileText, href: "/mis-solicitudes" });
         if (hasActiveContract) {
-          items.push({ label: t("userMenu.goToPortal") || "Ir a Portal", icon: DoorOpen, href: "/portal/tenant" });
+          items.push({ separator: true, label: "", icon: null, href: "" });
+          items.push({ label: t("userMenu.tenantPortal") || "Portal Inquilino", icon: DoorOpen, href: "/portal/tenant" });
         }
         break;
 
@@ -158,7 +179,8 @@ export function PublicHeader({ showPlatformButton = true }: PublicHeaderProps) {
         items.push({ label: t("userMenu.ownerDashboard") || "Dashboard propietario", icon: LayoutDashboard, href: "/owner/dashboard" });
         items.push({ label: t("userMenu.myProperties") || "Mis propiedades", icon: Building2, href: "/mis-propiedades" });
         if (hasActiveContract) {
-          items.push({ label: t("userMenu.ownerPortal") || "Ir a Portal de propietario", icon: DoorOpen, href: "/portal/owner" });
+          items.push({ separator: true, label: "", icon: null, href: "" });
+          items.push({ label: t("userMenu.ownerPortal") || "Portal Propietario", icon: Key, href: "/portal/owner" });
         }
         break;
 
@@ -187,7 +209,12 @@ export function PublicHeader({ showPlatformButton = true }: PublicHeaderProps) {
         break;
 
       default:
-        items.push({ label: t("userMenu.myAccount") || "Mi cuenta", icon: UserCircle, href: "/perfil" });
+        items.push({ label: t("userMenu.myFavorites") || "Mis favoritos", icon: Heart, href: "/favoritos" });
+    }
+
+    if (isInternalPage()) {
+      items.push({ separator: true, label: "", icon: null, href: "" });
+      items.push({ label: t("userMenu.viewPublicSite") || "Ver sitio público", icon: Globe, href: "/" });
     }
 
     return items;
@@ -272,16 +299,21 @@ export function PublicHeader({ showPlatformButton = true }: PublicHeaderProps) {
                     </>
                   )}
                   
-                  {getMenuItems().map((item, index) => (
-                    <DropdownMenuItem
-                      key={index}
-                      onClick={() => setLocation(item.href)}
-                      data-testid={`menu-item-${index}`}
-                    >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      <span>{item.label}</span>
-                    </DropdownMenuItem>
-                  ))}
+                  {getMenuItems().map((item, index) => {
+                    if (item.separator) {
+                      return <DropdownMenuSeparator key={`sep-${index}`} />;
+                    }
+                    return (
+                      <DropdownMenuItem
+                        key={index}
+                        onClick={() => setLocation(item.href)}
+                        data-testid={`menu-item-${item.href.replace(/\//g, '-').substring(1) || 'home'}`}
+                      >
+                        {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                        <span>{item.label}</span>
+                      </DropdownMenuItem>
+                    );
+                  })}
                   
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

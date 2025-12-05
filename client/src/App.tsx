@@ -103,6 +103,7 @@ import Changelog from "@/pages/Changelog";
 import Notifications from "@/pages/Notifications";
 import Chat from "@/pages/Chat";
 import Profile from "@/pages/Profile";
+import Account from "@/pages/Account";
 import ProviderApplication from "@/pages/ProviderApplication";
 import Apply from "@/pages/Apply";
 import CreateUser from "@/pages/CreateUser";
@@ -518,6 +519,7 @@ function AuthenticatedApp() {
               <Route path="/notificaciones" component={Notifications} />
               <Route path="/chat" component={Chat} />
               <Route path="/perfil" component={Profile} />
+              <Route path="/account" component={Account} />
               <Route path="/referidos" component={Referrals} />
               <Route path="/admin/referidos" component={AdminReferrals} />
               <Route path="/rentas-activas" component={ActiveRentals} />
