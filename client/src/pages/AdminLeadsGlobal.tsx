@@ -398,9 +398,13 @@ export default function AdminLeadsGlobal() {
 
   const assignMutation = useMutation({
     mutationFn: async ({ leadId, sellerId }: { leadId: string; sellerId: string }) => {
+      const seller = sellers.find(s => s.id === sellerId);
       return apiRequest(`/api/external-leads/${leadId}/reassign`, {
         method: "POST",
-        body: JSON.stringify({ sellerId }),
+        body: JSON.stringify({ 
+          newSellerId: sellerId,
+          newSellerName: seller ? `${seller.firstName} ${seller.lastName}` : null
+        }),
       });
     },
     onSuccess: () => {
