@@ -11650,3 +11650,157 @@ export const insertPortalTicketUpdateSchema = createInsertSchema(portalTicketUpd
 });
 export type InsertPortalTicketUpdate = z.infer<typeof insertPortalTicketUpdateSchema>;
 export type PortalTicketUpdate = typeof portalTicketUpdates.$inferSelect;
+
+// ============================================
+// User Feedback Reports System (Cross-cutting)
+// ============================================
+
+export const userFeedbackTypeEnum = pgEnum("user_feedback_type", [
+  "bug",          // Bug / Error
+  "suggestion",   // Suggestion / Improvement
+  "question",     // Question / Other
+]);
+
+export const userFeedbackUrgencyEnum = pgEnum("user_feedback_urgency", [
+  "low",
+  "medium",
+  "high",
+]);
+
+export const userFeedbackStatusEnum = pgEnum("user_feedback_status", [
+  "new",          // Nueva
+  "in_review",    // En revisión
+  "resolved",     // Resuelta
+  "dismissed",    // Descartada
+]);
+
+export const userFeedbackReports = pgTable("user_feedback_reports", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  agencyId: varchar("agency_id").references(() => externalAgencies.id, { onDelete: "set null" }),
+  
+  userRole: varchar("user_role", { length: 100 }),
+  userEmail: varchar("user_email", { length: 255 }),
+  userName: varchar("user_name", { length: 255 }),
+  
+  type: userFeedbackTypeEnum("type").notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  urgency: userFeedbackUrgencyEnum("urgency").notNull().default("medium"),
+  
+  pageUrl: text("page_url"),
+  browserInfo: text("browser_info"),
+  extraContext: jsonb("extra_context").$type<Record<string, unknown>>(),
+  
+  status: userFeedbackStatusEnum("status").notNull().default("new"),
+  
+  handledBy: varchar("handled_by").references(() => users.id, { onDelete: "set null" }),
+  adminNotes: text("admin_notes"),
+  resolution: text("resolution"),
+  resolvedAt: timestamp("resolved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_user_feedback_reports_user").on(table.userId),
+  index("idx_user_feedback_reports_agency").on(table.agencyId),
+  index("idx_user_feedback_reports_type").on(table.type),
+  index("idx_user_feedback_reports_status").on(table.status),
+  index("idx_user_feedback_reports_urgency").on(table.urgency),
+  index("idx_user_feedback_reports_created").on(table.createdAt),
+]);
+
+export const insertUserFeedbackReportSchema = createInsertSchema(userFeedbackReports).omit({
+  id: true, createdAt: true, updatedAt: true, status: true, handledBy: true, resolvedAt: true,
+});
+export type InsertUserFeedbackReport = z.infer<typeof insertUserFeedbackReportSchema>;
+export type UserFeedbackReport = typeof userFeedbackReports.$inferSelect;
+
+// ============================================
+// App Notifications System (Cross-cutting)
+// ============================================
+
+export const appNotificationCategoryEnum = pgEnum("app_notification_category", [
+  "lead",
+  "payment",
+  "maintenance",
+  "message",
+  "appointment",
+  "contract",
+  "system",
+]);
+
+export const appNotifications = pgTable("app_notifications", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  recipientUserId: varchar("recipient_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  recipientRole: varchar("recipient_role", { length: 100 }),
+  agencyId: varchar("agency_id").references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  category: appNotificationCategoryEnum("category").notNull(),
+  type: varchar("type", { length: 100 }).notNull(),
+  
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  
+  payload: jsonb("payload").$type<{
+    leadId?: string;
+    contractId?: string;
+    propertyId?: string;
+    ticketId?: string;
+    paymentId?: string;
+    appointmentId?: string;
+    messageId?: string;
+    actionUrl?: string;
+    [key: string]: unknown;
+  }>(),
+  
+  triggeredByUserId: varchar("triggered_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  triggeredByName: varchar("triggered_by_name", { length: 255 }),
+  
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_app_notifications_recipient").on(table.recipientUserId),
+  index("idx_app_notifications_agency").on(table.agencyId),
+  index("idx_app_notifications_category").on(table.category),
+  index("idx_app_notifications_type").on(table.type),
+  index("idx_app_notifications_read").on(table.isRead),
+  index("idx_app_notifications_created").on(table.createdAt),
+  index("idx_app_notifications_recipient_unread").on(table.recipientUserId, table.isRead),
+]);
+
+export const insertAppNotificationSchema = createInsertSchema(appNotifications).omit({
+  id: true, createdAt: true, isRead: true, readAt: true,
+});
+export type InsertAppNotification = z.infer<typeof insertAppNotificationSchema>;
+export type AppNotification = typeof appNotifications.$inferSelect;
+
+// App Notification Preferences
+export const appNotificationPreferences = pgTable("app_notification_preferences", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  leadNotifications: boolean("lead_notifications").notNull().default(true),
+  paymentNotifications: boolean("payment_notifications").notNull().default(true),
+  maintenanceNotifications: boolean("maintenance_notifications").notNull().default(true),
+  messageNotifications: boolean("message_notifications").notNull().default(true),
+  appointmentNotifications: boolean("appointment_notifications").notNull().default(true),
+  contractNotifications: boolean("contract_notifications").notNull().default(true),
+  systemNotifications: boolean("system_notifications").notNull().default(true),
+  
+  emailEnabled: boolean("email_enabled").notNull().default(false),
+  whatsappEnabled: boolean("whatsapp_enabled").notNull().default(false),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("idx_app_notification_preferences_user").on(table.userId),
+]);
+
+export const insertAppNotificationPreferencesSchema = createInsertSchema(appNotificationPreferences).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertAppNotificationPreferences = z.infer<typeof insertAppNotificationPreferencesSchema>;
+export type AppNotificationPreferences = typeof appNotificationPreferences.$inferSelect;
