@@ -35185,7 +35185,10 @@ ${{precio}}/mes
         lastName, 
         email, 
         phone,
-        message 
+        message,
+        requestType,
+        channel,
+        createAccount 
       } = req.body;
 
       // Validate required fields
@@ -35241,19 +35244,33 @@ ${{precio}}/mes
       const leadId = crypto.randomUUID();
       const now = new Date();
       
+      // Build notes with request type and message
+      const notesParts = [];
+      if (requestType) {
+        const typeLabels: Record<string, string> = {
+          schedule_visit: "Agendar visita",
+          info_request: "Solicitar info",
+          start_process: "Iniciar proceso"
+        };
+        notesParts.push(`Tipo: ${typeLabels[requestType] || requestType}`);
+      }
+      if (message) {
+        notesParts.push(`Mensaje: ${message}`);
+      }
+      
       await db.insert(externalLeads).values({
         id: leadId,
         agencyId,
-        registrationType: "seller", // Public leads use seller type for full data access
+        registrationType: "seller",
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email?.trim() || null,
         phone: phone?.trim() || null,
         phoneLast4: phone ? phone.trim().slice(-4) : null,
         interestedUnitIds: interestedUnitIds.length > 0 ? interestedUnitIds : null,
-        source: sourceInfo,
+        source: channel === "public_listing" ? `${sourceInfo} (Ficha publica)` : sourceInfo,
         status: "nuevo_lead",
-        notes: message ? `Mensaje del sitio web: ${message}` : null,
+        notes: notesParts.length > 0 ? notesParts.join(" | ") : null,
         firstContactDate: now,
         validUntil,
         createdAt: now,
@@ -35270,6 +35287,7 @@ ${{precio}}/mes
       res.status(500).json({ message: "Error al enviar la solicitud" });
     }
   });
+
 
     // GET /api/public/sellers - Get public list of sellers for lead registration dropdown
   // GET /api/public/resolve-offer-token/:agencySlug/:unitSlug - Resolve offer token by slugs

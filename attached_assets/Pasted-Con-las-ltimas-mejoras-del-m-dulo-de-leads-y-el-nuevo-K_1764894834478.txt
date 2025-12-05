@@ -1,0 +1,133 @@
+Con las últimas mejoras del módulo de leads y el nuevo Kanban, algo se rompió en el flujo que teníamos antes.
+
+En el panel de externals / Mis Leads, entrando como “Maximiliano Vendedor”, ahora veo:
+
+pantalla vacía (“No se encontraron leads”),
+
+y solo un bloque de “Link de Broker”, pero sin leads listados.
+
+Antes:
+
+aquí veía todos los leads que se generaban desde:
+
+formularios públicos,
+
+links de broker,
+
+campañas, etc.,
+
+y desde esa vista es desde donde trabajábamos todo el proceso comercial.
+
+Necesito que revisen y arreglen lo siguiente:
+
+1) Confirmar que los leads antiguos siguen en la base
+
+Revisar en la base de datos:
+
+qué tabla(s) se usan ahora para leads (por ejemplo leads, external_leads, pipeline_leads, etc.),
+
+y verificar que los registros antiguos siguen existiendo (no hayan sido borrados en una migración).
+
+Ejecutar una consulta directa filtrando por mi usuario y/o agencia:
+
+por ejemplo: todos los leads donde assignedTo = Maximiliano o el userId correspondiente,
+
+sin filtros de estado, fecha, tipo, etc.
+
+Confirmar si esos leads existen pero simplemente no se están mostrando en la UI.
+
+2) Revisar la lógica de la vista “Mis Leads”
+
+En la pantalla que se ve en la captura (external/leads – “Mis Leads”):
+
+Revisar el código que construye el query:
+
+¿qué filtros aplica? (agencyId, status, leadType, dateFrom/dateTo, etc.).
+
+¿está filtrando solo leads con algún estado nuevo del pipeline?
+
+¿está filtrando solo leads creados a partir de cierto campo (ej. nuevos tipos de lead)?
+
+Lo que necesito es que:
+
+“Mis Leads” muestre todos los leads que corresponden a:
+
+ese usuario (vendedor externo) y/o su agencia,
+
+independientemente de si se crearon antes o después del nuevo Kanban.
+
+Si van a aplicar filtros por defecto (estado, fecha), que:
+
+haya forma clara de ver “Todos los leads” (sin filtros de estado/fecha),
+
+o que el valor por defecto incluya todos los estados relevantes.
+
+3) Verificar el flujo del “Link de Broker”
+
+En la parte superior se muestra el bloque:
+
+Link de Broker – Comparte para que brokers registren leads con botón Copiar link.
+
+Necesito que revisen:
+
+Cuando alguien usa ese link:
+
+¿a qué agencia/usuario se asigna el lead?
+
+¿se está guardando correctamente agencyId y assignedTo?
+
+Confirmar que:
+
+los leads generados por ese link aparecen en el Kanban,
+
+y también en la vista “Mis Leads” para el vendedor/agency admin correcto.
+
+Si cambiaron el modelo de leads (por ejemplo agregando un campo leadType o ownerType), asegúrense de que el “Link de Broker” lo esté rellenando correctamente para que esos leads no se excluyan por filtros.
+
+4) Integración con el nuevo Kanban / pipeline
+
+Con el refactor del Kanban:
+
+Verifiquen que:
+
+los leads antiguos se hayan migrado a los nuevos estados del pipeline (aunque sea en un estado por defecto),
+
+los leads nuevos se generen tanto en la estructura del pipeline como en la lista estándar de leads.
+
+En particular:
+
+confirmar que un lead que aparece en el Kanban:
+
+también se pueda ver desde “Mis Leads” (si el usuario tiene permisos),
+
+y que el vínculo lead → cliente / oferta / contrato no se haya roto.
+
+5) Resultado esperado
+
+Después de corregir esto, espero:
+
+Entrar como vendedor externo (por ejemplo “Maximiliano Vendedor”) y:
+
+ver de nuevo mis leads en “Mis Leads”,
+
+poder buscar por nombre, teléfono, correo,
+
+ver los leads nuevos que se generen desde:
+
+homepage pública,
+
+detalle de listing,
+
+chatbot,
+
+links de broker.
+
+Que el nuevo Kanban funcione sumando funcionalidad, sin romper la visibilidad y flujo que ya teníamos antes.
+
+Por favor al final explíquenme:
+
+qué encontraron (si era tema de filtros, migración, agencyId, etc.),
+
+qué cambios hicieron en el backend y en la UI,
+
+y cómo debo usar ahora “Mis Leads” + Kanban sin perder leads antiguos ni nuevos.

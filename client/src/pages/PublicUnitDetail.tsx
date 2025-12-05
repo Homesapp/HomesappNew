@@ -9,6 +9,9 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +54,14 @@ import {
   Image as ImageIcon,
   Video,
   Map,
-  Globe
+  Globe,
+  ChevronRight as ChevronRightIcon,
+  ClipboardList,
+  FileText,
+  Send,
+  UserPlus,
+  ExternalLink,
+  Hash
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { ExternalUnit } from "@shared/schema";
@@ -72,6 +82,12 @@ export default function PublicUnitDetail() {
   const [showFavoriteDialog, setShowFavoriteDialog] = useState(false);
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [showLeadFlowDialog, setShowLeadFlowDialog] = useState(false);
+  const [leadFlowStep, setLeadFlowStep] = useState<1 | 2>(1);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("description");
+  const [requestType, setRequestType] = useState<"schedule_visit" | "info_request" | "start_process">("schedule_visit");
+  const [createAccount, setCreateAccount] = useState(false);
   const [contactForm, setContactForm] = useState({
     firstName: "",
     lastName: "",
@@ -81,23 +97,38 @@ export default function PublicUnitDetail() {
   });
   const { toast } = useToast();
 
-  // Contact form submission mutation
+  // Contact form submission mutation with enhanced lead flow
   const contactMutation = useMutation({
-    mutationFn: async (data: typeof contactForm & { agencyId: string; unitId: string }) => {
+    mutationFn: async (data: typeof contactForm & { 
+      agencyId: string; 
+      unitId: string; 
+      requestType: string;
+      createAccount?: boolean;
+    }) => {
       return await apiRequest("/api/public/leads", {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          agencyId: data.agencyId,
+          unitId: data.unitId,
+          firstName: data.firstName,
+          lastName: data.lastName || data.firstName,
+          email: data.email,
+          phone: data.phone,
+          message: data.message,
+          channel: "public_listing",
+          requestType: data.requestType,
+          createAccount: data.createAccount,
+        }),
       });
     },
     onSuccess: () => {
-      toast({
-        title: language === "es" ? "Solicitud enviada" : "Request sent",
-        description: language === "es" 
-          ? "Un asesor te contactará pronto." 
-          : "An advisor will contact you soon.",
-      });
+      setShowLeadFlowDialog(false);
       setShowContactDialog(false);
+      setShowSuccessDialog(true);
       setContactForm({ firstName: "", lastName: "", email: "", phone: "", message: "" });
+      setLeadFlowStep(1);
+      setRequestType("schedule_visit");
+      setCreateAccount(false);
     },
     onError: (error: any) => {
       toast({
@@ -369,22 +400,109 @@ export default function PublicUnitDetail() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6" data-testid="nav-breadcrumbs">
+          <button 
+            onClick={() => setLocation("/")} 
+            className="hover:text-foreground transition-colors"
+            data-testid="link-breadcrumb-home"
+          >
+            {language === "es" ? "Inicio" : "Home"}
+          </button>
+          <ChevronRightIcon className="h-4 w-4" />
+          <button 
+            onClick={() => setLocation("/propiedades")} 
+            className="hover:text-foreground transition-colors"
+            data-testid="link-breadcrumb-properties"
+          >
+            {language === "es" ? "Propiedades" : "Properties"}
+          </button>
+          <ChevronRightIcon className="h-4 w-4" />
+          <span className="text-foreground font-medium truncate max-w-[200px]">{propertyTitle}</span>
+        </nav>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Title Section - Matching Preview Dialog Format */}
-            <div>
-              <h1 className="text-2xl font-bold mb-2" data-testid="text-property-title">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Header Section with Brand and Tags */}
+            <div className="space-y-4">
+              {/* Brand Badge and Unit ID */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Brand Badge */}
+                {(unit as any).brand === "TRH" || (unit as any).rentalPurpose ? (
+                  <Badge className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1" data-testid="badge-brand">
+                    Tulum Rental Homes
+                  </Badge>
+                ) : (
+                  <Badge className="bg-green-600 hover:bg-green-700 text-white px-3 py-1" data-testid="badge-brand">
+                    Homesapp
+                  </Badge>
+                )}
+                
+                {/* Unit ID */}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground" data-testid="text-unit-id">
+                  <Hash className="h-3.5 w-3.5" />
+                  <span>ID: {unit.unitNumber || unit.id?.slice(0, 8) || "N/A"}</span>
+                </div>
+              </div>
+
+              {/* Title */}
+              <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-property-title">
                 {propertyTitle}
               </h1>
+              
+              {/* Location */}
               <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-property-location">
                 <MapPin className="h-4 w-4 shrink-0" />
                 <span>{propertyLocation}</span>
               </div>
+
+              {/* Listing Type Tags */}
+              <div className="flex flex-wrap gap-2" data-testid="container-listing-tags">
+                {/* Rental Type Tags */}
+                {(unit as any).rentalPurpose === "long_term" && (
+                  <Badge variant="outline" className="border-blue-500 text-blue-600 dark:text-blue-400">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                    {language === "es" ? "Renta 12 meses" : "12-month Rent"}
+                  </Badge>
+                )}
+                {(unit as any).rentalPurpose === "short_term" && (
+                  <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400">
+                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                    {language === "es" ? "Renta Vacacional" : "Vacation Rental"}
+                  </Badge>
+                )}
+                {((unit as any).salePrice && Number((unit as any).salePrice) > 0) && (
+                  <Badge variant="outline" className="border-green-500 text-green-600 dark:text-green-400">
+                    <Building2 className="h-3.5 w-3.5 mr-1.5" />
+                    {language === "es" ? "En Venta" : "For Sale"}
+                  </Badge>
+                )}
+                
+                {/* Property Feature Tags */}
+                {unit.petsAllowed && (
+                  <Badge variant="secondary">
+                    <PawPrint className="h-3.5 w-3.5 mr-1.5" />
+                    {language === "es" ? "Pet Friendly" : "Pet Friendly"}
+                  </Badge>
+                )}
+                {(unit as any).furnished && (
+                  <Badge variant="secondary">
+                    <Sofa className="h-3.5 w-3.5 mr-1.5" />
+                    {language === "es" ? "Amueblado" : "Furnished"}
+                  </Badge>
+                )}
+                {unit.parkingSpaces && Number(unit.parkingSpaces) > 0 && (
+                  <Badge variant="secondary">
+                    <Car className="h-3.5 w-3.5 mr-1.5" />
+                    {unit.parkingSpaces} {language === "es" ? "Estacionamiento" : "Parking"}
+                  </Badge>
+                )}
+              </div>
             </div>
 
-            {/* Key Features Row - Matching Preview Dialog Format */}
-            <div className="flex flex-wrap gap-4 py-3 px-4 bg-muted/50 rounded-lg">
+            {/* Key Features Row */}
+            <div className="flex flex-wrap gap-4 py-4 px-4 bg-muted/50 rounded-lg" data-testid="container-key-features">
               {unit.bedrooms !== null && unit.bedrooms !== undefined && Number(unit.bedrooms) > 0 && (
                 <div className="flex items-center gap-2">
                   <Bed className="h-5 w-5 text-muted-foreground" />
@@ -406,78 +524,203 @@ export default function PublicUnitDetail() {
                   <span className="text-sm text-muted-foreground">{language === "es" ? "Área" : "Area"}</span>
                 </div>
               )}
-              {unit.petsAllowed && (
+              {unit.includedServices && (unit.includedServices as any).hoaMaintenance && (
                 <div className="flex items-center gap-2">
-                  <PawPrint className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">{language === "es" ? "Acepta Mascotas" : "Pet Friendly"}</span>
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="text-sm text-muted-foreground">{language === "es" ? "Mantenimiento incluido" : "Maintenance included"}</span>
                 </div>
               )}
             </div>
 
-            {/* Amenities Section - Matching Preview Dialog Format */}
-            {unit.amenities && unit.amenities.length > 0 && (
-              <div>
-                <h3 className="font-semibold mb-3">{language === "es" ? "Amenidades" : "Amenities"}</h3>
-                <div className="flex flex-wrap gap-x-6 gap-y-2">
-                  {unit.amenities.map((amenity, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-muted-foreground">
-                      <Check className="h-4 w-4" />
-                      <span className="text-sm">{amenity}</span>
+            {/* Tabbed Content Sections */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
+                <TabsTrigger 
+                  value="description" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-4"
+                  data-testid="tab-description"
+                >
+                  {language === "es" ? "Descripcion" : "Description"}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="amenities" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-4"
+                  data-testid="tab-amenities"
+                >
+                  {language === "es" ? "Amenidades" : "Amenities"}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="neighborhood" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-4"
+                  data-testid="tab-neighborhood"
+                >
+                  {language === "es" ? "Zona" : "Neighborhood"}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="map" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-4"
+                  data-testid="tab-map"
+                >
+                  {language === "es" ? "Mapa" : "Map"}
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Description Tab */}
+              <TabsContent value="description" className="mt-6 space-y-6">
+                {unit.description ? (
+                  <div>
+                    <h2 className="text-xl font-semibold mb-4">{language === "es" ? "Acerca de esta propiedad" : "About this property"}</h2>
+                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{unit.description}</p>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">{language === "es" ? "Sin descripcion disponible" : "No description available"}</p>
+                )}
+
+                {/* Included Services */}
+                {unit.includedServices && Object.values(unit.includedServices).some(v => v) && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">{language === "es" ? "Servicios Incluidos" : "Included Services"}</h3>
+                    <div className="flex flex-wrap gap-3">
+                      {(unit.includedServices as any).hoaMaintenance && (
+                        <Badge className="gap-2 px-4 py-2.5 text-sm bg-green-600 text-white hover:bg-green-700">
+                          <CheckCircle className="h-4 w-4" />
+                          {language === "es" ? "Mantenimiento Condominal" : "HOA Maintenance"}
+                        </Badge>
+                      )}
+                      {unit.includedServices.internet && (
+                        <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
+                          <Wifi className="h-4 w-4" />
+                          {language === "es" ? "Internet" : "Internet"}
+                        </Badge>
+                      )}
+                      {unit.includedServices.water && (
+                        <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
+                          <Droplets className="h-4 w-4" />
+                          {language === "es" ? "Agua" : "Water"}
+                        </Badge>
+                      )}
+                      {unit.includedServices.electricity && (
+                        <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
+                          <Zap className="h-4 w-4" />
+                          {language === "es" ? "Electricidad" : "Electricity"}
+                        </Badge>
+                      )}
+                      {unit.includedServices.gas && (
+                        <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
+                          <Flame className="h-4 w-4" />
+                          {language === "es" ? "Gas" : "Gas"}
+                        </Badge>
+                      )}
                     </div>
-                  ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Amenities Tab */}
+              <TabsContent value="amenities" className="mt-6">
+                {unit.amenities && unit.amenities.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {unit.amenities.map((amenity, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                        <Check className="h-5 w-5 text-green-600 shrink-0" />
+                        <span className="text-sm">{amenity}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">{language === "es" ? "Sin amenidades listadas" : "No amenities listed"}</p>
+                )}
+              </TabsContent>
+
+              {/* Neighborhood Tab */}
+              <TabsContent value="neighborhood" className="mt-6">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">{language === "es" ? "Ubicacion" : "Location"}</h3>
+                    <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                      <MapPin className="h-5 w-5" />
+                      <span>{propertyLocation}</span>
+                    </div>
+                    {unit.zone && (
+                      <Badge variant="outline" className="mb-4">
+                        {language === "es" ? "Zona:" : "Zone:"} {unit.zone}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {(unit as any).neighborhoodDescription && (
+                    <div>
+                      <h4 className="font-medium mb-2">{language === "es" ? "Sobre la zona" : "About the area"}</h4>
+                      <p className="text-muted-foreground">{(unit as any).neighborhoodDescription}</p>
+                    </div>
+                  )}
+
+                  {/* Nearby Points of Interest */}
+                  {(unit as any).nearbyPlaces && (unit as any).nearbyPlaces.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-3">{language === "es" ? "Lugares cercanos" : "Nearby places"}</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {(unit as any).nearbyPlaces.map((place: string, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MapPin className="h-4 w-4" />
+                            <span>{place}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              </TabsContent>
 
-            <Separator />
-
-            {/* Description */}
-            {unit.description && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">{language === "es" ? "Acerca de esta propiedad" : "About this property"}</h2>
-                <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{unit.description}</p>
-              </div>
-            )}
-
-            {/* Included Services */}
-            {unit.includedServices && Object.values(unit.includedServices).some(v => v) && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">{language === "es" ? "Servicios Incluidos" : "Included Services"}</h2>
-                <div className="flex flex-wrap gap-3">
-                  {(unit.includedServices as any).hoaMaintenance && (
-                    <Badge className="gap-2 px-4 py-2.5 text-sm bg-green-600 text-white hover:bg-green-700">
-                      <CheckCircle className="h-4 w-4" />
-                      {language === "es" ? "Mantenimiento Condominal Incluido" : "HOA Maintenance Included"}
-                    </Badge>
-                  )}
-                  {unit.includedServices.internet && (
-                    <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
-                      <Wifi className="h-4 w-4" />
-                      {language === "es" ? "Internet" : "Internet"}
-                    </Badge>
-                  )}
-                  {unit.includedServices.water && (
-                    <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
-                      <Droplets className="h-4 w-4" />
-                      {language === "es" ? "Agua" : "Water"}
-                    </Badge>
-                  )}
-                  {unit.includedServices.electricity && (
-                    <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
-                      <Zap className="h-4 w-4" />
-                      {language === "es" ? "Electricidad" : "Electricity"}
-                    </Badge>
-                  )}
-                  {unit.includedServices.gas && (
-                    <Badge variant="secondary" className="gap-2 px-4 py-2.5 text-sm">
-                      <Flame className="h-4 w-4" />
-                      {language === "es" ? "Gas" : "Gas"}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )}
-
+              {/* Map Tab */}
+              <TabsContent value="map" className="mt-6">
+                {unit.latitude && unit.longitude ? (
+                  <div className="h-[400px] rounded-lg overflow-hidden border">
+                    {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
+                      <PropertyMap
+                        properties={[{
+                          id: unit.id || 'current-property',
+                          title: propertyTitle,
+                          unitNumber: unit.unitNumber || unit.id || 'N/A',
+                          condominiumName: (unit as any).condominiumName || propertyLocation,
+                          latitude: Number(unit.latitude),
+                          longitude: Number(unit.longitude),
+                          price: unit.price || undefined,
+                          currency: unit.currency || 'MXN',
+                          bedrooms: unit.bedrooms || undefined,
+                          bathrooms: unit.bathrooms || undefined,
+                          area: (unit as any).squareMeters || unit.area || undefined,
+                          propertyType: (unit as any).unitType || unit.propertyType || '',
+                          zone: unit.zone || '',
+                          primaryImages: images.slice(0, 1),
+                        }]}
+                        center={{ lat: Number(unit.latitude), lng: Number(unit.longitude) }}
+                        zoom={16}
+                        height="100%"
+                        language={language}
+                        showInfoWindow={true}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full gap-4 bg-muted/50">
+                        <MapPin className="h-12 w-12 text-muted-foreground" />
+                        <p className="text-muted-foreground">{language === "es" ? "Mapa no disponible" : "Map not available"}</p>
+                        {unit.googleMapsUrl && (
+                          <Button variant="outline" onClick={() => window.open(unit.googleMapsUrl!, '_blank')}>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            {language === "es" ? "Ver en Google Maps" : "View on Google Maps"}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-[300px] bg-muted/50 rounded-lg">
+                    <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">{language === "es" ? "Ubicacion no disponible" : "Location not available"}</p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar - Sticky CTA Card */}
@@ -538,7 +781,10 @@ export default function PublicUnitDetail() {
                     <Button 
                       size="lg" 
                       className="w-full min-h-[52px] text-base font-semibold"
-                      onClick={() => setShowBenefitsDialog(true)}
+                      onClick={() => {
+                        setRequestType("schedule_visit");
+                        setShowLeadFlowDialog(true);
+                      }}
                       data-testid="button-schedule-visit"
                     >
                       <Calendar className="h-5 w-5 mr-2" />
@@ -549,11 +795,14 @@ export default function PublicUnitDetail() {
                       variant="outline" 
                       size="lg" 
                       className="w-full min-h-[52px] text-base"
-                      onClick={() => setShowContactDialog(true)}
+                      onClick={() => {
+                        setRequestType("info_request");
+                        setShowLeadFlowDialog(true);
+                      }}
                       data-testid="button-contact-agent"
                     >
                       <MessageCircle className="h-5 w-5 mr-2" />
-                      {language === "es" ? "Contactar asesor" : "Contact agent"}
+                      {language === "es" ? "Solicitar informacion" : "Request info"}
                     </Button>
                   </div>
 
@@ -583,10 +832,13 @@ export default function PublicUnitDetail() {
                   <Button 
                     size="lg" 
                     className="min-h-[52px] px-8 text-base font-semibold"
-                    onClick={() => setShowBenefitsDialog(true)}
+                    onClick={() => {
+                      setRequestType("schedule_visit");
+                      setShowLeadFlowDialog(true);
+                    }}
                     data-testid="button-mobile-cta"
                   >
-                    {language === "es" ? "Agendar visita" : "Schedule visit"}
+                    {language === "es" ? "Contactar" : "Contact"}
                   </Button>
                 </div>
               </div>
@@ -594,6 +846,282 @@ export default function PublicUnitDetail() {
           </div>
         </div>
       </div>
+
+      {/* Two-Step Lead Flow Dialog */}
+      <Dialog open={showLeadFlowDialog} onOpenChange={(open) => {
+        setShowLeadFlowDialog(open);
+        if (!open) {
+          setLeadFlowStep(1);
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="text-center pb-2">
+            <div className="mx-auto mb-4">
+              <img src={logoIcon} alt="HomesApp" className="h-10 w-auto mx-auto" />
+            </div>
+            <DialogTitle className="text-xl">
+              {leadFlowStep === 1 
+                ? (language === "es" ? "¿Como podemos ayudarte?" : "How can we help you?")
+                : (language === "es" ? "Tus datos de contacto" : "Your contact details")}
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {leadFlowStep === 1 
+                ? (language === "es" ? "Selecciona el tipo de solicitud" : "Select your request type")
+                : (language === "es" ? "Te contactaremos por WhatsApp o correo" : "We'll contact you via WhatsApp or email")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Step indicator */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className={`w-8 h-1 rounded-full ${leadFlowStep >= 1 ? 'bg-primary' : 'bg-muted'}`} />
+            <div className={`w-8 h-1 rounded-full ${leadFlowStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+          </div>
+
+          {leadFlowStep === 1 ? (
+            /* Step 1: Request Type Selection */
+            <div className="space-y-4">
+              <RadioGroup 
+                value={requestType} 
+                onValueChange={(value) => setRequestType(value as typeof requestType)}
+                className="space-y-3"
+              >
+                <div className="flex items-start gap-3 p-4 border rounded-lg hover-elevate cursor-pointer" onClick={() => setRequestType("schedule_visit")}>
+                  <RadioGroupItem value="schedule_visit" id="schedule_visit" className="mt-0.5" />
+                  <Label htmlFor="schedule_visit" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{language === "es" ? "Agendar visita" : "Schedule visit"}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" ? "Coordina una cita para conocer la propiedad" : "Schedule an appointment to see the property"}
+                    </p>
+                  </Label>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 border rounded-lg hover-elevate cursor-pointer" onClick={() => setRequestType("info_request")}>
+                  <RadioGroupItem value="info_request" id="info_request" className="mt-0.5" />
+                  <Label htmlFor="info_request" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 mb-1">
+                      <MessageCircle className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{language === "es" ? "Solicitar informacion" : "Request information"}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" ? "Recibe mas detalles sobre esta propiedad" : "Get more details about this property"}
+                    </p>
+                  </Label>
+                </div>
+
+                <div className="flex items-start gap-3 p-4 border rounded-lg hover-elevate cursor-pointer" onClick={() => setRequestType("start_process")}>
+                  <RadioGroupItem value="start_process" id="start_process" className="mt-0.5" />
+                  <Label htmlFor="start_process" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 mb-1">
+                      <ClipboardList className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{language === "es" ? "Iniciar proceso" : "Start process"}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" ? "Comienza tu aplicacion de renta o compra" : "Begin your rental or purchase application"}
+                    </p>
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              <div className="space-y-2">
+                <Label htmlFor="lead-message">{language === "es" ? "Mensaje (opcional)" : "Message (optional)"}</Label>
+                <Textarea
+                  id="lead-message"
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                  placeholder={language === "es" ? "Agrega detalles adicionales..." : "Add additional details..."}
+                  rows={2}
+                  data-testid="input-lead-message"
+                />
+              </div>
+
+              <Button 
+                size="lg" 
+                className="w-full min-h-[52px]"
+                onClick={() => setLeadFlowStep(2)}
+                data-testid="button-lead-next"
+              >
+                {language === "es" ? "Continuar" : "Continue"}
+                <ChevronRightIcon className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          ) : (
+            /* Step 2: Contact Details */
+            <form 
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!unit) return;
+                if (!contactForm.phone && !contactForm.email) {
+                  toast({
+                    title: language === "es" ? "Error" : "Error",
+                    description: language === "es" 
+                      ? "Por favor ingresa tu WhatsApp o correo electronico" 
+                      : "Please enter your WhatsApp or email",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                contactMutation.mutate({
+                  ...contactForm,
+                  agencyId: (unit as any).agencyId,
+                  unitId: unit.id,
+                  requestType,
+                  createAccount,
+                });
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="lead-name">{language === "es" ? "Nombre completo *" : "Full name *"}</Label>
+                <Input
+                  id="lead-name"
+                  value={contactForm.firstName}
+                  onChange={(e) => setContactForm({ ...contactForm, firstName: e.target.value })}
+                  placeholder={language === "es" ? "Tu nombre" : "Your name"}
+                  required
+                  data-testid="input-lead-name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lead-phone">{language === "es" ? "WhatsApp *" : "WhatsApp *"}</Label>
+                <Input
+                  id="lead-phone"
+                  type="tel"
+                  value={contactForm.phone}
+                  onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                  placeholder="+52 999 123 4567"
+                  data-testid="input-lead-phone"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lead-email">{language === "es" ? "Correo electronico" : "Email"}</Label>
+                <Input
+                  id="lead-email"
+                  type="email"
+                  value={contactForm.email}
+                  onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                  placeholder={language === "es" ? "tu@email.com" : "you@email.com"}
+                  data-testid="input-lead-email"
+                />
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                <Checkbox
+                  id="create-account"
+                  checked={createAccount}
+                  onCheckedChange={(checked) => setCreateAccount(checked === true)}
+                  data-testid="checkbox-create-account"
+                />
+                <Label htmlFor="create-account" className="text-sm cursor-pointer leading-tight">
+                  <span className="font-medium">{language === "es" ? "Crear cuenta para seguir mi proceso" : "Create account to track my process"}</span>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    {language === "es" 
+                      ? "Accede a \"Mis solicitudes\" y recibe actualizaciones" 
+                      : "Access \"My Requests\" and receive updates"}
+                  </p>
+                </Label>
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center">
+                {language === "es" 
+                  ? "Se requiere WhatsApp o correo electronico" 
+                  : "WhatsApp or email is required"}
+              </p>
+
+              <div className="flex gap-3">
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="lg" 
+                  className="flex-1 min-h-[52px]"
+                  onClick={() => setLeadFlowStep(1)}
+                  data-testid="button-lead-back"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  {language === "es" ? "Atras" : "Back"}
+                </Button>
+                <Button 
+                  type="submit"
+                  size="lg" 
+                  className="flex-1 min-h-[52px]"
+                  disabled={contactMutation.isPending || !contactForm.firstName || (!contactForm.phone && !contactForm.email)}
+                  data-testid="button-lead-submit"
+                >
+                  {contactMutation.isPending ? (
+                    <span>{language === "es" ? "Enviando..." : "Sending..."}</span>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      {language === "es" ? "Enviar" : "Send"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col items-center text-center py-4">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <DialogTitle className="text-xl mb-2">
+              {language === "es" ? "Solicitud enviada" : "Request sent"}
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              {language === "es" 
+                ? `Recibimos tu solicitud para "${propertyTitle}". Te contactaremos por WhatsApp o correo.`
+                : `We received your request for "${propertyTitle}". We'll contact you via WhatsApp or email.`}
+            </DialogDescription>
+          </div>
+          
+          <div className="flex flex-col gap-3 pt-2">
+            <Button 
+              size="lg" 
+              className="w-full min-h-[52px]"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                setLocation("/propiedades");
+              }}
+              data-testid="button-success-browse"
+            >
+              {language === "es" ? "Seguir viendo propiedades" : "Continue browsing properties"}
+            </Button>
+            {createAccount && (
+              <Button 
+                variant="outline"
+                size="lg" 
+                className="w-full min-h-[52px]"
+                onClick={() => {
+                  setShowSuccessDialog(false);
+                  setLocation("/mis-solicitudes");
+                }}
+                data-testid="button-success-requests"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                {language === "es" ? "Ver mis solicitudes" : "View my requests"}
+              </Button>
+            )}
+            <Button 
+              variant="ghost"
+              size="lg" 
+              className="w-full"
+              onClick={() => setShowSuccessDialog(false)}
+              data-testid="button-success-close"
+            >
+              {language === "es" ? "Cerrar" : "Close"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Benefits Dialog */}
       <Dialog open={showBenefitsDialog} onOpenChange={setShowBenefitsDialog}>
