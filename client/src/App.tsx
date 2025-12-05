@@ -164,6 +164,7 @@ import AdminOfferManagement from "@/pages/AdminOfferManagement";
 import AdminRentalFormManagement from "@/pages/AdminRentalFormManagement";
 import ExternalDashboard from "@/pages/ExternalDashboard";
 import ExternalAgencyConfig from "@/pages/ExternalAgencyConfig";
+import ExternalAgencySettingsPage from "@/pages/ExternalAgencySettingsPage";
 import EmailLeadImport from "@/pages/EmailLeadImport";
 import ExternalAccounts from "@/pages/ExternalAccounts";
 import ExternalAccesses from "@/pages/ExternalAccesses";
@@ -569,6 +570,13 @@ function AuthenticatedApp() {
               </Route>
               <Route path="/external/dashboard" component={ExternalDashboard} />
               <Route path="/external/agency" component={ExternalAgencyConfig} />
+              <Route path="/external/agency/settings">
+                {() => (
+                  <ProtectedRoute allowedRoles={ROLE_GROUPS.externalAdmins}>
+                    <ExternalAgencySettingsPage />
+                  </ProtectedRoute>
+                )}
+              </Route>
               <Route path="/external/email-import">
                 {() => (
                   <ProtectedRoute allowedRoles={ROLE_GROUPS.externalAdmins}>
