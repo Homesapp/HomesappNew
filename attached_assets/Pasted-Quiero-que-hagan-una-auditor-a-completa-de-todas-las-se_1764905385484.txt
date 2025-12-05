@@ -1,0 +1,123 @@
+Quiero que hagan una auditoría completa de todas las secciones que usan tablas, para asegurar que:
+
+se vean bien,
+
+la paginación funcione correctamente,
+
+y la experiencia sea consistente en todos los roles.
+
+1) Identificar todas las tablas
+
+Primero, hagan un listado de todas las vistas tipo tabla, separadas por rol:
+
+Admin TRH / HomesApp (propiedades, contratos, pagos, tickets, usuarios/agencias, etc.).
+
+Admin de agencia externa (leads, clientes, agentes, reportes).
+
+Vendedor / agente (mis leads, clientes, visitas, etc.).
+
+Propietario (portal owner) (pagos, tickets, documentos).
+
+Inquilino (portal tenant) (pagos, tickets, documentos).
+
+Con esa lista, revisar una por una.
+
+2) UI/UX de cada tabla
+
+Para cada tabla, verificar y corregir:
+
+Encabezados alineados y con estilos coherentes (tipografía, tamaño, colores).
+
+Altura de filas consistente; nada desalineado.
+
+Columna de acciones siempre en el mismo lado (idealmente a la derecha).
+
+Estados:
+
+Vacío: mensaje claro + botón de acción (ej. “Crear lead”, “Agregar propiedad”, etc.).
+
+Cargando: skeleton o spinner, evitando parpadeos bruscos.
+
+Comportamiento en mobile:
+
+que no se rompa el diseño,
+
+que las columnas clave sigan siendo legibles (adaptar a “cards” si es necesario).
+
+3) Paginación
+
+Revisar en todas las tablas que:
+
+Haya controles visibles de paginación (páginas o siguiente/anterior).
+
+El “items per page” funcione si existe (10/25/50, etc.).
+
+Cambiar de página mantenga:
+
+filtros activos,
+
+orden actual.
+
+No se carguen cientos/miles de filas de golpe; usar paginación real (limit/offset o cursor).
+
+Si se borra el último registro de una página, no se quede la página vacía (ajustar a la anterior si hace falta).
+
+Manejo de error del backend:
+
+si una petición de una página falla, mostrar mensaje amigable y no romper la tabla.
+
+4) Filtros, orden y búsqueda
+
+Ordenar por columnas:
+
+iconos de asc/desc claros,
+
+que realmente ordene correctamente (especialmente por fecha, monto, nombre).
+
+Filtros:
+
+combinables entre sí, con opción “Limpiar filtros”.
+
+Búsqueda:
+
+que busque en campos relevantes,
+
+que respete la paginación.
+
+5) Roles y permisos
+
+Validar que:
+
+cada rol solo vea registros y columnas que le corresponden,
+
+un vendedor no pueda ver información de otra agencia si no debería,
+
+owners e inquilinos vean solo sus propiedades / pagos / tickets.
+
+En tablas compartidas, revisar que no haya columnas sensibles expuestas a roles que no deben verlas.
+
+6) Performance
+
+En tablas grandes, confirmar que los endpoints usan:
+
+limit + offset o paginación basada en cursor,
+
+índices adecuados para orden y filtros más usados.
+
+7) Entrega
+
+Al terminar la auditoría, por favor:
+
+compartan la lista de tablas revisadas,
+
+indiquen qué problemas encontraron y qué cambios hicieron (UI, paginación, permisos, performance),
+
+y adjunten capturas de al menos:
+
+una tabla grande (ej. leads o propiedades) en desktop y mobile,
+
+una tabla con estado vacío,
+
+una tabla con filtros y paginación funcionando.
+
+Quiero asegurarme de que toda la app tenga tablas consistentes y que la paginación funcione bien para todos los roles.

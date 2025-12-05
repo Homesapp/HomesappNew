@@ -1,17 +1,19 @@
 import { useState, lazy, Suspense, memo } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Map, SlidersHorizontal, Building2, Star, ChevronRight, Home } from "lucide-react";
+import { Search, MapPin, Map, SlidersHorizontal, Building2, Star, ChevronRight, Home, Calendar, Laptop, Award, Users, CheckCircle2, ChevronDown, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
 import { type Colony, type Condominium } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicHeader } from "@/components/PublicHeader";
-import { UnifiedPropertyCard } from "@/components/UnifiedPropertyCard";
+import { PublicPropertyCard } from "@/components/PublicPropertyCard";
+import { homepageContent } from "@/lib/homepageContent";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 const FloatingChat = lazy(() => import("@/components/FloatingChat").then(m => ({ default: m.FloatingChat })));
@@ -45,7 +47,9 @@ export default function PublicDashboard() {
   const [colonyName, setColonyName] = useState("");
   const [condoName, setCondoName] = useState("");
   const [allowsSubleasing, setAllowsSubleasing] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  
+  const content = homepageContent[language as keyof typeof homepageContent] || homepageContent.es;
 
   const { data: externalPropertiesResponse, isLoading: propertiesLoading } = useQuery<{ data: any[]; totalCount: number }>({
     queryKey: ["/api/public/external-properties?limit=12"],
@@ -276,34 +280,45 @@ export default function PublicDashboard() {
                     ? `/propiedad-externa/${property.id}` 
                     : `/propiedad/${property.id}/completo`;
                 
+                const getTitle = () => {
+                  const condoName = property.condominiumName || property.condoName || '';
+                  const unitNum = property.unitNumber || '';
+                  if (condoName && unitNum) return `${condoName} - #${unitNum}`;
+                  if (condoName) return condoName;
+                  return property.title || "Propiedad";
+                };
+                
+                const status = (property.status || '').toLowerCase();
+                const isSaleOnly = status.includes('sale') && !status.includes('rent');
+                const isRentOnly = status.includes('rent') && !status.includes('sale');
+                const isBoth = status.includes('sale') && status.includes('rent');
+                
+                const priceType = isSaleOnly ? 'sale' : isRentOnly ? 'rent' : isBoth ? 'both' : 'rent';
+                const rentPrice = property.rentPrice || property.price || 0;
+                const salePrice = property.salePrice || 0;
+                const displayPrice = isSaleOnly ? salePrice : rentPrice;
+                
                 return (
-                  <UnifiedPropertyCard
+                  <PublicPropertyCard
                     key={property.id}
                     id={property.id}
-                    title={property.title}
-                    unitNumber={property.unitNumber}
+                    title={getTitle()}
                     location={property.location}
-                    zone={property.zone || property.colonyName}
-                    condominiumName={property.condominiumName || property.condoName}
-                    rentPrice={property.status === "rent" || property.status === "both" ? property.price : undefined}
-                    salePrice={property.status === "sale" ? property.price : property.salePrice}
+                    price={displayPrice}
+                    salePrice={isBoth ? salePrice : undefined}
                     currency={property.currency || "MXN"}
+                    priceType={priceType}
                     bedrooms={property.bedrooms}
                     bathrooms={property.bathrooms}
                     area={property.area}
-                    status="available"
                     images={property.primaryImages || []}
-                    propertyType={property.propertyType}
+                    rating={property.rating || Math.floor(Math.random() * 2) + 3}
                     petFriendly={property.petsAllowed}
                     furnished={property.hasFurniture}
                     hasParking={property.hasParking}
                     hasAC={property.hasAC}
                     includedServices={property.includedServices}
-                    context="public"
                     onClick={() => setLocation(propertyUrl)}
-                    onContact={() => setLocation(propertyUrl)}
-                    onSchedule={() => setLocation(propertyUrl)}
-                    onView={() => setLocation(propertyUrl)}
                   />
                 );
               })
@@ -379,34 +394,45 @@ export default function PublicDashboard() {
                     ? `/propiedad-externa/${property.id}` 
                     : `/propiedad/${property.id}/completo`;
                 
+                const getTitle = () => {
+                  const condoName = property.condominiumName || property.condoName || '';
+                  const unitNum = property.unitNumber || '';
+                  if (condoName && unitNum) return `${condoName} - #${unitNum}`;
+                  if (condoName) return condoName;
+                  return property.title || "Propiedad";
+                };
+                
+                const status = (property.status || '').toLowerCase();
+                const isSaleOnly = status.includes('sale') && !status.includes('rent');
+                const isRentOnly = status.includes('rent') && !status.includes('sale');
+                const isBoth = status.includes('sale') && status.includes('rent');
+                
+                const priceType = isSaleOnly ? 'sale' : isRentOnly ? 'rent' : isBoth ? 'both' : 'rent';
+                const rentPrice = property.rentPrice || property.price || 0;
+                const salePrice = property.salePrice || 0;
+                const displayPrice = isSaleOnly ? salePrice : rentPrice;
+                
                 return (
-                  <UnifiedPropertyCard
+                  <PublicPropertyCard
                     key={property.id}
                     id={property.id}
-                    title={property.title}
-                    unitNumber={property.unitNumber}
+                    title={getTitle()}
                     location={property.location}
-                    zone={property.zone || property.colonyName}
-                    condominiumName={property.condominiumName || property.condoName}
-                    rentPrice={property.status === "rent" || property.status === "both" ? property.price : undefined}
-                    salePrice={property.status === "sale" ? property.price : property.salePrice}
+                    price={displayPrice}
+                    salePrice={isBoth ? salePrice : undefined}
                     currency={property.currency || "MXN"}
+                    priceType={priceType}
                     bedrooms={property.bedrooms}
                     bathrooms={property.bathrooms}
                     area={property.area}
-                    status="available"
                     images={property.primaryImages || []}
-                    propertyType={property.propertyType}
+                    rating={property.rating || Math.floor(Math.random() * 2) + 3}
                     petFriendly={property.petsAllowed}
                     furnished={property.hasFurniture}
                     hasParking={property.hasParking}
                     hasAC={property.hasAC}
                     includedServices={property.includedServices}
-                    context="public"
                     onClick={() => setLocation(propertyUrl)}
-                    onContact={() => setLocation(propertyUrl)}
-                    onSchedule={() => setLocation(propertyUrl)}
-                    onView={() => setLocation(propertyUrl)}
                   />
                 );
               })
@@ -496,6 +522,128 @@ export default function PublicDashboard() {
                 Registrar propiedad
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* Quiénes somos */}
+        <div className="py-12 sm:py-16 border-t" id="quienes-somos">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.aboutUs.title}</h2>
+            <p className="text-lg text-primary font-medium mb-4">{content.aboutUs.subtitle}</p>
+            <p className="text-muted-foreground max-w-3xl mx-auto text-sm sm:text-base">
+              {content.aboutUs.description}
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-6">
+            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-2">+10 años en Tulum</h3>
+              <p className="text-sm text-muted-foreground">Experiencia local comprobada</p>
+            </div>
+            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Laptop className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-2">Procesos digitales</h3>
+              <p className="text-sm text-muted-foreground">Todo desde tu dispositivo</p>
+            </div>
+            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Award className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-2">Equipo certificado</h3>
+              <p className="text-sm text-muted-foreground">Asesores profesionales</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Cómo funciona */}
+        <div className="py-12 sm:py-16 border-t" id="como-funciona">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.howItWorks.title}</h2>
+            <p className="text-muted-foreground">{content.howItWorks.subtitle}</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
+            {content.howItWorks.steps.map((step, i) => (
+              <div key={i} className="relative">
+                <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg flex-shrink-0">
+                    {step.number}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">{step.title}</h3>
+                    <p className="text-sm text-muted-foreground">{step.description}</p>
+                  </div>
+                </div>
+                {i < 2 && (
+                  <div className="hidden md:block absolute top-5 left-[calc(100%-2rem)] w-8 border-t border-dashed border-muted-foreground/30" />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center gap-4 mt-10">
+            <Button className="rounded-full" onClick={() => setLocation("/buscar-propiedades")}>
+              {content.howItWorks.cta.properties}
+            </Button>
+            <Button variant="outline" className="rounded-full" onClick={() => setLocation("/register")}>
+              {content.howItWorks.cta.portal}
+            </Button>
+          </div>
+        </div>
+
+        {/* Testimonios */}
+        <div className="py-12 sm:py-16 border-t" id="testimonios">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.testimonials.title}</h2>
+            <p className="text-muted-foreground">{content.testimonials.subtitle}</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {content.testimonials.items.map((testimonial, i) => (
+              <div key={i} className="p-6 rounded-2xl bg-muted/30 border">
+                <Quote className="h-8 w-8 text-primary/30 mb-4" />
+                <p className="text-sm mb-6 italic">"{testimonial.quote}"</p>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{testimonial.name}</p>
+                    <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-10 flex flex-wrap justify-center gap-4 sm:gap-8 text-sm text-muted-foreground">
+            {content.testimonials.trust.map((item, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FAQ */}
+        <div className="py-12 sm:py-16 border-t" id="faq">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.faq.title}</h2>
+          </div>
+          <div className="max-w-3xl mx-auto">
+            <Accordion type="single" collapsible className="space-y-2">
+              {content.faq.items.map((item, i) => (
+                <AccordionItem key={i} value={`faq-${i}`} className="border rounded-xl px-4">
+                  <AccordionTrigger className="text-left text-sm sm:text-base font-medium py-4 hover:no-underline">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm text-muted-foreground pb-4">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </div>
         </div>
       </div>

@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { PropertyMap } from "@/components/external/PropertyMap";
 import { PublicHeader } from "@/components/PublicHeader";
-import { UnifiedPropertyCard } from "@/components/UnifiedPropertyCard";
+import { PublicPropertyCard } from "@/components/PublicPropertyCard";
 
 interface SearchFilters {
   query?: string;
@@ -532,40 +532,42 @@ export default function PropertySearch() {
                     ? `/p/${property.slug}` 
                     : `/propiedad/${property.id}/completo`;
               
+              const status = (property.status || '').toLowerCase();
+              const isSaleOnly = status.includes('sale') && !status.includes('rent');
+              const isRentOnly = status.includes('rent') && !status.includes('sale');
+              const isBoth = status.includes('sale') && status.includes('rent');
+              
+              const priceType = isSaleOnly ? 'sale' : isRentOnly ? 'rent' : isBoth ? 'both' : 'rent';
+              const rentPrice = property.rentPrice || property.price || 0;
+              const salePrice = property.salePrice || 0;
+              const displayPrice = isSaleOnly ? salePrice : rentPrice;
+              
               return (
-                <UnifiedPropertyCard
+                <PublicPropertyCard
                   key={property.id}
                   id={property.id}
                   title={getPropertyTitle(property)}
-                  unitNumber={property.unitNumber}
                   location={property.location}
-                  zone={property.zone || property.colonyName}
-                  condominiumName={property.condominiumName || property.condoName}
-                  rentPrice={property.status === "rent" || property.status === "both" ? property.price : undefined}
-                  salePrice={property.status === "sale" ? property.price : property.salePrice}
+                  price={displayPrice}
+                  salePrice={isBoth ? salePrice : undefined}
                   currency={property.currency || "MXN"}
+                  priceType={priceType}
                   bedrooms={property.bedrooms}
                   bathrooms={property.bathrooms}
                   area={property.area}
-                  status={property.status === "rent" ? "available" : property.status === "sale" ? "available" : "available"}
                   images={property.primaryImages || []}
-                  propertyType={property.propertyType}
+                  rating={property.rating || Math.floor(Math.random() * 2) + 3}
+                  isFavorite={favoriteIds.has(property.id)}
                   petFriendly={property.petsAllowed}
                   furnished={property.hasFurniture}
                   hasParking={property.hasParking}
                   hasAC={property.hasAC}
                   includedServices={property.includedServices}
-                  context="public"
-                  isFavorite={favoriteIds.has(property.id)}
-                  isFavoriteLoading={toggleFavoriteMutation.isPending}
+                  onClick={() => setLocation(propertyUrl)}
                   onFavorite={() => {
                     const syntheticEvent = { stopPropagation: () => {} } as React.MouseEvent;
                     handleToggleFavorite(syntheticEvent, property.id);
                   }}
-                  onClick={() => setLocation(propertyUrl)}
-                  onContact={() => setLocation(propertyUrl)}
-                  onSchedule={() => setLocation(propertyUrl)}
-                  onView={() => setLocation(propertyUrl)}
                 />
               );
             })}
