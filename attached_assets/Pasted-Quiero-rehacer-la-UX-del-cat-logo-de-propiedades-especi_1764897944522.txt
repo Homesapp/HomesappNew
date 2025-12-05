@@ -1,0 +1,181 @@
+Quiero rehacer la UX del catálogo de propiedades (especialmente la vista de vendedores) y al mismo tiempo estandarizar la Property Card para que se use en toda la app (vendedores, clientes, propietarios, etc.) con una imagen coherente.
+
+Ahora mismo el catálogo se ve algo desalineado y cada card parece tener pequeñas variaciones; quiero un diseño más limpio, consistente y práctico tanto en web como en mobile.
+
+1) Crear un componente de “Property Card” estándar reutilizable
+
+Diseñar un componente base (ej. <PropertyCard />) con la siguiente estructura:
+
+Zona de imagen (arriba)
+
+Foto principal con proporción fija (4:3 o 16:9).
+
+Overlays consistentes:
+
+Esquina superior izquierda: badge de estado (Disponible, Ocupado, Reservado, Bajo oferta, Vendido, etc.).
+
+Esquina superior derecha: chips para:
+
+nº de fotos (📷 10),
+
+indicador de tour virtual (VR) si existe,
+
+otros indicadores pequeños.
+
+Zona de información principal (centro)
+
+Título (1–2 líneas máximo con ellipsis).
+
+Subtítulo con ubicación (condominio, zona, ciudad).
+
+Precio en tipografía más grande ($25,000 MXN / mes o $3,500,000 MXN).
+
+Línea de specs:
+
+2 rec · 2 baños · 85 m² (siempre en el mismo orden).
+
+Etiquetas secundarias (chips pequeños):
+
+Studio, Penthouse, Pet friendly, Amueblado, etc.
+
+Zona de info adicional / métricas internas (opcional)
+
+Fila de texto pequeño para usar en contextos de vendedores/owners:
+
+Ej: Leads: 8 · Citas: 3 · Actualizado: hace 5 días.
+
+Zona de acciones (footer)
+
+Slots de botones según contexto:
+
+Para vendedores:
+
+Botón primario: Buscar leads.
+
+Botón secundario: Compartir.
+
+Link o botón texto: Ver ficha.
+
+Para cliente público:
+
+Botón primario: Consultar / Agendar visita.
+
+Secundario: Ver detalles.
+
+Para propietarios:
+
+Ver portal, Documentos, etc.
+
+Este componente debe usarse tanto en:
+
+Catálogo de vendedores (/external/seller-catalog),
+
+Catálogo/Mapa público,
+
+Listas de propiedades en el Portal del propietario,
+
+Y cualquier otra parte donde se muestren propiedades en grid/lista.
+
+2) Alinear el catálogo de vendedores (desktop y mobile)
+
+En la vista de Catálogo de Propiedades para vendedores/brokers:
+
+Usar el nuevo <PropertyCard /> con:
+
+métricas internas activadas (leads, visitas, etc.),
+
+botones Buscar Leads, Compartir, Ver ficha.
+
+Asegurarse de que:
+
+todas las cards tengan la misma altura en una fila, independiente de la longitud del título,
+
+no haya desalineaciones de texto o botones,
+
+los márgenes/paddings sean iguales entre cards.
+
+En mobile:
+
+una card por fila,
+
+misma estructura:
+
+imagen,
+
+título + ubicación,
+
+precio,
+
+specs,
+
+métricas internas,
+
+botones,
+
+evitando scroll horizontal en los elementos de texto/botón.
+
+3) Estandarizar el catálogo en toda la app
+
+La misma Property Card debe:
+
+Compartir tipografías, tamaños y orden de información en:
+
+catálogo de vendedores,
+
+catálogo público para clientes,
+
+lista de propiedades para propietarios (Portal).
+
+Cambiar únicamente:
+
+qué etiquetas se muestran,
+
+qué métricas internas se ven,
+
+qué botones aparecen en el footer, según el rol.
+
+Por ejemplo:
+
+Vendedor / broker:
+
+mostrar métricas internas (Leads, Citas, etc.),
+
+botones: Buscar Leads, Compartir, Ver ficha.
+
+Cliente público:
+
+ocultar métricas internas,
+
+botones: Consultar/Agendar visita, Ver detalles, Favorito.
+
+Propietario (Portal):
+
+mostrar métricas como Ocupación, Último pago, etc.,
+
+botones: Ver portal de la unidad, Ver documentos.
+
+4) Calidad visual y usabilidad
+
+Usar siempre los componentes de UI del sistema (Buttons, Badges, Chips, etc.) para mantener coherencia.
+
+Revisar que:
+
+las cards se vean bien en breakpoints comunes (mobile, tablet, desktop),
+
+no haya cortes raros de texto,
+
+las acciones más usadas por cada rol estén visibles sin hacer scroll.
+
+Al final, por favor explíquenme:
+
+cómo quedó definido el componente PropertyCard,
+
+en qué vistas lo están reutilizando,
+
+y compartan una captura de:
+
+catálogo de vendedor en desktop,
+
+catálogo de vendedor en mobile,
+
+catálogo público (cliente) con el mismo estilo de card.

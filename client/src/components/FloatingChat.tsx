@@ -20,10 +20,13 @@ const chatPrompts = [
 
 const quickReplyIcons: Record<string, typeof Home> = {
   rent_long: Home,
-  rent_short: Calendar,
   buy: ShoppingBag,
   list_property: Building2,
+  owner_rent: Home,
+  owner_sale: ShoppingBag,
   other: Eye,
+  more: Eye,
+  done: Eye,
 };
 
 export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage" }: FloatingChatProps) {
@@ -103,25 +106,24 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
       }
     } catch (error) {
       console.error("Error starting conversation:", error);
+      const brandName = sourcePage?.includes("trh") ? "Tulum Rental Homes" : "HomesApp";
       setMessages([{
         role: "assistant",
-        content: "👋 ¡Hola! Soy el asistente de Tulum Rental Homes.\n¿Me cuentas qué estás buscando?",
+        content: `Hola, soy el asistente de ${brandName}.\n\n¿En qué puedo ayudarte hoy?`,
         timestamp: new Date().toISOString(),
         quickReplies: [
           { id: "rent_long", label: "Quiero rentar", value: "rent_long" },
-          { id: "rent_short", label: "Renta temporal", value: "rent_short" },
           { id: "buy", label: "Quiero comprar", value: "buy" },
           { id: "list", label: "Soy propietario", value: "list_property" },
-          { id: "other", label: "Solo estoy viendo", value: "other" },
+          { id: "other", label: "Tengo una duda", value: "other" },
         ],
         inputType: "none"
       }]);
       setCurrentQuickReplies([
         { id: "rent_long", label: "Quiero rentar", value: "rent_long" },
-        { id: "rent_short", label: "Renta temporal", value: "rent_short" },
         { id: "buy", label: "Quiero comprar", value: "buy" },
         { id: "list", label: "Soy propietario", value: "list_property" },
-        { id: "other", label: "Solo estoy viendo", value: "other" },
+        { id: "other", label: "Tengo una duda", value: "other" },
       ]);
       setCurrentInputType("none");
     } finally {
@@ -261,7 +263,7 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
                 <MessageCircle className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">Tulum Rental Homes</h3>
+                <h3 className="font-semibold text-sm">{sourcePage?.includes("trh") ? "Tulum Rental Homes" : "HomesApp"}</h3>
                 <p className="text-xs opacity-80">Asistente Virtual</p>
               </div>
             </div>
