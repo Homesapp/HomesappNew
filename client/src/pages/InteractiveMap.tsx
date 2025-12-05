@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect, memo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
@@ -272,8 +272,9 @@ export default function InteractiveMap() {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const clustererRef = useRef<MarkerClusterer | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
+  const markersMapRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const prevMarkerIdsRef = useRef<Set<string>>(new Set());
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
@@ -307,9 +308,11 @@ export default function InteractiveMap() {
       if (!res.ok) throw new Error("Failed to fetch markers");
       return res.json();
     },
-    staleTime: 30 * 1000,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     enabled: !!mapBounds,
+    placeholderData: keepPreviousData,
   });
 
   const { data: zonesData } = useQuery<{ data: string[] }>({ queryKey: ["/api/public/zones"], staleTime: 5 * 60 * 1000 });
@@ -396,51 +399,82 @@ export default function InteractiveMap() {
     }, 100);
   }, []);
 
+  const createMarkerIcon = useCallback((marker: MapMarker, isSelected: boolean, isHovered: boolean) => {
+    const color = marker.condominiumColor || generateMarkerColor(marker.condominiumName || marker.title || 'default');
+    const initials = marker.condominiumName ? getInitials(marker.condominiumName) : marker.propertyType?.[0]?.toUpperCase() || 'P';
+    const size = isSelected ? 48 : isHovered ? 44 : 40;
+    
+    const svgIcon = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="white" stroke-width="${isSelected ? 3 : 2}"/>
+      <text x="${size/2}" y="${size/2 + 4}" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text>
+    </svg>`;
+    
+    return {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgIcon),
+      scaledSize: new google.maps.Size(size, size),
+      anchor: new google.maps.Point(size / 2, size / 2),
+    };
+  }, []);
+
   useEffect(() => {
     if (!map || !isLoaded) return;
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
-    if (clustererRef.current) clustererRef.current.clearMarkers();
 
-    const newMarkers = filteredMarkers.map(marker => {
-      const color = marker.condominiumColor || generateMarkerColor(marker.condominiumName || marker.title || 'default');
-      const initials = marker.condominiumName ? getInitials(marker.condominiumName) : marker.propertyType?.[0]?.toUpperCase() || 'P';
-      const isSelected = marker.id === selectedMarkerId;
-      const isHovered = marker.id === hoveredMarkerId;
-      const size = isSelected ? 48 : isHovered ? 44 : 40;
-      
-      const svgIcon = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="white" stroke-width="${isSelected ? 3 : 2}"/>
-        <text x="${size/2}" y="${size/2 + 4}" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text>
-      </svg>`;
+    const currentIds = new Set(filteredMarkers.map(m => m.id));
+    const prevIds = prevMarkerIdsRef.current;
+    
+    if (filteredMarkers.length === 0 && prevIds.size > 0) {
+      if (clustererRef.current) {
+        clustererRef.current.clearMarkers();
+      }
+      markersMapRef.current.forEach(marker => marker.setMap(null));
+      markersMapRef.current.clear();
+      prevMarkerIdsRef.current = new Set();
+      return;
+    }
+    
+    const markersToRemove = Array.from(prevIds).filter(id => !currentIds.has(id));
+    const markersToAdd = filteredMarkers.filter(m => !prevIds.has(m.id));
+    
+    if (markersToRemove.length > 0 && clustererRef.current) {
+      const gMarkersToRemove: google.maps.Marker[] = [];
+      markersToRemove.forEach(id => {
+        const marker = markersMapRef.current.get(id);
+        if (marker) {
+          gMarkersToRemove.push(marker);
+          markersMapRef.current.delete(id);
+        }
+      });
+      gMarkersToRemove.forEach(marker => {
+        clustererRef.current?.removeMarker(marker, true);
+        marker.setMap(null);
+      });
+      clustererRef.current.render();
+    }
 
+    const newGMarkers: google.maps.Marker[] = [];
+    markersToAdd.forEach(markerData => {
       const gMarker = new google.maps.Marker({
-        position: { lat: marker.lat, lng: marker.lng },
-        icon: {
-          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svgIcon),
-          scaledSize: new google.maps.Size(size, size),
-          anchor: new google.maps.Point(size / 2, size / 2),
-        },
-        title: marker.title,
+        position: { lat: markerData.lat, lng: markerData.lng },
+        icon: createMarkerIcon(markerData, false, false),
+        title: markerData.title,
       });
 
       gMarker.addListener('click', () => {
-        setSelectedMarkerId(marker.id);
-        setDetailProperty(marker);
+        setSelectedMarkerId(markerData.id);
+        setDetailProperty(markerData);
         setShowDetailPanel(true);
-        const cardElement = cardRefs.current.get(marker.id);
+        const cardElement = cardRefs.current.get(markerData.id);
         if (cardElement) cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
 
-      return gMarker;
+      markersMapRef.current.set(markerData.id, gMarker);
+      newGMarkers.push(gMarker);
     });
 
-    markersRef.current = newMarkers;
-
-    if (!clustererRef.current) {
+    if (!clustererRef.current && markersMapRef.current.size > 0) {
       clustererRef.current = new MarkerClusterer({
         map,
-        markers: newMarkers,
+        markers: Array.from(markersMapRef.current.values()),
         renderer: {
           render: ({ count, position }) => {
             const size = Math.min(50, 30 + Math.floor(count / 10) * 2);
@@ -461,13 +495,27 @@ export default function InteractiveMap() {
           },
         },
       });
-    } else {
-      clustererRef.current.clearMarkers();
-      clustererRef.current.addMarkers(newMarkers);
+    } else if (clustererRef.current && newGMarkers.length > 0) {
+      newGMarkers.forEach(marker => clustererRef.current?.addMarker(marker, true));
+      clustererRef.current.render();
     }
 
-    return () => { markersRef.current.forEach(marker => marker.setMap(null)); };
-  }, [map, isLoaded, filteredMarkers, selectedMarkerId, hoveredMarkerId]);
+    prevMarkerIdsRef.current = currentIds;
+  }, [map, isLoaded, filteredMarkers, createMarkerIcon]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    markersMapRef.current.forEach((gMarker, markerId) => {
+      const markerData = filteredMarkers.find(m => m.id === markerId);
+      if (markerData) {
+        const isSelected = markerId === selectedMarkerId;
+        const isHovered = markerId === hoveredMarkerId;
+        gMarker.setIcon(createMarkerIcon(markerData, isSelected, isHovered));
+        gMarker.setZIndex(isSelected ? 1001 : isHovered ? 1000 : undefined);
+      }
+    });
+  }, [selectedMarkerId, hoveredMarkerId, filteredMarkers, isLoaded, createMarkerIcon]);
 
   const handleCardClick = useCallback((marker: MapMarker) => {
     setSelectedMarkerId(marker.id);
@@ -848,7 +896,7 @@ export default function InteractiveMap() {
                   <div className="text-center py-8">
                     <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">{language === "es" ? "No se encontraron propiedades" : "No properties found"}</p>
-                    <Button variant="link" size="sm" onClick={resetFilters} className="mt-2">{language === "es" ? "Limpiar filtros" : "Clear filters"}</Button>
+                    <Button variant="ghost" size="sm" onClick={resetFilters} className="mt-2 text-primary">{language === "es" ? "Limpiar filtros" : "Clear filters"}</Button>
                   </div>
                 ) : (
                   <>
@@ -874,7 +922,7 @@ export default function InteractiveMap() {
           <ScrollArea className="h-[calc(70vh-80px)] mt-4">
             <div className="space-y-4 pb-6">
               {isLoading ? (<LoadingSkeleton />) : filteredMarkers.length === 0 ? (
-                <div className="text-center py-8"><MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" /><p className="text-sm text-muted-foreground">{language === "es" ? "No se encontraron propiedades" : "No properties found"}</p><Button variant="link" size="sm" onClick={resetFilters} className="mt-2">{language === "es" ? "Limpiar filtros" : "Clear filters"}</Button></div>
+                <div className="text-center py-8"><MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" /><p className="text-sm text-muted-foreground">{language === "es" ? "No se encontraron propiedades" : "No properties found"}</p><Button variant="ghost" size="sm" onClick={resetFilters} className="mt-2 text-primary">{language === "es" ? "Limpiar filtros" : "Clear filters"}</Button></div>
               ) : (
                 <>
                   {visibleMarkers.map((marker) => (<PropertyCard key={marker.id} marker={marker} isSelected={selectedMarkerId === marker.id} isHovered={hoveredMarkerId === marker.id} onHover={handleCardHover} onClick={handleCardClick} language={language} cardRef={(el) => { if (el) cardRefs.current.set(marker.id, el); else cardRefs.current.delete(marker.id); }} />))}
