@@ -156,8 +156,14 @@ export function registerAgencySettingsRoutes(app: Express): void {
   // GET /api/external/agency - Get current user's agency
   app.get("/api/external/agency", isAuthenticated, requireRole(EXTERNAL_SELLER_ROLES), async (req: any, res) => {
     try {
+      const userId = req.user?.id || req.user?.claims?.sub;
+      console.log("[Agency] Fetching agency for user:", userId, "role:", req.user?.role);
+      
       const agencyId = await getUserAgencyId(req);
+      console.log("[Agency] Found agencyId:", agencyId);
+      
       if (!agencyId) {
+        console.log("[Agency] No agencyId found for user");
         return res.status(404).json({ message: "Agency not found" });
       }
 
@@ -167,7 +173,10 @@ export function registerAgencySettingsRoutes(app: Express): void {
         .where(eq(externalAgencies.id, agencyId))
         .limit(1);
 
+      console.log("[Agency] Found agency:", agency[0]?.name);
+      
       if (!agency[0]) {
+        console.log("[Agency] Agency not found in database");
         return res.status(404).json({ message: "Agency not found" });
       }
 
