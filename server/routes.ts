@@ -22420,7 +22420,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           agencyId: externalUnits.agencyId,
         })
         .from(externalUnits)
-        
         .where(and(...conditions))
         .orderBy(desc(externalUnits.createdAt))
         .limit(Number(limit));
@@ -24468,8 +24467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [unit] = await db
           .select()
           .from(externalUnits)
-        
-          .where(and(
+        .where(and(
             eq(externalUnits.id, data.unitId),
             eq(externalUnits.agencyId, agencyId)
           ))
@@ -24553,8 +24551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const [unit] = await db
             .select()
             .from(externalUnits)
-        
-            .where(and(
+        .where(and(
               eq(externalUnits.id, assignment.unitId),
               eq(externalUnits.agencyId, agencyId)
             ))
@@ -26819,16 +26816,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           includedServices: externalUnits.includedServices,
         })
           .from(externalUnits)
-        
+          .leftJoin(externalAgencies, eq(externalUnits.agencyId, externalAgencies.id))
           .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
-          
           .where(and(...conditions))
           .orderBy(desc(externalUnits.createdAt))
           .limit(parseInt(limit as string))
           .offset(parseInt(offset as string)),
         db.select({ count: sql<number>`count(*)` })
           .from(externalUnits)
-        
+          .leftJoin(externalAgencies, eq(externalUnits.agencyId, externalAgencies.id))
           .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
           .where(and(...conditions))
       ]);
@@ -27215,7 +27211,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify unit belongs to agency
       const [unit] = await db.select().from(externalUnits)
-        
         .where(and(
           eq(externalUnits.id, unitId),
           eq(externalUnits.agencyId, agencyId)
@@ -28373,7 +28368,6 @@ ${{precio}}/mes
       // Get available units
       const units = await db.select()
         .from(externalUnits)
-        
         .where(and(
           eq(externalUnits.agencyId, agencyId),
           eq(externalUnits.isActive, true)
@@ -29365,7 +29359,6 @@ ${{precio}}/mes
           longitude: externalUnits.longitude,
         })
         .from(externalUnits)
-        
         .where(
           and(
             eq(externalUnits.agencyId, sellerProfile.agencyId),
@@ -29863,8 +29856,7 @@ ${{precio}}/mes
           const existingUnit = unit.sheetRowId 
             ? await db.select()
                 .from(externalUnits)
-        
-                .where(and(
+        .where(and(
                   eq(externalUnits.agencyId, agencyId),
                   eq(externalUnits.sheetRowId, unit.sheetRowId)
                 ))
@@ -30614,7 +30606,6 @@ ${{precio}}/mes
       // Get all units for this agency that have legacy images but no section media
       const allUnits = await db.select()
         .from(externalUnits)
-        
         .where(eq(externalUnits.agencyId, agencyId));
 
       let totalMigrated = 0;
@@ -35323,7 +35314,6 @@ ${{precio}}/mes
       // Find unit by slug and agency
       const unit = await db.select()
         .from(externalUnits)
-        
         .where(and(
           eq(externalUnits.slug, unitSlug),
           eq(externalUnits.agencyId, agency[0].id)
@@ -35376,7 +35366,6 @@ ${{precio}}/mes
       // Find unit by slug and agency
       const unit = await db.select()
         .from(externalUnits)
-        
         .where(and(
           eq(externalUnits.slug, unitSlug),
           eq(externalUnits.agencyId, agency[0].id)
@@ -35430,7 +35419,6 @@ ${{precio}}/mes
       // Find unit by slug and agency
       const unit = await db.select()
         .from(externalUnits)
-        
         .where(and(
           eq(externalUnits.slug, unitSlug),
           eq(externalUnits.agencyId, agency[0].id)
@@ -35616,7 +35604,6 @@ ${{precio}}/mes
       const countResult = await db
         .select({ count: sql<number>`count(*)` })
         .from(externalUnits)
-        
         .where(and(...conditions));
       const totalCount = Number(countResult[0]?.count || 0);
       
@@ -35624,7 +35611,6 @@ ${{precio}}/mes
       const approvedUnits = await db
         .select()
         .from(externalUnits)
-        
         .where(and(...conditions))
         .orderBy(desc(externalUnits.createdAt))
         .limit(limitNum)
@@ -35845,7 +35831,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           includedServices: externalUnits.includedServices,
         })
         .from(externalUnits)
-        
         .where(and(...conditions))
         .limit(2000);
       
@@ -36004,7 +35989,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const result = await db
         .selectDistinct({ zone: externalUnits.zone })
         .from(externalUnits)
-        
         .where(and(
           eq(externalUnits.publishToMain, true),
           eq(externalUnits.publishStatus, 'approved'),
@@ -37761,7 +37745,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           includedServices: externalUnits.includedServices,
       })
         .from(externalUnits)
-        
         .where(whereConditions)
         .orderBy(asc(externalUnits.unitNumber));
       
@@ -37823,7 +37806,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           includedServices: externalUnits.includedServices,
       })
         .from(externalUnits)
-        
         .where(eq(externalUnits.agencyId, agencyId))
         .orderBy(asc(externalUnits.unitNumber));
       
@@ -39558,7 +39540,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       const [unit] = await db
         .select({ agencyId: externalUnits.agencyId })
         .from(externalUnits)
-        
         .where(eq(externalUnits.id, chargeData.unitId))
         .limit(1);
 
@@ -39839,8 +39820,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         const [unit] = await db
           .select({ agencyId: externalUnits.agencyId })
           .from(externalUnits)
-        
-          .where(eq(externalUnits.id, owner.unitId))
+        .where(eq(externalUnits.id, owner.unitId))
           .limit(1);
 
         if (!unit || unit.agencyId !== agencyId) {
@@ -39961,8 +39941,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         const [unit] = await db
           .select({ agencyId: externalUnits.agencyId })
           .from(externalUnits)
-        
-          .where(eq(externalUnits.id, assignmentData.unitId))
+        .where(eq(externalUnits.id, assignmentData.unitId))
           .limit(1);
 
         if (!unit || unit.agencyId !== agencyId) {
@@ -40094,7 +40073,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           includedServices: externalUnits.includedServices,
         })
         .from(externalUnits)
-        
         .where(eq(externalUnits.agencyId, agencyId))
         .orderBy(asc(externalUnits.unitNumber)),
       ]);
@@ -40588,8 +40566,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       if (condominiumId && condominiumId !== 'all') {
         const unitIds = await db.select({ id: externalUnits.id })
           .from(externalUnits)
-        
-          .where(eq(externalUnits.condominiumId, condominiumId));
+        .where(eq(externalUnits.condominiumId, condominiumId));
         if (unitIds.length > 0) {
           conditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
         }
@@ -40779,8 +40756,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
       if (condominiumId && condominiumId !== 'all') {
         const unitIds = await db.select({ id: externalUnits.id })
           .from(externalUnits)
-        
-          .where(eq(externalUnits.condominiumId, condominiumId));
+        .where(eq(externalUnits.condominiumId, condominiumId));
         if (unitIds.length > 0) {
           baseConditions.push(inArray(externalMaintenanceTickets.unitId, unitIds.map(u => u.id)));
         }
@@ -41120,7 +41096,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
             createdAt: externalUnits.createdAt,
           })
           .from(externalUnits)
-        
+          .leftJoin(externalAgencies, eq(externalUnits.agencyId, externalAgencies.id))
           .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
           .where(eq(externalUnits.agencyId, agencyId));
           
@@ -41673,8 +41649,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
               }
               
               const existing = await db.select().from(externalUnits)
-        
-                .where(and(...existingConditions))
+        .where(and(...existingConditions))
                 .limit(1);
               
               if (existing.length > 0) {
@@ -41723,8 +41698,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
               
               // Find unit by number
               const unit = await db.select().from(externalUnits)
-        
-                .where(and(
+        .where(and(
                   eq(externalUnits.agencyId, agencyId),
                   sql`LOWER(${externalUnits.unitNumber}) = LOWER(${unitNumber})`
                 ))
@@ -41780,8 +41754,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
               
               // Resolve unit by number
               const unit = await db.select().from(externalUnits)
-        
-                .where(and(
+        .where(and(
                   eq(externalUnits.agencyId, agencyId),
                   sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
                 ))
@@ -41828,8 +41801,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
               let unitId: string | null = null;
               if (row.unit_number?.trim()) {
                 const unit = await db.select().from(externalUnits)
-        
-                  .where(and(
+        .where(and(
                     eq(externalUnits.agencyId, agencyId),
                     sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
                   ))
@@ -41887,8 +41859,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
               let unitId: string | null = null;
               if (row.unit_number?.trim()) {
                 const unit = await db.select().from(externalUnits)
-        
-                  .where(and(
+        .where(and(
                     eq(externalUnits.agencyId, agencyId),
                     sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
                   ))
@@ -41934,8 +41905,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
               let unitId: string | null = null;
               if (row.unit_number?.trim()) {
                 const unit = await db.select().from(externalUnits)
-        
-                  .where(and(
+        .where(and(
                     eq(externalUnits.agencyId, agencyId),
                     sql`LOWER(${externalUnits.unitNumber}) = LOWER(${row.unit_number.trim()})`
                   ))
@@ -43209,8 +43179,8 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           condoName: externalCondominiums.name,
         })
         .from(externalUnits)
-        
-        .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
+          .leftJoin(externalAgencies, eq(externalUnits.agencyId, externalAgencies.id))
+          .leftJoin(externalCondominiums, eq(externalUnits.condominiumId, externalCondominiums.id))
         .where(and(
           eq(externalUnits.agencyId, matchedAgency.id),
           eq(externalUnits.isActive, true),
