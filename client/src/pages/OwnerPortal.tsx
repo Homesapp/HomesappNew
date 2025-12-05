@@ -57,6 +57,7 @@ import {
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FirstStepsChecklist, EmptyState, ContextualHelp } from "@/components/OnboardingSystem";
 
 interface ContractInfo {
   id: number;
@@ -764,6 +765,17 @@ export default function OwnerPortal() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* First Steps Checklist - Show for new users */}
+              <FirstStepsChecklist
+                userRole="owner"
+                onStepClick={(stepId, path) => {
+                  if (path?.includes("tab=")) {
+                    const tab = path.split("tab=")[1];
+                    setActiveTab(tab);
+                  }
+                }}
+              />
 
               {/* Property & Tenant Info Cards */}
               <div className="grid gap-6 md:grid-cols-2">

@@ -51,6 +51,7 @@ import {
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
 import { useTranslation } from "@/hooks/useTranslation";
+import { FirstStepsChecklist, EmptyState, ContextualHelp } from "@/components/OnboardingSystem";
 
 interface ContractInfo {
   id: number;
@@ -746,6 +747,17 @@ export default function TenantPortal() {
                   </CardContent>
                 </Card>
               )}
+
+              {/* First Steps Checklist - Show for new users */}
+              <FirstStepsChecklist
+                userRole="tenant"
+                onStepClick={(stepId, path) => {
+                  if (path?.includes("tab=")) {
+                    const tab = path.split("tab=")[1];
+                    setActiveTab(tab);
+                  }
+                }}
+              />
 
               <Card className="md:col-span-2 lg:col-span-3">
                 <CardHeader>

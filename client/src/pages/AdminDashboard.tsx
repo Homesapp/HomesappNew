@@ -7,6 +7,7 @@ import { Building2, Users, FileEdit, ClipboardCheck, CheckCircle2, Clock, XCircl
 import type { Property, PropertyChangeRequest, InspectionReport, User } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getAdminTranslation } from "@/lib/adminTranslations";
+import { QuickActionsCard } from "@/components/OnboardingSystem";
 
 export default function AdminDashboard() {
   const { language } = useLanguage();
@@ -61,6 +62,16 @@ export default function AdminDashboard() {
           {t.dashboard.subtitle}
         </p>
       </div>
+
+      {/* Quick Actions for Admin */}
+      <QuickActionsCard
+        userRole="admin"
+        title={language === "es" ? "Acciones Frecuentes" : "Quick Actions"}
+        titleEn="Quick Actions"
+        onActionClick={(path) => {
+          window.location.href = path;
+        }}
+      />
 
       {/* Stats Grid */}
       <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">

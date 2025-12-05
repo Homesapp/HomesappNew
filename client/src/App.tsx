@@ -15,7 +15,7 @@ import { ComparePropertiesProvider } from "@/contexts/ComparePropertiesContext";
 import { ComparePropertiesBar } from "@/components/ComparePropertiesBar";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { NotificationBell } from "@/components/NotificationBell";
-import { OnboardingTour } from "@/components/OnboardingTour";
+import { OnboardingTourDialog } from "@/components/OnboardingSystem";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
@@ -640,12 +640,11 @@ function AuthenticatedApp() {
           </main>
         </div>
       </div>
-      {/* Onboarding Tour - shows for authenticated users who haven't completed it (except admin and master roles) */}
-      {currentUser && currentUser.role !== "admin" && currentUser.role !== "master" && (
-        <OnboardingTour
+      {/* Onboarding Tour - shows for authenticated users who haven't completed it */}
+      {currentUser && (
+        <OnboardingTourDialog
           userRole={currentUser.role || "cliente"}
           onboardingCompleted={currentUser.onboardingCompleted || false}
-          onboardingSteps={currentUser.onboardingSteps as Record<string, boolean> | undefined}
         />
       )}
     </SidebarProvider>

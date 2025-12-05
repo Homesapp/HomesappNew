@@ -34,7 +34,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { FirstStepsChecklist, QuickActionsCard, EmptyState } from "@/components/OnboardingSystem";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 
@@ -201,6 +202,16 @@ function SellerDashboard() {
             : "Summary of your leads, showings and activities"}
         </p>
       </div>
+
+      {/* First Steps Checklist - for new sellers */}
+      <FirstStepsChecklist
+        userRole="seller"
+        onStepClick={(stepId, path) => {
+          if (path) {
+            window.location.href = path;
+          }
+        }}
+      />
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
@@ -639,6 +650,16 @@ function AdminDashboard() {
             : "Overview of your condominiums and units"}
         </p>
       </div>
+
+      {/* First Steps Checklist - for external agency admins */}
+      <FirstStepsChecklist
+        userRole="external_admin"
+        onStepClick={(stepId, path) => {
+          if (path) {
+            window.location.href = path;
+          }
+        }}
+      />
 
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card data-testid="card-total-condominiums">
