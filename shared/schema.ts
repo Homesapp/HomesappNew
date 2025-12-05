@@ -7210,7 +7210,8 @@ export const externalPresentationCards = pgTable("external_presentation_cards", 
   
   // Pets
   hasPets: boolean("has_pets").default(false),
-  petsDescription: varchar("pets_description", { length: 200 }), // "2 perros pequeños"
+  petsDescription: varchar("pets_description", { length: 200 }), // "2 perros pequeños" (legacy)
+  pets: jsonb("pets").$type<Array<{ type: "dog" | "cat" | "other"; name?: string; photoUrl?: string }>>(), // Multiple pets with photos
   
   // Additional Requirements
   amenities: text("amenities").array().default(sql`ARRAY[]::text[]`), // pool, gym, parking, etc. (legacy text)

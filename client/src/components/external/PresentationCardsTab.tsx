@@ -68,6 +68,10 @@ import {
   Sparkles,
   Building2,
   Loader2,
+  Upload,
+  Image as ImageIcon,
+  Dog,
+  Cat,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -142,6 +146,13 @@ const STATUS_LABELS: Record<string, { es: string; en: string }> = {
   archived: { es: "Archivada", en: "Archived" },
 };
 
+interface PetInfo {
+  type: "dog" | "cat" | "other";
+  name?: string;
+  photoUrl?: string;
+  photoFile?: File;
+}
+
 interface FormData {
   title: string;
   propertyType: string;
@@ -158,6 +169,7 @@ interface FormData {
   contractDuration: string;
   hasPets: boolean;
   petsDescription: string;
+  pets: PetInfo[];
   amenities: string[];
   desiredCharacteristics: string[];
   desiredAmenities: string[];
@@ -182,6 +194,7 @@ const defaultFormData: FormData = {
   contractDuration: "",
   hasPets: false,
   petsDescription: "",
+  pets: [],
   amenities: [],
   desiredCharacteristics: [],
   desiredAmenities: [],
@@ -189,6 +202,12 @@ const defaultFormData: FormData = {
   specificProperty: "",
   isDefault: false,
 };
+
+const PET_TYPES = [
+  { value: "dog" as const, label: { es: "Perro", en: "Dog" }, icon: "🐕" },
+  { value: "cat" as const, label: { es: "Gato", en: "Cat" }, icon: "🐈" },
+  { value: "other" as const, label: { es: "Otro", en: "Other" }, icon: "🐾" },
+];
 
 export default function PresentationCardsTab({ leadId, clientId, personName, leadPreferences, dialogOpen, onDialogOpenChange }: PresentationCardsTabProps) {
   const { language } = useLanguage();
@@ -359,6 +378,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
   };
 
   const handleCreate = () => {
+    const petsData = formData.pets.map(p => ({ type: p.type, name: p.name, photoUrl: p.photoUrl }));
     createMutation.mutate({
       title: formData.title || `${language === "es" ? "Busqueda de" : "Search for"} ${personName}`,
       propertyType: selectedPropertyTypes.join(", ") || null,
@@ -374,6 +394,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       contractDuration: formData.contractDuration,
       hasPets: formData.hasPets,
       petsDescription: formData.petsDescription,
+      pets: petsData.length > 0 ? petsData : null,
       amenities: formData.amenities,
       desiredCharacteristics: formData.desiredCharacteristics,
       desiredAmenities: formData.desiredAmenities,
@@ -386,6 +407,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
 
   const handleEdit = () => {
     if (!selectedCard) return;
+    const petsData = formData.pets.map(p => ({ type: p.type, name: p.name, photoUrl: p.photoUrl }));
     updateMutation.mutate({
       id: selectedCard.id,
       data: {
@@ -403,6 +425,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
         contractDuration: formData.contractDuration,
         hasPets: formData.hasPets,
         petsDescription: formData.petsDescription,
+        pets: petsData.length > 0 ? petsData : null,
         amenities: formData.amenities,
         desiredCharacteristics: formData.desiredCharacteristics,
         desiredAmenities: formData.desiredAmenities,
@@ -427,6 +450,13 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
         // Keep undefined if parsing fails
       }
     }
+    // Load pets from card
+    const petsFromCard: PetInfo[] = (card as any).pets?.map((p: any) => ({
+      type: p.type as "dog" | "cat" | "other",
+      name: p.name || "",
+      photoUrl: p.photoUrl,
+    })) || [];
+    
     setFormData({
       title: card.title,
       propertyType: card.propertyType || "",
@@ -443,6 +473,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
       contractDuration: card.contractDuration || "",
       hasPets: card.hasPets || false,
       petsDescription: card.petsDescription || "",
+      pets: petsFromCard,
       amenities: card.amenities || [],
       desiredCharacteristics: card.desiredCharacteristics || [],
       desiredAmenities: card.desiredAmenities || [],
@@ -605,23 +636,12 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm font-medium text-primary">
             <DollarSign className="w-4 h-4" />
-            {language === "es" ? "Presupuesto" : "Budget"}
-          </div>
-
-          <div>
-            <Label className="text-sm">{language === "es" ? "Descripcion del presupuesto" : "Budget description"}</Label>
-            <Input
-              value={formData.budgetText}
-              onChange={(e) => setFormData({ ...formData, budgetText: e.target.value })}
-              placeholder={language === "es" ? "Ej: 20-30 mil pesos" : "E.g: 20-30k pesos"}
-              className="min-h-[44px]"
-              data-testid="input-budget-text"
-            />
+            {language === "es" ? "Presupuesto de Renta" : "Rent Budget"}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-sm">{language === "es" ? "Minimo ($)" : "Minimum ($)"}</Label>
+              <Label className="text-sm">{language === "es" ? "Renta Mínima ($)" : "Minimum Rent ($)"}</Label>
               <Input
                 type="number"
                 value={formData.minBudget}
@@ -632,7 +652,7 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
               />
             </div>
             <div>
-              <Label className="text-sm">{language === "es" ? "Maximo ($)" : "Maximum ($)"}</Label>
+              <Label className="text-sm">{language === "es" ? "Renta Máxima ($)" : "Maximum Rent ($)"}</Label>
               <Input
                 type="number"
                 value={formData.maxBudget}
@@ -805,21 +825,158 @@ export default function PresentationCardsTab({ leadId, clientId, personName, lea
             <Label className="text-sm">{language === "es" ? "Tiene mascotas?" : "Has pets?"}</Label>
             <Switch
               checked={formData.hasPets}
-              onCheckedChange={(v) => setFormData({ ...formData, hasPets: v })}
+              onCheckedChange={(v) => {
+                if (!v) {
+                  setFormData({ ...formData, hasPets: v, pets: [], petsDescription: "" });
+                } else {
+                  setFormData({ ...formData, hasPets: v });
+                }
+              }}
               data-testid="switch-pets"
             />
           </div>
 
           {formData.hasPets && (
-            <div>
-              <Label className="text-sm">{language === "es" ? "Descripcion de mascotas" : "Pets description"}</Label>
-              <Input
-                value={formData.petsDescription}
-                onChange={(e) => setFormData({ ...formData, petsDescription: e.target.value })}
-                placeholder={language === "es" ? "Ej: 1 perro pequeno, 2 gatos" : "E.g: 1 small dog, 2 cats"}
-                className="min-h-[44px]"
-                data-testid="input-pets-description"
-              />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  {language === "es" ? "Agregar mascotas" : "Add pets"}
+                </Label>
+                <div className="flex gap-2">
+                  {PET_TYPES.map((petType) => (
+                    <Button
+                      key={petType.value}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-[36px] gap-1"
+                      onClick={() => {
+                        const newPet: PetInfo = { type: petType.value, name: "", photoUrl: undefined };
+                        setFormData({ ...formData, pets: [...formData.pets, newPet] });
+                      }}
+                      data-testid={`button-add-${petType.value}`}
+                    >
+                      {petType.value === "dog" && <Dog className="w-4 h-4" />}
+                      {petType.value === "cat" && <Cat className="w-4 h-4" />}
+                      {petType.value === "other" && <PawPrint className="w-4 h-4" />}
+                      {petType.label[language]}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {formData.pets.length > 0 && (
+                <div className="space-y-3">
+                  {formData.pets.map((pet, index) => (
+                    <Card key={index} className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted/50">
+                          {pet.photoUrl ? (
+                            <img
+                              src={pet.photoUrl}
+                              alt={pet.name || `Pet ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full hover:bg-muted transition-colors">
+                              <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+                              <span className="text-xs text-muted-foreground">
+                                {language === "es" ? "Foto" : "Photo"}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    if (file.size > 5 * 1024 * 1024) {
+                                      toast({
+                                        title: language === "es" ? "Error" : "Error",
+                                        description: language === "es" ? "La imagen no debe superar 5MB" : "Image must be under 5MB",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      const newPets = [...formData.pets];
+                                      newPets[index] = { ...newPets[index], photoUrl: reader.result as string };
+                                      setFormData({ ...formData, pets: newPets });
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                                data-testid={`input-pet-photo-${index}`}
+                              />
+                            </label>
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="gap-1">
+                              {pet.type === "dog" && <Dog className="w-3 h-3" />}
+                              {pet.type === "cat" && <Cat className="w-3 h-3" />}
+                              {pet.type === "other" && <PawPrint className="w-3 h-3" />}
+                              {PET_TYPES.find(t => t.value === pet.type)?.label[language]}
+                            </Badge>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 ml-auto"
+                              onClick={() => {
+                                const newPets = formData.pets.filter((_, i) => i !== index);
+                                setFormData({ ...formData, pets: newPets });
+                              }}
+                              data-testid={`button-remove-pet-${index}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <Input
+                            placeholder={language === "es" ? "Nombre de la mascota (opcional)" : "Pet name (optional)"}
+                            value={pet.name || ""}
+                            onChange={(e) => {
+                              const newPets = [...formData.pets];
+                              newPets[index] = { ...newPets[index], name: e.target.value };
+                              setFormData({ ...formData, pets: newPets });
+                            }}
+                            className="h-9"
+                            data-testid={`input-pet-name-${index}`}
+                          />
+                          {pet.photoUrl && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => {
+                                const newPets = [...formData.pets];
+                                newPets[index] = { ...newPets[index], photoUrl: undefined };
+                                setFormData({ ...formData, pets: newPets });
+                              }}
+                              data-testid={`button-remove-photo-${index}`}
+                            >
+                              <X className="w-3 h-3 mr-1" />
+                              {language === "es" ? "Quitar foto" : "Remove photo"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {formData.pets.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4 border rounded-md border-dashed">
+                  {language === "es" 
+                    ? "Haz clic en los botones de arriba para agregar mascotas" 
+                    : "Click the buttons above to add pets"}
+                </p>
+              )}
             </div>
           )}
         </div>
