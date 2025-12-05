@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense, memo } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Map, SlidersHorizontal, Building2, Star, ChevronRight, Home, Calendar, Laptop, Award, Users, CheckCircle2, ChevronDown, Quote } from "lucide-react";
+import { Search, MapPin, Map, SlidersHorizontal, Building2, Star, ChevronRight, Home, Calendar, Laptop, Award, Users, CheckCircle2, ChevronDown, Quote, User, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +71,6 @@ export default function PublicDashboard() {
   });
 
   const featuredProperties = externalProperties.slice(0, 4);
-  const popularProperties = externalProperties.slice(0, 9);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -85,10 +84,38 @@ export default function PublicDashboard() {
     setLocation(queryString ? `/buscar-propiedades?${queryString}` : "/buscar-propiedades");
   };
 
+  const getPropertyUrl = (property: any) => {
+    if (property.isExternal && property.agencySlug && property.unitSlug) {
+      return `/${property.agencySlug}/${property.unitSlug}`;
+    }
+    if (property.isExternal) {
+      return `/propiedad-externa/${property.id}`;
+    }
+    return `/propiedad/${property.id}/completo`;
+  };
+
+  const getPropertyStatus = (property: any): PropertyStatus => {
+    const s = (property.status || '').toLowerCase();
+    if (s === 'available' || s === 'rent' || s.includes('rent')) return 'available';
+    if (s === 'occupied') return 'occupied';
+    if (s === 'reserved') return 'reserved';
+    if (s === 'sold') return 'sold';
+    if (s === 'rented') return 'rented';
+    return 'available';
+  };
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <PublicHeader />
 
+      {/* 1. Hero + Buscador */}
       <div className="bg-gradient-to-b from-muted/30 to-background py-8 sm:py-12 md:py-14">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
@@ -220,14 +247,14 @@ export default function PublicDashboard() {
               </div>
             )}
             
-            <div className="mt-4 flex justify-center gap-3">
+            <div className="mt-4 flex justify-center gap-3 flex-wrap">
               <Button
                 variant="outline"
                 className="rounded-full px-6 min-h-[44px]"
                 onClick={() => setLocation("/buscar-propiedades?status=rent")}
                 data-testid="button-filter-rent"
               >
-                Renta
+                {language === 'en' ? 'Rent' : 'Renta'}
               </Button>
               <Button
                 variant="outline"
@@ -235,15 +262,15 @@ export default function PublicDashboard() {
                 onClick={() => setLocation("/buscar-propiedades?status=sale")}
                 data-testid="button-filter-sale"
               >
-                Venta
+                {language === 'en' ? 'Sale' : 'Venta'}
               </Button>
               <Button
                 variant="outline"
                 className="rounded-full px-6 min-h-[44px]"
-                onClick={() => setLocation("/buscar-propiedades?featured=true")}
-                data-testid="button-filter-featured"
+                onClick={() => setLocation("/buscar-propiedades?petFriendly=true")}
+                data-testid="button-filter-pet-friendly"
               >
-                Destacados
+                Pet-friendly
               </Button>
             </div>
           </div>
@@ -251,17 +278,20 @@ export default function PublicDashboard() {
       </div>
 
       <div className="container mx-auto px-4 py-4 sm:py-6">
+        {/* 2. Propiedades Destacadas */}
         <div className="mb-10 sm:mb-14">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-semibold">{t("public.featured.title") || "Destacadas"}</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold">
+              {language === 'en' ? 'Featured Properties' : 'Propiedades Destacadas'}
+            </h2>
             <Button
               variant="ghost"
               size="sm"
               className="text-muted-foreground gap-1"
-              onClick={() => setLocation("/buscar-propiedades?featured=true")}
-              data-testid="button-view-all-featured"
+              onClick={() => setLocation("/buscar-propiedades")}
+              data-testid="button-view-all-properties"
             >
-              Ver más <ChevronRight className="h-4 w-4" />
+              {language === 'en' ? 'View all' : 'Ver todas las propiedades'} <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
           <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -274,22 +304,7 @@ export default function PublicDashboard() {
               </>
             ) : featuredProperties.length > 0 ? (
               featuredProperties.map((property: any) => {
-                const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
-                  ? `/${property.agencySlug}/${property.unitSlug}` 
-                  : property.isExternal 
-                    ? `/propiedad-externa/${property.id}` 
-                    : `/propiedad/${property.id}/completo`;
-                
-                const getPropertyStatus = (): PropertyStatus => {
-                  const s = (property.status || '').toLowerCase();
-                  if (s === 'available' || s === 'rent' || s.includes('rent')) return 'available';
-                  if (s === 'occupied') return 'occupied';
-                  if (s === 'reserved') return 'reserved';
-                  if (s === 'sold') return 'sold';
-                  if (s === 'rented') return 'rented';
-                  return 'available';
-                };
-                
+                const propertyUrl = getPropertyUrl(property);
                 return (
                   <UnifiedPropertyCard
                     key={property.id}
@@ -305,7 +320,7 @@ export default function PublicDashboard() {
                     bedrooms={property.bedrooms}
                     bathrooms={property.bathrooms}
                     area={property.area}
-                    status={getPropertyStatus()}
+                    status={getPropertyStatus(property)}
                     images={property.primaryImages || []}
                     petFriendly={property.petsAllowed}
                     furnished={property.hasFurniture}
@@ -322,241 +337,86 @@ export default function PublicDashboard() {
               })
             ) : (
               <div className="col-span-full text-center py-8 text-muted-foreground">
-                No hay propiedades destacadas disponibles
+                {language === 'en' ? 'No featured properties available' : 'No hay propiedades destacadas disponibles'}
               </div>
             )}
           </div>
         </div>
 
+        {/* 3. Sección para tipos de usuario - 3 tarjetas */}
         <div className="mb-10 sm:mb-14">
-          <div 
-            className="relative rounded-2xl overflow-hidden border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover-elevate"
-            onClick={() => setLocation("/mapa-interactivo")}
-            data-testid="banner-interactive-map"
-          >
-            <div className="flex items-center justify-between p-6 sm:p-8">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Map className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-semibold mb-1">
-                    {t("public.map.title") || "Explora en el mapa"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {t("public.map.subtitle") || "Encuentra propiedades por ubicación"}
-                  </p>
-                </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Card: Quiero rentar */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border hover-elevate">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Home className="h-6 w-6 text-primary" />
               </div>
-              <Button
-                variant="default"
-                size="sm"
-                className="rounded-full gap-1 hidden sm:flex"
-                data-testid="button-view-map"
+              <h3 className="text-xl font-semibold mb-2">
+                {language === 'en' ? 'I want to rent' : 'Quiero rentar'}
+              </h3>
+              <p className="text-muted-foreground mb-4 text-sm">
+                {language === 'en' 
+                  ? 'Find your ideal home in Tulum with personalized advice' 
+                  : 'Encuentra tu hogar ideal en Tulum con asesoría personalizada'}
+              </p>
+              <Button 
+                className="rounded-full w-full" 
+                onClick={() => setLocation("/buscar-propiedades")}
+                data-testid="button-user-renter"
               >
-                Ver Mapa <ChevronRight className="h-4 w-4" />
-              </Button>
-              <ChevronRight className="h-5 w-5 text-muted-foreground sm:hidden" />
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-6 sm:mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg sm:text-2xl font-semibold">{t("public.explore.title") || "Explora Propiedades"}</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground gap-1 text-xs sm:text-sm"
-              onClick={() => setLocation("/buscar-propiedades")}
-              data-testid="button-view-all-properties"
-            >
-              Ver todas <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-          </div>
-          <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-3">
-            {propertiesLoading ? (
-              <>
-                <PropertyCardSkeleton />
-                <PropertyCardSkeleton />
-                <PropertyCardSkeleton />
-                <PropertyCardSkeleton />
-                <PropertyCardSkeleton />
-                <PropertyCardSkeleton />
-              </>
-            ) : popularProperties.length > 0 ? (
-              popularProperties.map((property: any) => {
-                const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
-                  ? `/${property.agencySlug}/${property.unitSlug}` 
-                  : property.isExternal 
-                    ? `/propiedad-externa/${property.id}` 
-                    : `/propiedad/${property.id}/completo`;
-                
-                const getPropertyStatus = (): PropertyStatus => {
-                  const s = (property.status || '').toLowerCase();
-                  if (s === 'available' || s === 'rent' || s.includes('rent')) return 'available';
-                  if (s === 'occupied') return 'occupied';
-                  if (s === 'reserved') return 'reserved';
-                  if (s === 'sold') return 'sold';
-                  if (s === 'rented') return 'rented';
-                  return 'available';
-                };
-                
-                return (
-                  <UnifiedPropertyCard
-                    key={property.id}
-                    id={property.id}
-                    title={property.title || "Propiedad"}
-                    unitNumber={property.unitNumber}
-                    location={property.location}
-                    zone={property.zone}
-                    condominiumName={property.condominiumName || property.condoName}
-                    rentPrice={property.rentPrice || property.price}
-                    salePrice={property.salePrice}
-                    currency={property.currency || "MXN"}
-                    bedrooms={property.bedrooms}
-                    bathrooms={property.bathrooms}
-                    area={property.area}
-                    status={getPropertyStatus()}
-                    images={property.primaryImages || []}
-                    petFriendly={property.petsAllowed}
-                    furnished={property.hasFurniture}
-                    hasParking={property.hasParking}
-                    hasAC={property.hasAC}
-                    includedServices={property.includedServices}
-                    context="public"
-                    onClick={() => setLocation(propertyUrl)}
-                    onView={() => setLocation(propertyUrl)}
-                    onContact={() => setLocation(propertyUrl + "?contact=true")}
-                    onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
-                  />
-                );
-              })
-            ) : (
-              <div className="col-span-full text-center py-8 text-muted-foreground">
-                No hay propiedades disponibles
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="py-6 sm:py-10 border-t border-b">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 text-center">
-            <div>
-              <p className="text-xl sm:text-2xl font-bold">1000+</p>
-              <p className="text-xs text-muted-foreground">Propiedades</p>
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-bold flex items-center justify-center gap-1">
-                4.9 <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-foreground" />
-              </p>
-              <p className="text-xs text-muted-foreground">Calificación</p>
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-bold">24h</p>
-              <p className="text-xs text-muted-foreground">Respuesta</p>
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-bold">10+</p>
-              <p className="text-xs text-muted-foreground">Agentes</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="py-10 sm:py-14">
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border">
-              <div className="h-12 w-12 rounded-full bg-foreground flex items-center justify-center mb-4">
-                <Home className="h-5 w-5 text-background" />
-              </div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-2">{t("public.clientBenefits.title") || "¿Buscas rentar?"}</h3>
-              <p className="text-muted-foreground mb-4 text-sm sm:text-base">
-                {t("public.clientBenefits.subtitle") || "Encuentra la propiedad perfecta para ti en Tulum"}
-              </p>
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.clientBenefits.benefit1") || "Propiedades verificadas"}
-                </li>
-                <li className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.clientBenefits.benefit2") || "Tours virtuales disponibles"}
-                </li>
-                <li className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.clientBenefits.benefit3") || "Soporte 24/7"}
-                </li>
-              </ul>
-              <Button className="rounded-full" onClick={() => setLocation("/buscar-propiedades")}>
-                Explorar propiedades
+                {language === 'en' ? 'Search properties' : 'Buscar propiedades'}
               </Button>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border">
-              <div className="h-12 w-12 rounded-full bg-foreground flex items-center justify-center mb-4">
-                <Building2 className="h-5 w-5 text-background" />
+            {/* Card: Soy propietario */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border hover-elevate">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Building2 className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-2">{t("public.ownerBenefits.title") || "¿Tienes una propiedad?"}</h3>
-              <p className="text-muted-foreground mb-4 text-sm sm:text-base">
-                {t("public.ownerBenefits.subtitle") || "Renta tu propiedad con nosotros"}
+              <h3 className="text-xl font-semibold mb-2">
+                {language === 'en' ? "I'm an owner" : 'Soy propietario'}
+              </h3>
+              <p className="text-muted-foreground mb-4 text-sm">
+                {language === 'en' 
+                  ? 'List your property and let us manage the rental process' 
+                  : 'Enlista tu propiedad y déjanos gestionar el proceso de renta'}
               </p>
-              <ul className="space-y-2 mb-6">
-                <li className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.ownerBenefits.benefit1") || "Máxima exposición"}
-                </li>
-                <li className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.ownerBenefits.benefit2") || "Gestión profesional"}
-                </li>
-                <li className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  {t("public.ownerBenefits.benefit3") || "Contratos seguros"}
-                </li>
-              </ul>
-              <Button variant="outline" className="rounded-full" onClick={() => setLocation("/register")}>
-                Registrar propiedad
+              <Button 
+                className="rounded-full w-full" 
+                onClick={() => setLocation("/enlistar-propiedad")}
+                data-testid="button-user-owner"
+              >
+                {language === 'en' ? 'List my property' : 'Enlistar mi propiedad'}
+              </Button>
+            </div>
+
+            {/* Card: Soy agente */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border hover-elevate">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Briefcase className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                {language === 'en' ? "I'm an agent" : 'Soy agente'}
+              </h3>
+              <p className="text-muted-foreground mb-4 text-sm">
+                {language === 'en' 
+                  ? 'Join our team and access verified properties and leads' 
+                  : 'Únete a nuestro equipo y accede a propiedades y leads verificados'}
+              </p>
+              <Button 
+                variant="outline"
+                className="rounded-full w-full" 
+                onClick={() => setLocation("/aplicar")}
+                data-testid="button-user-agent"
+              >
+                {language === 'en' ? 'Work with HomesApp' : 'Trabajar con HomesApp'}
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Quiénes somos */}
-        <div className="py-12 sm:py-16 border-t" id="quienes-somos">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.aboutUs.title}</h2>
-            <p className="text-lg text-primary font-medium mb-4">{content.aboutUs.subtitle}</p>
-            <p className="text-muted-foreground max-w-3xl mx-auto text-sm sm:text-base">
-              {content.aboutUs.description}
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
-              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Calendar className="h-7 w-7 text-primary" />
-              </div>
-              <h3 className="font-semibold mb-2">+10 años en Tulum</h3>
-              <p className="text-sm text-muted-foreground">Experiencia local comprobada</p>
-            </div>
-            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
-              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Laptop className="h-7 w-7 text-primary" />
-              </div>
-              <h3 className="font-semibold mb-2">Procesos digitales</h3>
-              <p className="text-sm text-muted-foreground">Todo desde tu dispositivo</p>
-            </div>
-            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
-              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Award className="h-7 w-7 text-primary" />
-              </div>
-              <h3 className="font-semibold mb-2">Equipo certificado</h3>
-              <p className="text-sm text-muted-foreground">Asesores profesionales</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Cómo funciona */}
-        <div className="py-12 sm:py-16 border-t" id="como-funciona">
+        {/* 4. Cómo funciona HomesApp */}
+        <div className="py-12 sm:py-16 border-t border-b" id="como-funciona">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.howItWorks.title}</h2>
             <p className="text-muted-foreground">{content.howItWorks.subtitle}</p>
@@ -579,50 +439,118 @@ export default function PublicDashboard() {
               </div>
             ))}
           </div>
-          <div className="flex justify-center gap-4 mt-10">
-            <Button className="rounded-full" onClick={() => setLocation("/buscar-propiedades")}>
+          <div className="flex flex-wrap justify-center gap-4 mt-10">
+            <Button className="rounded-full" onClick={() => setLocation("/buscar-propiedades")} data-testid="button-how-properties">
               {content.howItWorks.cta.properties}
             </Button>
-            <Button variant="outline" className="rounded-full" onClick={() => setLocation("/register")}>
-              {content.howItWorks.cta.portal}
+            <Button variant="outline" className="rounded-full" onClick={() => setLocation("/login")} data-testid="button-how-portal">
+              {language === 'en' ? 'Enter portal' : 'Entrar al portal'}
             </Button>
           </div>
         </div>
 
-        {/* Testimonios */}
-        <div className="py-12 sm:py-16 border-t" id="testimonios">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.testimonials.title}</h2>
-            <p className="text-muted-foreground">{content.testimonials.subtitle}</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {content.testimonials.items.map((testimonial, i) => (
-              <div key={i} className="p-6 rounded-2xl bg-muted/30 border">
-                <Quote className="h-8 w-8 text-primary/30 mb-4" />
-                <p className="text-sm mb-6 italic">"{testimonial.quote}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">{testimonial.name}</p>
-                    <p className="text-xs text-muted-foreground">{testimonial.role}</p>
-                  </div>
+        {/* 5. Explorar en el mapa - Banner */}
+        <div className="py-10 sm:py-14">
+          <div 
+            className="relative rounded-2xl overflow-hidden border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover-elevate"
+            onClick={() => setLocation("/mapa-interactivo")}
+            data-testid="banner-interactive-map"
+          >
+            <div className="flex items-center justify-between p-6 sm:p-8">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Map className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold mb-1">
+                    {language === 'en' ? 'Explore on the map' : 'Explora en el mapa'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {language === 'en' ? 'Find properties by location in Tulum' : 'Encuentra propiedades por ubicación en Tulum'}
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-          <div className="mt-10 flex flex-wrap justify-center gap-4 sm:gap-8 text-sm text-muted-foreground">
-            {content.testimonials.trust.map((item, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <span>{item}</span>
-              </div>
-            ))}
+              <Button
+                variant="default"
+                size="sm"
+                className="rounded-full gap-1 hidden sm:flex"
+                data-testid="button-view-map"
+              >
+                {language === 'en' ? 'View Map' : 'Ver Mapa'} <ChevronRight className="h-4 w-4" />
+              </Button>
+              <ChevronRight className="h-5 w-5 text-muted-foreground sm:hidden" />
+            </div>
           </div>
         </div>
 
-        {/* FAQ */}
+        {/* 6. Quiénes somos + Confían en nosotros */}
+        <div className="py-12 sm:py-16 border-t" id="quienes-somos">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.aboutUs.title}</h2>
+            <p className="text-lg text-primary font-medium mb-4">{content.aboutUs.subtitle}</p>
+            <p className="text-muted-foreground max-w-3xl mx-auto text-sm sm:text-base">
+              {content.aboutUs.description}
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-6 mb-12">
+            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-2">{language === 'en' ? '+10 years in Tulum' : '+10 años en Tulum'}</h3>
+              <p className="text-sm text-muted-foreground">{language === 'en' ? 'Proven local experience' : 'Experiencia local comprobada'}</p>
+            </div>
+            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Laptop className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-2">{language === 'en' ? 'Digital processes' : 'Procesos digitales'}</h3>
+              <p className="text-sm text-muted-foreground">{language === 'en' ? 'Everything from your device' : 'Todo desde tu dispositivo'}</p>
+            </div>
+            <div className="text-center p-6 rounded-2xl bg-muted/30 border">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Award className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="font-semibold mb-2">{language === 'en' ? 'Certified team' : 'Equipo certificado'}</h3>
+              <p className="text-sm text-muted-foreground">{language === 'en' ? 'Professional advisors' : 'Asesores profesionales'}</p>
+            </div>
+          </div>
+
+          {/* Testimonios integrados (parte de la sección Quiénes somos) */}
+          <div className="mt-4">
+            <div className="text-center mb-8">
+              <h3 className="text-xl sm:text-2xl font-bold mb-2">{content.testimonials.title}</h3>
+              <p className="text-muted-foreground text-sm">{content.testimonials.subtitle}</p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {content.testimonials.items.map((testimonial, i) => (
+                <div key={i} className="p-6 rounded-2xl bg-muted/30 border">
+                  <Quote className="h-8 w-8 text-primary/30 mb-4" />
+                  <p className="text-sm mb-6 italic">"{testimonial.quote}"</p>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{testimonial.name}</p>
+                      <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex flex-wrap justify-center gap-4 sm:gap-8 text-sm text-muted-foreground">
+              {content.testimonials.trust.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 7. Preguntas frecuentes */}
         <div className="py-12 sm:py-16 border-t" id="faq">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.faq.title}</h2>
@@ -644,88 +572,169 @@ export default function PublicDashboard() {
         </div>
       </div>
 
-      <footer className="border-t bg-muted/30 py-8 sm:py-12">
+      {/* 8. Footer - Mapa del sitio con 4 columnas */}
+      <footer className="border-t bg-muted/30 py-10 sm:py-14">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
-            <div className="col-span-2 sm:col-span-1">
-              <img src={logoIcon} alt="HomesApp" className="h-10 w-auto mb-3 sm:mb-4" loading="lazy" />
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Tu socio inmobiliario en Tulum
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10">
+            {/* Columna 1: Logo + Frase */}
+            <div className="col-span-2 md:col-span-1">
+              <img src={logoIcon} alt="HomesApp" className="h-10 w-auto mb-4" loading="lazy" />
+              <p className="text-sm text-muted-foreground mb-4">
+                {language === 'en' ? 'Your real estate partner in Tulum' : 'Tu socio inmobiliario en Tulum'}
               </p>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Propiedades</h4>
-              <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-                <button 
-                  onClick={() => setLocation("/buscar-propiedades?status=rent")}
-                  className="block text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  En Renta
-                </button>
-                <button 
-                  onClick={() => setLocation("/buscar-propiedades?status=sale")}
-                  className="block text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  En Venta
-                </button>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Empresa</h4>
-              <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
-                <button 
-                  onClick={() => setLocation("/login")}
-                  className="block text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Iniciar sesión
-                </button>
-                <button 
-                  onClick={() => setLocation("/aplicar")}
-                  className="block text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Trabaja con nosotros
-                </button>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2 sm:mb-3 text-xs sm:text-sm">Síguenos</h4>
-              <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
+              <div className="flex gap-3">
                 <a 
                   href="https://www.facebook.com/share/1B5kd6EAnQ/" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                  aria-label="Facebook"
                 >
-                  Facebook
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                 </a>
                 <a 
                   href="https://www.instagram.com/tulum.rental.homes" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                  aria-label="Instagram"
                 >
-                  Instagram
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
                 </a>
+              </div>
+            </div>
+
+            {/* Columna 2: Propiedades */}
+            <div>
+              <h4 className="font-semibold mb-4 text-sm">
+                {language === 'en' ? 'Properties' : 'Propiedades'}
+              </h4>
+              <div className="space-y-3 text-sm">
+                <button 
+                  onClick={() => setLocation("/buscar-propiedades")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-search"
+                >
+                  {language === 'en' ? 'Search properties' : 'Buscar propiedades'}
+                </button>
+                <button 
+                  onClick={() => setLocation("/mapa-interactivo")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-map"
+                >
+                  {language === 'en' ? 'Interactive map' : 'Mapa interactivo'}
+                </button>
+                <button 
+                  onClick={() => setLocation("/buscar-propiedades?status=rent")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-rent"
+                >
+                  {language === 'en' ? 'For rent' : 'En renta'}
+                </button>
+                <button 
+                  onClick={() => setLocation("/buscar-propiedades?status=sale")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-sale"
+                >
+                  {language === 'en' ? 'For sale' : 'En venta'}
+                </button>
+              </div>
+            </div>
+
+            {/* Columna 3: Portales / Usuarios */}
+            <div>
+              <h4 className="font-semibold mb-4 text-sm">
+                {language === 'en' ? 'Portals' : 'Portales'}
+              </h4>
+              <div className="space-y-3 text-sm">
+                <button 
+                  onClick={() => setLocation("/portal/tenant")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-tenant-portal"
+                >
+                  {language === 'en' ? 'Tenant portal' : 'Portal Inquilinos'}
+                </button>
+                <button 
+                  onClick={() => setLocation("/portal/owner")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-owner-portal"
+                >
+                  {language === 'en' ? 'Owner portal' : 'Portal Propietarios'}
+                </button>
+                <button 
+                  onClick={() => setLocation("/enlistar-propiedad")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-list-property"
+                >
+                  {language === 'en' ? 'List my property' : 'Enlistar mi propiedad'}
+                </button>
+                <button 
+                  onClick={() => setLocation("/aplicar")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-work-with-us"
+                >
+                  {language === 'en' ? 'Work with us' : 'Trabaja con nosotros'}
+                </button>
+              </div>
+            </div>
+
+            {/* Columna 4: Empresa / Información */}
+            <div>
+              <h4 className="font-semibold mb-4 text-sm">
+                {language === 'en' ? 'Company' : 'Empresa'}
+              </h4>
+              <div className="space-y-3 text-sm">
+                <button 
+                  onClick={() => scrollToSection('quienes-somos')}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-about"
+                >
+                  {language === 'en' ? 'About us' : 'Quiénes somos'}
+                </button>
+                <button 
+                  onClick={() => scrollToSection('como-funciona')}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-how-it-works"
+                >
+                  {language === 'en' ? 'How it works' : 'Cómo funciona'}
+                </button>
+                <button 
+                  onClick={() => scrollToSection('faq')}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-faq"
+                >
+                  {language === 'en' ? 'FAQ' : 'Preguntas frecuentes'}
+                </button>
+                <button 
+                  onClick={() => setLocation("/login")}
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="footer-link-login"
+                >
+                  {language === 'en' ? 'Log in' : 'Iniciar sesión'}
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-3">
-            <p className="text-[10px] sm:text-xs text-muted-foreground text-center">
-              © {new Date().getFullYear()} Tulum Rental Homes
+          {/* Barra inferior */}
+          <div className="mt-10 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} Tulum Rental Homes. {language === 'en' ? 'All rights reserved.' : 'Todos los derechos reservados.'}
             </p>
-            <div className="flex items-center gap-4 text-[10px] sm:text-xs">
+            <div className="flex items-center gap-6 text-xs">
               <button 
                 onClick={() => setLocation("/terminos")}
                 className="text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="footer-link-terms"
               >
-                Términos
+                {language === 'en' ? 'Terms' : 'Términos'}
               </button>
               <button 
                 onClick={() => setLocation("/privacidad")}
                 className="text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="footer-link-privacy"
               >
-                Privacidad
+                {language === 'en' ? 'Privacy' : 'Privacidad'}
               </button>
             </div>
           </div>

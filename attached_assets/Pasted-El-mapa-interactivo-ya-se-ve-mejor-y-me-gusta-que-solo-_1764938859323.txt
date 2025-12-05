@@ -1,0 +1,61 @@
+El mapa interactivo ya se ve mejor y me gusta que solo cargue propiedades dentro de la pantalla, pero los íconos están parpadeando bastante cuando muevo o hago zoom.
+
+Necesito que optimicemos el mapa para que:
+
+No vuelva a montar todos los markers en cada movimiento
+
+Los pines se vean estables, sin parpadeo
+
+Ajustes técnicos que quiero:
+
+Debounce / throttle de los bounds
+
+Ahora parece que al mínimo movimiento del mapa dispara un fetch nuevo y re-render.
+
+Quiero que:
+
+se use el evento idle del mapa (cuando termina de moverse),
+
+y/o se aplique un debounce (200–400 ms) antes de llamar al endpoint de map-markers.
+
+No recrear todos los markers siempre
+
+Verifiquen que los markers tengan una key estable basada en el ID de la propiedad.
+
+Usar un componente memoizado (React.memo / memo hook) para la lista de markers, de forma que solo cambien cuando la data cambia de verdad.
+
+Evitar vaciar completamente el array de markers entre llamadas; idealmente:
+
+mantener los existentes y solo agregar/quitar los que salen/entran del viewport.
+
+Reutilizar los datos de React Query / cache
+
+Si usan React Query (o similar), asegúrense de:
+
+usar staleTime razonable para que no re-fetchée de inmediato si vuelvo a la misma zona,
+
+no mostrar un estado de “loading” que limpie la lista mientras llega la nueva respuesta (mejor mostrar los markers actuales hasta que llegue la nueva data).
+
+Evitar re-centrar el mapa o resetear zoom innecesariamente
+
+Verificar que no estén cambiando center o zoom en cada update de datos, porque eso provoca re-paint completo del mapa.
+
+Clustering / rendimiento
+
+Si aún no se está usando, aplicar MarkerClusterer o similar, pero garantizando que:
+
+los clusters se actualicen sin desaparecer todo el tiempo,
+
+el click en un marker no provoque re-render de toda la capa de markers.
+
+Pruebas
+
+Por favor prueben estos casos:
+
+mover suavemente el mapa izquierda/derecha y hacer zoom in/out,
+
+verificar que los markers se actualizan pero sin desaparecer todos al mismo tiempo,
+
+mantener un marker seleccionado y comprobar que el popup no se cierra ni “parpadea” con cada pequeño movimiento.
+
+La idea es que el mapa se sienta fluido, con markers estables, aunque internamente se siga filtrando por las propiedades visibles en pantalla.
