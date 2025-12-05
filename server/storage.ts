@@ -557,6 +557,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray, ne } from "drizzle-orm";
+import { generateSlug, generatePropertySlug } from "./utils/slug";
 
 // Custom error class for not-found scenarios
 export class NotFoundError extends Error {
@@ -8623,8 +8624,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createExternalAgency(agency: InsertExternalAgency): Promise<ExternalAgency> {
+    // Auto-generate slug if not provided
+    const slug = agency.slug || generateSlug(agency.name);
+    
+    // Ensure slug uniqueness by appending a suffix if needed
+    let uniqueSlug = slug;
+    let suffix = 1;
+    while (true) {
+      const existing = await db.select({ id: externalAgencies.id })
+        .from(externalAgencies)
+        .where(eq(externalAgencies.slug, uniqueSlug))
+        .limit(1);
+      if (existing.length === 0) break;
+      uniqueSlug = `${slug}-${suffix}`;
+      suffix++;
+    }
+    
     const [result] = await db.insert(externalAgencies)
-      .values(agency)
+      .values({ ...agency, slug: uniqueSlug })
       .returning();
     return result;
   }
@@ -10593,8 +10610,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createExternalUnit(unit: InsertExternalUnit): Promise<ExternalUnit> {
+    // Auto-generate slug if not provided
+    let slug = unit.slug;
+    if (!slug) {
+      // Try to get condominium name for a better slug
+      if (unit.condominiumId) {
+        const [condo] = await db.select({ name: externalCondominiums.name })
+          .from(externalCondominiums)
+          .where(eq(externalCondominiums.id, unit.condominiumId))
+          .limit(1);
+        if (condo?.name) {
+          slug = generatePropertySlug(condo.name, unit.unitNumber);
+        }
+      }
+      // Fallback to title or unitNumber
+      if (!slug) {
+        slug = generateSlug(unit.title || unit.unitNumber);
+      }
+    }
+    
+    // Ensure slug uniqueness by appending a suffix if needed
+    let uniqueSlug = slug;
+    let suffix = 1;
+    while (true) {
+      const existing = await db.select({ id: externalUnits.id })
+        .from(externalUnits)
+        .where(eq(externalUnits.slug, uniqueSlug))
+        .limit(1);
+      if (existing.length === 0) break;
+      uniqueSlug = `${slug}-${suffix}`;
+      suffix++;
+    }
+    
     const [result] = await db.insert(externalUnits)
-      .values(unit)
+      .values({ ...unit, slug: uniqueSlug })
       .returning();
     return result;
   }
