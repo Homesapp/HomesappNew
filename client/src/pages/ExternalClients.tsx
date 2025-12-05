@@ -1480,39 +1480,45 @@ export default function ExternalClients() {
   const getLeadStatusLabel = (status: string) => {
     const labels: Record<string, { es: string; en: string }> = {
       nuevo_lead: { es: "Nuevo Lead", en: "New Lead" },
+      opciones_enviadas: { es: "Opciones Enviadas", en: "Options Sent" },
       cita_coordinada: { es: "Cita Coordinada", en: "Appointment Scheduled" },
+      cita_concretada: { es: "Cita Concretada", en: "Appointment Completed" },
+      cita_cancelada: { es: "Cita Cancelada", en: "Appointment Cancelled" },
+      reprogramar_cita: { es: "Reprogramar Cita", en: "Reschedule Appointment" },
       interesado: { es: "Interesado", en: "Interested" },
       oferta_enviada: { es: "Oferta Enviada", en: "Offer Sent" },
-      oferta_completada: { es: "Oferta Completada", en: "Offer Completed" },
-      formato_enviado: { es: "Formato Enviado", en: "Form Sent" },
-      formato_completado: { es: "Formato Completado", en: "Form Completed" },
+      formato_renta_enviado: { es: "Formato Renta Enviado", en: "Rental Form Sent" },
       proceso_renta: { es: "Proceso de Renta", en: "Rental Process" },
       renta_concretada: { es: "Renta Concretada", en: "Rental Completed" },
-      perdido: { es: "Perdido", en: "Lost" },
+      no_responde: { es: "No Responde", en: "No Response" },
       muerto: { es: "Muerto", en: "Dead" },
+      no_dar_servicio: { es: "No Dar Servicio", en: "Do Not Service" },
     };
     return labels[status]?.[language === "es" ? "es" : "en"] || status;
   };
 
   const getLeadStatusVariant = (status: string): "default" | "destructive" | "secondary" | "outline" => {
     if (status === "renta_concretada") return "default";
-    if (status === "perdido" || status === "muerto") return "destructive";
+    if (status === "no_responde" || status === "muerto" || status === "no_dar_servicio" || status === "cita_cancelada") return "destructive";
     return "secondary";
   };
 
   const getLeadStatusColor = (status: string): string => {
     const colors: Record<string, string> = {
       nuevo_lead: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800",
+      opciones_enviadas: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-800",
       cita_coordinada: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800",
+      cita_concretada: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-900/40 dark:text-fuchsia-300 dark:border-fuchsia-800",
+      cita_cancelada: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800",
+      reprogramar_cita: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800",
       interesado: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800",
       oferta_enviada: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800",
-      oferta_completada: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800",
-      formato_enviado: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800",
-      formato_completado: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800",
+      formato_renta_enviado: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800",
       proceso_renta: "bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-800",
       renta_concretada: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800",
-      perdido: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800",
+      no_responde: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800",
       muerto: "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700",
+      no_dar_servicio: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
     };
     return colors[status] || colors.nuevo_lead;
   };
@@ -3032,13 +3038,19 @@ export default function ExternalClients() {
                         {[
                           { value: "all", label: { es: "Todos", en: "All" } },
                           { value: "nuevo_lead", label: { es: "Nuevo", en: "New" } },
+                          { value: "opciones_enviadas", label: { es: "Opciones", en: "Options" } },
                           { value: "cita_coordinada", label: { es: "Cita", en: "Appt" } },
+                          { value: "cita_concretada", label: { es: "Concretada", en: "Done" } },
+                          { value: "cita_cancelada", label: { es: "Cancelada", en: "Cancelled" } },
+                          { value: "reprogramar_cita", label: { es: "Reprogramar", en: "Reschedule" } },
                           { value: "interesado", label: { es: "Interesado", en: "Interested" } },
                           { value: "oferta_enviada", label: { es: "Oferta", en: "Offer" } },
+                          { value: "formato_renta_enviado", label: { es: "Formato", en: "Form" } },
                           { value: "proceso_renta", label: { es: "Proceso", en: "Process" } },
                           { value: "renta_concretada", label: { es: "Cerrado", en: "Closed" } },
-                          { value: "perdido", label: { es: "Perdido", en: "Lost" } },
+                          { value: "no_responde", label: { es: "No Responde", en: "No Response" } },
                           { value: "muerto", label: { es: "Muerto", en: "Dead" } },
+                          { value: "no_dar_servicio", label: { es: "No Servicio", en: "No Service" } },
                         ].map((status) => (
                           <Badge
                             key={status.value}
@@ -3169,13 +3181,19 @@ export default function ExternalClients() {
                       {
                         [
                           { value: "nuevo_lead", label: { es: "Nuevo", en: "New" } },
+                          { value: "opciones_enviadas", label: { es: "Opciones", en: "Options" } },
                           { value: "cita_coordinada", label: { es: "Cita", en: "Appt" } },
+                          { value: "cita_concretada", label: { es: "Concretada", en: "Done" } },
+                          { value: "cita_cancelada", label: { es: "Cancelada", en: "Cancelled" } },
+                          { value: "reprogramar_cita", label: { es: "Reprogramar", en: "Reschedule" } },
                           { value: "interesado", label: { es: "Interesado", en: "Interested" } },
                           { value: "oferta_enviada", label: { es: "Oferta", en: "Offer" } },
+                          { value: "formato_renta_enviado", label: { es: "Formato", en: "Form" } },
                           { value: "proceso_renta", label: { es: "Proceso", en: "Process" } },
                           { value: "renta_concretada", label: { es: "Cerrado", en: "Closed" } },
-                          { value: "perdido", label: { es: "Perdido", en: "Lost" } },
+                          { value: "no_responde", label: { es: "No Responde", en: "No Response" } },
                           { value: "muerto", label: { es: "Muerto", en: "Dead" } },
+                          { value: "no_dar_servicio", label: { es: "No Servicio", en: "No Service" } },
                         ].find(s => s.value === leadStatusFilter)?.label[language === "es" ? "es" : "en"] || leadStatusFilter
                       }
                       <X 
@@ -4789,13 +4807,19 @@ export default function ExternalClients() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="nuevo_lead">{language === "es" ? "Nuevo Lead" : "New Lead"}</SelectItem>
+                            <SelectItem value="opciones_enviadas">{language === "es" ? "Opciones Enviadas" : "Options Sent"}</SelectItem>
                             <SelectItem value="cita_coordinada">{language === "es" ? "Cita Coordinada" : "Appointment Scheduled"}</SelectItem>
+                            <SelectItem value="cita_concretada">{language === "es" ? "Cita Concretada" : "Appointment Completed"}</SelectItem>
+                            <SelectItem value="cita_cancelada">{language === "es" ? "Cita Cancelada" : "Appointment Cancelled"}</SelectItem>
+                            <SelectItem value="reprogramar_cita">{language === "es" ? "Reprogramar Cita" : "Reschedule Appointment"}</SelectItem>
                             <SelectItem value="interesado">{language === "es" ? "Interesado" : "Interested"}</SelectItem>
                             <SelectItem value="oferta_enviada">{language === "es" ? "Oferta Enviada" : "Offer Sent"}</SelectItem>
+                            <SelectItem value="formato_renta_enviado">{language === "es" ? "Formato Renta Enviado" : "Rental Form Sent"}</SelectItem>
                             <SelectItem value="proceso_renta">{language === "es" ? "Proceso de Renta" : "Rental Process"}</SelectItem>
                             <SelectItem value="renta_concretada">{language === "es" ? "Renta Concretada" : "Rental Completed"}</SelectItem>
-                            <SelectItem value="perdido">{language === "es" ? "Perdido" : "Lost"}</SelectItem>
+                            <SelectItem value="no_responde">{language === "es" ? "No Responde" : "No Response"}</SelectItem>
                             <SelectItem value="muerto">{language === "es" ? "Muerto" : "Dead"}</SelectItem>
+                            <SelectItem value="no_dar_servicio">{language === "es" ? "No Dar Servicio" : "Do Not Service"}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -5819,7 +5843,7 @@ export default function ExternalClients() {
                     </div>
                   )}
                   <div className="flex items-center gap-2 flex-wrap">
-                    {["nuevo_lead", "cita_coordinada", "interesado", "oferta_enviada", "proceso_renta", "renta_concretada", "perdido", "muerto"].map((status) => {
+                    {["nuevo_lead", "opciones_enviadas", "cita_coordinada", "cita_concretada", "cita_cancelada", "reprogramar_cita", "interesado", "oferta_enviada", "formato_renta_enviado", "proceso_renta", "renta_concretada", "no_responde", "muerto", "no_dar_servicio"].map((status) => {
                       const lockedStatuses = ["proceso_renta", "renta_concretada"];
                       const isStatusLocked = isSeller && (
                         lockedStatuses.includes(selectedLead.status) || 

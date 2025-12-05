@@ -527,16 +527,19 @@ export const leadRegistrationTypeEnum = pgEnum("lead_registration_type", [
 
 export const externalLeadStatusEnum = pgEnum("external_lead_status", [
   "nuevo_lead",           // Nuevo lead recién registrado
+  "opciones_enviadas",    // Opciones de propiedades enviadas
   "cita_coordinada",      // Cita coordinada con el lead
+  "cita_concretada",      // Cita realizada exitosamente
+  "cita_cancelada",       // Cita fue cancelada
+  "reprogramar_cita",     // Se necesita reprogramar cita
   "interesado",           // Lead mostró interés
   "oferta_enviada",       // Oferta de renta enviada al lead
-  "oferta_completada",    // Lead completó la oferta de renta
-  "formato_enviado",      // Formato de inquilino enviado
-  "formato_completado",   // Lead completó el formato de inquilino
+  "formato_renta_enviado", // Formato de renta enviado
   "proceso_renta",        // En proceso de renta (firma de contrato)
   "renta_concretada",     // Renta completada exitosamente
-  "perdido",              // Lead perdido (no interesado)
-  "muerto"                // Lead sin respuesta
+  "no_responde",          // Lead no responde a comunicaciones
+  "muerto",               // Lead sin posibilidad de conversión
+  "no_dar_servicio"       // Lead marcado para no dar servicio
 ]);
 
 export const leadPurposeEnum = pgEnum("lead_purpose", [

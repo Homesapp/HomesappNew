@@ -70,16 +70,19 @@ function useIsMobile() {
 
 type LeadStatus =
   | "nuevo_lead"
+  | "opciones_enviadas"
   | "cita_coordinada"
+  | "cita_concretada"
+  | "cita_cancelada"
+  | "reprogramar_cita"
   | "interesado"
   | "oferta_enviada"
-  | "oferta_completada"
-  | "formato_enviado"
-  | "formato_completado"
+  | "formato_renta_enviado"
   | "proceso_renta"
   | "renta_concretada"
-  | "perdido"
-  | "muerto";
+  | "no_responde"
+  | "muerto"
+  | "no_dar_servicio";
 
 interface LeadKanbanViewProps {
   leads: ExternalLeadWithActiveCard[];
@@ -98,16 +101,19 @@ interface KanbanColumnDef {
 
 const KANBAN_COLUMNS: KanbanColumnDef[] = [
   { id: "nuevo_lead", labelEs: "Nuevo Lead", labelEn: "New Lead" },
+  { id: "opciones_enviadas", labelEs: "Opciones Enviadas", labelEn: "Options Sent" },
   { id: "cita_coordinada", labelEs: "Cita Coordinada", labelEn: "Appointment Scheduled" },
+  { id: "cita_concretada", labelEs: "Cita Concretada", labelEn: "Appointment Completed" },
+  { id: "cita_cancelada", labelEs: "Cita Cancelada", labelEn: "Appointment Cancelled" },
+  { id: "reprogramar_cita", labelEs: "Reprogramar Cita", labelEn: "Reschedule" },
   { id: "interesado", labelEs: "Interesado", labelEn: "Interested" },
   { id: "oferta_enviada", labelEs: "Oferta Enviada", labelEn: "Offer Sent" },
-  { id: "oferta_completada", labelEs: "Oferta Completada", labelEn: "Offer Completed" },
-  { id: "formato_enviado", labelEs: "Formato Enviado", labelEn: "Form Sent" },
-  { id: "formato_completado", labelEs: "Formato Completado", labelEn: "Form Completed" },
+  { id: "formato_renta_enviado", labelEs: "Formato Renta Enviado", labelEn: "Rental Form Sent" },
   { id: "proceso_renta", labelEs: "Proceso de Renta", labelEn: "Rental Process" },
   { id: "renta_concretada", labelEs: "Renta Concretada", labelEn: "Rental Completed" },
-  { id: "perdido", labelEs: "Lead Perdido", labelEn: "Lead Lost" },
+  { id: "no_responde", labelEs: "No Responde", labelEn: "No Response" },
   { id: "muerto", labelEs: "Lead Muerto", labelEn: "Dead Lead" },
+  { id: "no_dar_servicio", labelEs: "No Dar Servicio", labelEn: "Do Not Service" },
 ];
 
 function DroppableColumn({
