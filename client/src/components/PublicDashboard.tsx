@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Colony, type Condominium } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PublicHeader } from "@/components/PublicHeader";
+import { UnifiedPropertyCard } from "@/components/UnifiedPropertyCard";
 import logoIcon from "@assets/H mes (500 x 300 px)_1759672952263.png";
 
 const FloatingChat = lazy(() => import("@/components/FloatingChat").then(m => ({ default: m.FloatingChat })));
@@ -400,13 +401,44 @@ export default function PublicDashboard() {
                 <PropertyCardSkeleton />
               </>
             ) : featuredProperties.length > 0 ? (
-              featuredProperties.map((property) => (
-                <PropertyCard 
-                  key={property.id} 
-                  property={property} 
-                  onNavigate={setLocation}
-                />
-              ))
+              featuredProperties.map((property: any) => {
+                const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
+                  ? `/${property.agencySlug}/${property.unitSlug}` 
+                  : property.isExternal 
+                    ? `/propiedad-externa/${property.id}` 
+                    : `/propiedad/${property.id}/completo`;
+                
+                return (
+                  <UnifiedPropertyCard
+                    key={property.id}
+                    id={property.id}
+                    title={property.title}
+                    unitNumber={property.unitNumber}
+                    location={property.location}
+                    zone={property.zone || property.colonyName}
+                    condominiumName={property.condominiumName || property.condoName}
+                    rentPrice={property.status === "rent" || property.status === "both" ? property.price : undefined}
+                    salePrice={property.status === "sale" ? property.price : property.salePrice}
+                    currency={property.currency || "MXN"}
+                    bedrooms={property.bedrooms}
+                    bathrooms={property.bathrooms}
+                    area={property.area}
+                    status="available"
+                    images={property.primaryImages || []}
+                    propertyType={property.propertyType}
+                    petFriendly={property.petsAllowed}
+                    furnished={property.hasFurniture}
+                    hasParking={property.hasParking}
+                    hasAC={property.hasAC}
+                    includedServices={property.includedServices}
+                    context="public"
+                    onClick={() => setLocation(propertyUrl)}
+                    onContact={() => setLocation(propertyUrl)}
+                    onSchedule={() => setLocation(propertyUrl)}
+                    onView={() => setLocation(propertyUrl)}
+                  />
+                );
+              })
             ) : (
               <div className="col-span-full text-center py-8 text-muted-foreground">
                 No hay propiedades destacadas disponibles
@@ -472,14 +504,44 @@ export default function PublicDashboard() {
                 <PropertyCardSkeleton />
               </>
             ) : popularProperties.length > 0 ? (
-              popularProperties.map((property) => (
-                <PropertyCard 
-                  key={property.id} 
-                  property={property}
-                  compact
-                  onNavigate={setLocation}
-                />
-              ))
+              popularProperties.map((property: any) => {
+                const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
+                  ? `/${property.agencySlug}/${property.unitSlug}` 
+                  : property.isExternal 
+                    ? `/propiedad-externa/${property.id}` 
+                    : `/propiedad/${property.id}/completo`;
+                
+                return (
+                  <UnifiedPropertyCard
+                    key={property.id}
+                    id={property.id}
+                    title={property.title}
+                    unitNumber={property.unitNumber}
+                    location={property.location}
+                    zone={property.zone || property.colonyName}
+                    condominiumName={property.condominiumName || property.condoName}
+                    rentPrice={property.status === "rent" || property.status === "both" ? property.price : undefined}
+                    salePrice={property.status === "sale" ? property.price : property.salePrice}
+                    currency={property.currency || "MXN"}
+                    bedrooms={property.bedrooms}
+                    bathrooms={property.bathrooms}
+                    area={property.area}
+                    status="available"
+                    images={property.primaryImages || []}
+                    propertyType={property.propertyType}
+                    petFriendly={property.petsAllowed}
+                    furnished={property.hasFurniture}
+                    hasParking={property.hasParking}
+                    hasAC={property.hasAC}
+                    includedServices={property.includedServices}
+                    context="public"
+                    onClick={() => setLocation(propertyUrl)}
+                    onContact={() => setLocation(propertyUrl)}
+                    onSchedule={() => setLocation(propertyUrl)}
+                    onView={() => setLocation(propertyUrl)}
+                  />
+                );
+              })
             ) : (
               <div className="col-span-full text-center py-8 text-muted-foreground">
                 No hay propiedades disponibles

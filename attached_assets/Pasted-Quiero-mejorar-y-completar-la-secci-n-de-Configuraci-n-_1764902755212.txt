@@ -1,0 +1,199 @@
+Quiero mejorar y completar la sección de Configuración del admin de agencia externa (broker) para que tenga todo lo que necesita para operar su propia agencia dentro de HomesApp.
+
+La idea es que, entrando como admin de una agencia externa, la pestaña de Configuración tenga un menú con varias secciones claras, por ejemplo:
+
+Perfil de la Agencia
+
+Equipo y Permisos
+
+Leads & Pipeline
+
+Formularios y Links públicos
+
+Catálogo y Zonas
+
+Canales y Notificaciones
+
+Plantillas & Documentos
+
+(Opcional) Comisiones y Objetivos
+
+A continuación detallo qué necesito en cada sección:
+
+1) Perfil de la Agencia
+
+Datos básicos:
+
+Nombre de la agencia,
+
+logo,
+
+slug público (ej. mi-agencia),
+
+teléfono / WhatsApp,
+
+email,
+
+sitio web / redes sociales.
+
+Datos fiscales opcionales:
+
+razón social, RFC.
+
+Zonas en las que opera (checklist de zonas / colonias disponibles).
+
+Tipo de operación: Renta, Venta o ambas.
+
+Vista: card simple con formulario y botón “Guardar cambios”.
+
+2) Equipo y Permisos
+
+Listado de usuarios de la agencia con:
+
+nombre, email, rol, estado (activo/inactivo).
+
+Botón “Invitar agente”:
+
+formulario para nombre + email + rol,
+
+envía invitación y crea usuario asociado a esa agencia.
+
+Definición simple de permisos por rol (no ultra detallado):
+
+ver/editar leads de otros,
+
+ver reportes de la agencia,
+
+crear nuevos usuarios.
+
+La idea es que el admin pueda gestionar su equipo sin depender del super-admin.
+
+3) Leads & Pipeline
+
+Configurar nombres de columnas del Kanban comercial de la agencia:
+
+Ej: Nuevo, Contactado, Agendado, Oferta enviada, Cerrado ganado, Cerrado perdido.
+
+Marcar qué columnas cuentan como:
+
+“lead activo”,
+
+“cerrado ganado”.
+
+Preferencias de asignación de leads:
+
+todos al admin,
+
+round-robin entre agentes,
+
+al agente dueño de cierto link de captura.
+
+Preferencia de vista por defecto:
+
+“solo mis leads” vs “todos los leads de la agencia”.
+
+Esto debe impactar en cómo la agencia ve su Kanban y cómo se asignan nuevos leads.
+
+4) Formularios y Links públicos
+
+Mostrar los links públicos específicos de esa agencia para:
+
+captar leads de compradores/inquilinos,
+
+captar propietarios (enlistar propiedad),
+
+catálogo público filtrado por esa agencia (si aplica).
+
+Botones Copiar link y Probar.
+
+Opciones de configuración:
+
+qué campos son obligatorios en cada formulario,
+
+mensaje de agradecimiento personalizado al final del formulario.
+
+Esto le permite al broker controlar cómo capta leads bajo su marca.
+
+5) Catálogo y Zonas
+
+Preferencias de uso del catálogo:
+
+vista por defecto (grid/lista),
+
+orden por precio / fecha / relevancia.
+
+Filtro por defecto:
+
+solo renta, solo venta, o ambas,
+
+propiedades que cumplen ciertas condiciones (ej. solo “renta larga”).
+
+Zonas/condominios favoritos de la agencia para acceso rápido.
+
+Estas configuraciones deben afectar cómo el catálogo se muestra a los agentes de esa agencia.
+
+6) Canales y Notificaciones
+
+Configurar:
+
+email de notificación de nuevos leads,
+
+WhatsApp principal de la agencia.
+
+Seleccionar eventos que generan notificaciones:
+
+nuevo lead,
+
+lead reasignado,
+
+cita confirmada,
+
+oferta aceptada/cerrada.
+
+A futuro se puede conectar con WhatsApp/Email, pero por ahora que al menos se guarden preferencias y se usen en los envíos actuales.
+
+7) Plantillas & Documentos
+
+Zona donde la agencia pueda gestionar:
+
+pequeñas plantillas de mensajes de texto (primer contacto, seguimiento, etc.),
+
+enlaces a documentos importantes (ej. checklist de documentos, formato de oferta).
+
+No hace falta algo muy complejo:
+
+una lista editable de plantillas (título + texto),
+
+una lista de links a documentos (nombre + URL).
+
+8) (Opcional) Comisiones y Objetivos
+
+Campo para porcentaje de comisión estándar de la agencia (informativo).
+
+Objetivos mensuales:
+
+número de cierres,
+
+monto de comisiones.
+
+Esto nos servirá para reportes futuros, aunque de momento sea solo informativo.
+
+Requerimientos generales
+
+Toda la sección de Configuración para admin de agencia externa debe:
+
+ser clara, con un menú lateral o tabs bien ordenados,
+
+ser completamente responsive (desktop y mobile),
+
+no estar visible para roles que no sean admin de agencia.
+
+Al terminar, por favor:
+
+indíquenme qué secciones de Configuración quedaron disponibles para el admin de agencia externa,
+
+qué campos/datos se guardan en cada una,
+
+y cómo afectan el comportamiento del catálogo, leads y formularios para esa agencia.
+
+Así podré probar el flujo completo como si fuera un broker real.

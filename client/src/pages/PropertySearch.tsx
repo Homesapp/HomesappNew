@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import { PropertyMap } from "@/components/external/PropertyMap";
 import { PublicHeader } from "@/components/PublicHeader";
+import { UnifiedPropertyCard } from "@/components/UnifiedPropertyCard";
 
 interface SearchFilters {
   query?: string;
@@ -522,200 +523,52 @@ export default function PropertySearch() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-            {properties.map((property) => (
-              <div
-                key={property.id}
-                className="group cursor-pointer rounded-2xl overflow-hidden border bg-card hover-elevate flex flex-col h-full"
-                onClick={() => {
-                  if (property.isExternal && property.agencySlug && property.unitSlug) {
-                    setLocation(`/${property.agencySlug}/${property.unitSlug}`);
-                  } else if (property.isExternal) {
-                    setLocation(`/propiedad-externa/${property.id}`);
-                  } else {
-                    setLocation(property.slug ? `/p/${property.slug}` : `/propiedad/${property.id}/completo`);
-                  }
-                }}
-                data-testid={`card-property-${property.id}`}
-              >
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                  {property.primaryImages && property.primaryImages[0] ? (
-                    <img
-                      src={property.primaryImages[0]}
-                      alt={getPropertyTitle(property)}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center bg-muted">
-                      <Building2 className="h-10 w-10 text-muted-foreground" />
-                    </div>
-                  )}
-                  <Badge className="absolute top-3 left-3 bg-foreground text-background text-[10px] rounded-full px-2">
-                    {property.status === "rent" ? "Renta" : property.status === "sale" ? "Venta" : "Renta/Venta"}
-                  </Badge>
-                  {property.featured && (
-                    <Badge className="absolute top-3 left-16 bg-primary text-primary-foreground text-[10px] rounded-full px-2">
-                      Destacada
-                    </Badge>
-                  )}
-                  <button
-                    className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur flex items-center justify-center hover:bg-background transition-colors"
-                    onClick={(e) => handleToggleFavorite(e, property.id)}
-                    disabled={toggleFavoriteMutation.isPending}
-                    data-testid={`button-favorite-${property.id}`}
-                  >
-                    <Heart className={`h-4 w-4 ${favoriteIds.has(property.id) ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
-                  </button>
-                  {property.rating != null && (
-                    <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur rounded-full px-2 py-0.5">
-                      <Star className="h-3 w-3 fill-foreground" />
-                      <span className="text-xs font-medium">{Number(property.rating).toFixed(1)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="p-3 sm:p-4 flex flex-col flex-1">
-                  <h3 className="font-medium text-sm sm:text-base truncate mb-1" data-testid={`text-title-${property.id}`}>
-                    {getPropertyTitle(property)}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1.5 truncate flex items-center gap-1" data-testid={`text-location-${property.id}`}>
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    {property.location}
-                  </p>
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {property.hasFurniture && (
-                      <Badge variant="secondary" className="text-[9px] h-5 rounded-full">
-                        <Sofa className="h-3 w-3 mr-0.5" /> Amueblado
-                      </Badge>
-                    )}
-                    {property.petsAllowed && (
-                      <Badge variant="secondary" className="text-[9px] h-5 rounded-full">
-                        <PawPrint className="h-3 w-3 mr-0.5" /> Mascotas
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {/* Servicios Incluidos/No Incluidos - Solo 4: HOA, Agua, Internet, Luz */}
-                  {(() => {
-                    const services = property.includedServices;
-                    const hasCondominium = property.condominiumId || property.condoName;
-                    
-                    const getServiceStatus = (serviceKey: string): boolean | null => {
-                      if (!services) return null;
-                      if (typeof services === 'object') {
-                        if ('basicServices' in services && services.basicServices) {
-                          const bs = services.basicServices as any;
-                          if (serviceKey === 'water' && bs.water) return bs.water.included;
-                          if (serviceKey === 'electricity' && bs.electricity) return bs.electricity.included;
-                          if (serviceKey === 'internet' && bs.internet) return bs.internet.included;
-                        }
-                        if (serviceKey in services) {
-                          return Boolean((services as any)[serviceKey]);
-                        }
-                      }
-                      return null;
-                    };
-                    
-                    const hoaIncluded = hasCondominium;
-                    const waterStatus = getServiceStatus('water');
-                    const internetStatus = getServiceStatus('internet');
-                    const electricityStatus = getServiceStatus('electricity');
-                    
-                    const includedItems: {icon: any, label: string, color: string}[] = [];
-                    const notIncludedItems: {icon: any, label: string}[] = [];
-                    
-                    if (hoaIncluded) {
-                      includedItems.push({ icon: Building2, label: 'Mantenimiento HOA', color: 'text-green-600' });
-                    }
-                    if (waterStatus === true) {
-                      includedItems.push({ icon: Droplet, label: 'Agua', color: 'text-blue-500' });
-                    } else if (waterStatus === false) {
-                      notIncludedItems.push({ icon: Droplet, label: 'Agua' });
-                    }
-                    if (internetStatus === true) {
-                      includedItems.push({ icon: Wifi, label: 'Internet', color: 'text-purple-500' });
-                    } else if (internetStatus === false) {
-                      notIncludedItems.push({ icon: Wifi, label: 'Internet' });
-                    }
-                    notIncludedItems.push({ icon: Zap, label: 'Luz' });
-                    
-                    if (includedItems.length === 0 && notIncludedItems.length <= 1) return null;
-                    
-                    return (
-                      <div className="pt-2 border-t space-y-1 mb-2">
-                        {includedItems.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-0.5 text-green-600">
-                                  <CheckCircle className="h-3 w-3" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>Incluido</TooltipContent>
-                            </Tooltip>
-                            <div className="flex items-center gap-1.5">
-                              {includedItems.map((item, idx) => (
-                                <Tooltip key={idx}>
-                                  <TooltipTrigger asChild>
-                                    <item.icon className={`h-3.5 w-3.5 ${item.color}`} />
-                                  </TooltipTrigger>
-                                  <TooltipContent>{item.label}</TooltipContent>
-                                </Tooltip>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {notIncludedItems.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-0.5 text-muted-foreground">
-                                  <XCircle className="h-3 w-3" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>No incluido</TooltipContent>
-                            </Tooltip>
-                            <div className="flex items-center gap-1.5 opacity-50">
-                              {notIncludedItems.map((item, idx) => (
-                                <Tooltip key={idx}>
-                                  <TooltipTrigger asChild>
-                                    <item.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>{item.label} - No incluido</TooltipContent>
-                                </Tooltip>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  
-                  <div className="flex items-center justify-between pt-2 border-t mt-auto">
-                    <p className="font-semibold text-sm sm:text-base" data-testid={`text-price-${property.id}`}>
-                      ${property.price.toLocaleString()}
-                      <span className="font-normal text-xs text-muted-foreground ml-1">
-                        {property.currency || 'MXN'}{property.status === "rent" ? "/mes" : ""}
-                      </span>
-                    </p>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      <span className="flex items-center gap-0.5">
-                        <Bed className="h-3 w-3" />
-                        {property.bedrooms}
-                      </span>
-                      <span className="flex items-center gap-0.5">
-                        <Bath className="h-3 w-3" />
-                        {property.bathrooms}
-                      </span>
-                      {property.area > 0 && (
-                        <span className="flex items-center gap-0.5">
-                          <Square className="h-3 w-3" />
-                          {property.area}m²
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+            {properties.map((property: any) => {
+              const propertyUrl = property.isExternal && property.agencySlug && property.unitSlug 
+                ? `/${property.agencySlug}/${property.unitSlug}` 
+                : property.isExternal 
+                  ? `/propiedad-externa/${property.id}` 
+                  : property.slug 
+                    ? `/p/${property.slug}` 
+                    : `/propiedad/${property.id}/completo`;
+              
+              return (
+                <UnifiedPropertyCard
+                  key={property.id}
+                  id={property.id}
+                  title={getPropertyTitle(property)}
+                  unitNumber={property.unitNumber}
+                  location={property.location}
+                  zone={property.zone || property.colonyName}
+                  condominiumName={property.condominiumName || property.condoName}
+                  rentPrice={property.status === "rent" || property.status === "both" ? property.price : undefined}
+                  salePrice={property.status === "sale" ? property.price : property.salePrice}
+                  currency={property.currency || "MXN"}
+                  bedrooms={property.bedrooms}
+                  bathrooms={property.bathrooms}
+                  area={property.area}
+                  status={property.status === "rent" ? "available" : property.status === "sale" ? "available" : "available"}
+                  images={property.primaryImages || []}
+                  propertyType={property.propertyType}
+                  petFriendly={property.petsAllowed}
+                  furnished={property.hasFurniture}
+                  hasParking={property.hasParking}
+                  hasAC={property.hasAC}
+                  includedServices={property.includedServices}
+                  context="public"
+                  isFavorite={favoriteIds.has(property.id)}
+                  isFavoriteLoading={toggleFavoriteMutation.isPending}
+                  onFavorite={() => {
+                    const syntheticEvent = { stopPropagation: () => {} } as React.MouseEvent;
+                    handleToggleFavorite(syntheticEvent, property.id);
+                  }}
+                  onClick={() => setLocation(propertyUrl)}
+                  onContact={() => setLocation(propertyUrl)}
+                  onSchedule={() => setLocation(propertyUrl)}
+                  onView={() => setLocation(propertyUrl)}
+                />
+              );
+            })}
           </div>
         )}
 
