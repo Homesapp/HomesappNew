@@ -433,7 +433,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <Users className="h-5 w-5" />,
         actionLabel: "Editar perfil",
         actionLabelEn: "Edit profile",
-        actionPath: "/cuenta",
+        actionPath: "/perfil",
       },
       {
         id: "explore-catalog",
