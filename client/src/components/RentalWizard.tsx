@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,7 +32,9 @@ import {
   FileText,
   Mail,
   Phone,
-  Search
+  Search,
+  UserCheck,
+  AlertCircle
 } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { es, enUS } from "date-fns/locale";
@@ -110,6 +112,14 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [dateMode, setDateMode] = useState<"duration" | "specific">("duration");
   const [contractDuration, setContractDuration] = useState<number>(12);
+  // Owner state
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string>("");
+  const [isCreatingNewOwner, setIsCreatingNewOwner] = useState(false);
+  const [newOwnerData, setNewOwnerData] = useState({
+    ownerName: "",
+    ownerEmail: "",
+    ownerPhone: "",
+  });
   const [additionalServices, setAdditionalServices] = useState<Array<{
     serviceType: string;
     amount: string;
@@ -150,6 +160,32 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
+  // Query for active owner when unit is selected
+  const { data: unitOwner, isLoading: ownerLoading } = useQuery<{ id: string; ownerName: string; ownerEmail: string; ownerPhone: string; isActive: boolean } | null>({
+    queryKey: ["/api/external-unit-owners/active", selectedUnitId],
+    queryFn: async () => {
+      const response = await fetch(`/api/external-unit-owners/active/${selectedUnitId}`, { credentials: 'include' });
+      if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error('Failed to fetch owner');
+      }
+      return response.json();
+    },
+    enabled: !!selectedUnitId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Auto-select owner when unit changes
+  useEffect(() => {
+    if (unitOwner?.id) {
+      setSelectedOwnerId(unitOwner.id);
+      setIsCreatingNewOwner(false);
+    } else if (selectedUnitId && !ownerLoading) {
+      setSelectedOwnerId("");
+      setIsCreatingNewOwner(true); // No owner, need to create one
+    }
+  }, [unitOwner, selectedUnitId, ownerLoading]);
+
   const { data: clientsResponse, isLoading: clientsLoading } = useQuery<PaginatedResponse<ExternalClient>>({
     queryKey: ["/api/external-clients", { limit: 10000 }], // Get all clients for selection
     queryFn: async () => {
@@ -160,7 +196,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       if (!response.ok) throw new Error('Failed to fetch clients');
       return response.json();
     },
-    enabled: step === 3, // Only load when on step 3
+    enabled: step === 4, // Only load when on step 4 (tenant step, now shifted)
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
   
@@ -218,6 +254,9 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
     setAdditionalServices([]);
     setAdditionalTenants([]);
     setCondominiumSearch("");
+    setSelectedOwnerId("");
+    setIsCreatingNewOwner(false);
+    setNewOwnerData({ ownerName: "", ownerEmail: "", ownerPhone: "" });
     form.reset();
   };
 
@@ -239,6 +278,28 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       return;
     }
     if (step === 3) {
+      // Validate owner selection
+      if (!selectedOwnerId && !isCreatingNewOwner) {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: language === "es" ? "Por favor selecciona o crea un propietario" : "Please select or create an owner",
+          variant: "destructive",
+        });
+        return;
+      }
+      // If creating new owner, validate required fields
+      if (isCreatingNewOwner) {
+        if (!newOwnerData.ownerName.trim()) {
+          toast({
+            title: language === "es" ? "Error" : "Error",
+            description: language === "es" ? "El nombre del propietario es requerido" : "Owner name is required",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+    if (step === 4) {
       // Validate tenant selection
       if (useExistingClient && !selectedClientId) {
         toast({
@@ -302,10 +363,35 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
       return;
     }
 
+    // Create owner if needed
+    let finalOwnerId = selectedOwnerId;
+    if (isCreatingNewOwner && newOwnerData.ownerName.trim()) {
+      try {
+        const ownerResponse = await apiRequest("POST", "/api/external-unit-owners", {
+          unitId: selectedUnitId,
+          ownerName: newOwnerData.ownerName.trim(),
+          ownerEmail: newOwnerData.ownerEmail.trim() || undefined,
+          ownerPhone: newOwnerData.ownerPhone.trim() || undefined,
+          isActive: true,
+        });
+        const newOwner = await ownerResponse.json();
+        finalOwnerId = newOwner.id;
+        queryClient.invalidateQueries({ queryKey: ["/api/external-unit-owners/active", selectedUnitId] });
+      } catch (error: any) {
+        toast({
+          title: language === "es" ? "Error" : "Error",
+          description: error.message || (language === "es" ? "No se pudo crear el propietario" : "Failed to create owner"),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Build contract data
     const contract = {
       agencyId: selectedUnit.agencyId,
       unitId: selectedUnitId,
+      ownerId: finalOwnerId || undefined,
       tenantName: tenantInfo.tenantName,
       tenantEmail: tenantInfo.tenantEmail,
       tenantPhone: tenantInfo.tenantPhone,
@@ -398,9 +484,10 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
   const steps = [
     { number: 1, title: language === "es" ? "Condominio" : "Condominium", icon: Building2 },
     { number: 2, title: language === "es" ? "Unidad" : "Unit", icon: Home },
-    { number: 3, title: language === "es" ? "Inquilino" : "Tenant", icon: User },
-    { number: 4, title: language === "es" ? "Términos" : "Terms", icon: DollarSign },
-    { number: 5, title: language === "es" ? "Confirmar" : "Confirm", icon: Check },
+    { number: 3, title: language === "es" ? "Propietario" : "Owner", icon: UserCheck },
+    { number: 4, title: language === "es" ? "Inquilino" : "Tenant", icon: User },
+    { number: 5, title: language === "es" ? "Términos" : "Terms", icon: DollarSign },
+    { number: 6, title: language === "es" ? "Confirmar" : "Confirm", icon: Check },
   ];
 
   return (
@@ -585,8 +672,172 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
               </div>
             )}
 
-            {/* Step 3: Tenant Info */}
+            {/* Step 3: Owner Info */}
             {step === 3 && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {language === "es" ? "Propietario de la Unidad" : "Unit Owner"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {language === "es" 
+                      ? "Confirma o agrega la información del propietario" 
+                      : "Confirm or add owner information"}
+                  </p>
+                </div>
+
+                {ownerLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" ? "Cargando propietario..." : "Loading owner..."}
+                    </p>
+                  </div>
+                ) : unitOwner ? (
+                  <Card className="border-primary border-2 bg-primary/5">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-base">
+                          {language === "es" ? "Propietario Actual" : "Current Owner"}
+                        </CardTitle>
+                        <Badge variant="default" className="ml-auto">
+                          {language === "es" ? "Activo" : "Active"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{unitOwner.ownerName}</span>
+                      </div>
+                      {unitOwner.ownerEmail && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-4 w-4" />
+                          <span>{unitOwner.ownerEmail}</span>
+                        </div>
+                      )}
+                      {unitOwner.ownerPhone && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-4 w-4" />
+                          <span>{unitOwner.ownerPhone}</span>
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => {
+                          setIsCreatingNewOwner(true);
+                          setSelectedOwnerId("");
+                        }}
+                        data-testid="button-change-owner"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Cambiar propietario" : "Change owner"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="border-yellow-500/50 bg-yellow-500/10">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertCircle className="h-5 w-5 text-yellow-600" />
+                        <p className="font-medium text-yellow-700 dark:text-yellow-400">
+                          {language === "es" ? "Esta unidad no tiene propietario registrado" : "This unit has no registered owner"}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {language === "es" 
+                          ? "Debes agregar un propietario para continuar con el contrato de renta." 
+                          : "You must add an owner to continue with the rental contract."}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* New Owner Form */}
+                {(isCreatingNewOwner || !unitOwner) && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        {language === "es" ? "Nuevo Propietario" : "New Owner"}
+                      </CardTitle>
+                      <CardDescription>
+                        {language === "es" 
+                          ? "Ingresa los datos del propietario de esta unidad" 
+                          : "Enter the owner details for this unit"}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label htmlFor="ownerName">
+                          {language === "es" ? "Nombre completo" : "Full name"} *
+                        </Label>
+                        <Input
+                          id="ownerName"
+                          value={newOwnerData.ownerName}
+                          onChange={(e) => setNewOwnerData({ ...newOwnerData, ownerName: e.target.value })}
+                          placeholder={language === "es" ? "Juan Pérez García" : "John Doe"}
+                          data-testid="input-owner-name"
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <Label htmlFor="ownerEmail">
+                            {language === "es" ? "Email" : "Email"}
+                          </Label>
+                          <Input
+                            id="ownerEmail"
+                            type="email"
+                            value={newOwnerData.ownerEmail}
+                            onChange={(e) => setNewOwnerData({ ...newOwnerData, ownerEmail: e.target.value })}
+                            placeholder="propietario@email.com"
+                            data-testid="input-owner-email"
+                            className="mt-1.5"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="ownerPhone">
+                            {language === "es" ? "Teléfono / WhatsApp" : "Phone / WhatsApp"}
+                          </Label>
+                          <Input
+                            id="ownerPhone"
+                            type="tel"
+                            value={newOwnerData.ownerPhone}
+                            onChange={(e) => setNewOwnerData({ ...newOwnerData, ownerPhone: e.target.value })}
+                            placeholder="+52 1 998 123 4567"
+                            data-testid="input-owner-phone"
+                            className="mt-1.5"
+                          />
+                        </div>
+                      </div>
+                      {unitOwner && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsCreatingNewOwner(false);
+                            setSelectedOwnerId(unitOwner.id);
+                            setNewOwnerData({ ownerName: "", ownerEmail: "", ownerPhone: "" });
+                          }}
+                          data-testid="button-cancel-new-owner"
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          {language === "es" ? "Usar propietario actual" : "Use current owner"}
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* Step 4: Tenant Info */}
+            {step === 4 && (
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
@@ -999,8 +1250,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
               </div>
             )}
 
-            {/* Step 4: Terms */}
-            {step === 4 && (
+            {/* Step 5: Terms */}
+            {step === 5 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
@@ -1073,6 +1324,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                           onValueChange={(val) => {
                             const months = parseInt(val);
                             setContractDuration(months);
+                            form.setValue("leaseDurationMonths", months);
                             // Auto-calculate end date
                             const startDate = form.getValues("startDate");
                             if (startDate) {
@@ -1337,8 +1589,8 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
               </div>
             )}
 
-            {/* Step 5: Confirm */}
-            {step === 5 && (
+            {/* Step 6: Confirm */}
+            {step === 6 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-2">
@@ -1364,6 +1616,37 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                       <span className="text-muted-foreground">{language === "es" ? "Unidad:" : "Unit:"}</span>
                       <strong>{selectedUnit?.unitNumber}</strong>
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <UserCheck className="h-4 w-4" />
+                      {language === "es" ? "Propietario" : "Owner"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm space-y-1">
+                    {isCreatingNewOwner && newOwnerData.ownerName ? (
+                      <>
+                        <p><strong>{newOwnerData.ownerName}</strong></p>
+                        <p className="text-muted-foreground">{newOwnerData.ownerEmail || "-"}</p>
+                        <p className="text-muted-foreground">{newOwnerData.ownerPhone || "-"}</p>
+                        <Badge variant="secondary" className="mt-1">
+                          {language === "es" ? "Nuevo propietario" : "New owner"}
+                        </Badge>
+                      </>
+                    ) : unitOwner ? (
+                      <>
+                        <p><strong>{unitOwner.ownerName}</strong></p>
+                        <p className="text-muted-foreground">{unitOwner.ownerEmail || "-"}</p>
+                        <p className="text-muted-foreground">{unitOwner.ownerPhone || "-"}</p>
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground italic">
+                        {language === "es" ? "Sin propietario" : "No owner"}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -1506,7 +1789,7 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                 {language === "es" ? "Atrás" : "Back"}
               </Button>
 
-              {step < 5 ? (
+              {step < 6 ? (
                 <Button
                   type="button"
                   onClick={handleNext}
