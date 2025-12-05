@@ -276,10 +276,16 @@ export default function InteractiveMap() {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const prevMarkerIdsRef = useRef<Set<string>>(new Set());
 
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+  
+  console.log("[InteractiveMap] API Key present:", !!googleMapsApiKey, "Length:", googleMapsApiKey.length);
+  
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    googleMapsApiKey,
   });
+
+  console.log("[InteractiveMap] isLoaded:", isLoaded, "loadError:", loadError);
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();

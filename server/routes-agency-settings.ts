@@ -331,7 +331,7 @@ export function registerAgencySettingsRoutes(app: Express): void {
           lastName: users.lastName,
           email: users.email,
           role: users.role,
-          isActive: users.isActive,
+          status: users.status,
         })
         .from(users)
         .where(eq(users.externalAgencyId, agencyId))
