@@ -44,7 +44,8 @@ import {
   ExternalLink,
   ScrollText,
   Filter,
-  Download
+  Download,
+  X
 } from "lucide-react";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
@@ -195,6 +196,10 @@ export default function TenantPortal() {
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false);
   const [showTerminationDialog, setShowTerminationDialog] = useState(false);
+  
+  // Payment filters
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
+  const [paymentYearFilter, setPaymentYearFilter] = useState<string>("all");
 
   const receiptForm = useForm<z.infer<typeof receiptSchema>>({
     resolver: zodResolver(receiptSchema),
@@ -877,6 +882,52 @@ export default function TenantPortal() {
                 </Dialog>
               </div>
 
+              {/* Payment Filters */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{t("common.filters", "Filters")}:</span>
+                </div>
+                <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                  <SelectTrigger className="w-[140px]" data-testid="select-payment-status-filter">
+                    <SelectValue placeholder={t("common.status", "Status")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("common.allStatuses", "All Statuses")}</SelectItem>
+                    <SelectItem value="pending">{t("status.pending", "Pending")}</SelectItem>
+                    <SelectItem value="paid">{t("status.paid", "Paid")}</SelectItem>
+                    <SelectItem value="verified">{t("status.verified", "Verified")}</SelectItem>
+                    <SelectItem value="overdue">{t("status.overdue", "Overdue")}</SelectItem>
+                    <SelectItem value="rejected">{t("status.rejected", "Rejected")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={paymentYearFilter} onValueChange={setPaymentYearFilter}>
+                  <SelectTrigger className="w-[120px]" data-testid="select-payment-year-filter">
+                    <SelectValue placeholder={t("common.year", "Year")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("common.allYears", "All Years")}</SelectItem>
+                    {[2025, 2024, 2023, 2022].map((year) => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(paymentStatusFilter !== "all" || paymentYearFilter !== "all") && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setPaymentStatusFilter("all");
+                      setPaymentYearFilter("all");
+                    }}
+                    data-testid="button-clear-payment-filters"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    {t("common.clearFilters", "Clear")}
+                  </Button>
+                )}
+              </div>
+
               {/* Portal 2.0 Payment Records - Always shown */}
               <Card>
                 <CardHeader className="pb-2">
@@ -890,14 +941,28 @@ export default function TenantPortal() {
                     <div className="flex items-center justify-center p-8">
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
-                  ) : portalPayments.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-8 text-center">
-                      <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">{t("tenant.noScheduledPayments", "No scheduled payments")}</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y">
-                      {portalPayments.map((payment) => (
+                  ) : (() => {
+                    const filteredPayments = portalPayments.filter((payment) => {
+                      if (paymentStatusFilter !== "all" && payment.status !== paymentStatusFilter) return false;
+                      if (paymentYearFilter !== "all") {
+                        const paymentYear = new Date(payment.dueDate).getFullYear().toString();
+                        if (paymentYear !== paymentYearFilter) return false;
+                      }
+                      return true;
+                    });
+                    
+                    return filteredPayments.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 text-center">
+                        <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground">
+                          {portalPayments.length === 0 
+                            ? t("tenant.noScheduledPayments", "No scheduled payments")
+                            : t("common.noMatchingRecords", "No matching records")}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {filteredPayments.map((payment) => (
                         <div key={payment.id} className="flex items-center justify-between p-4 gap-4 flex-wrap" data-testid={`payment-row-${payment.id}`}>
                           <div className="flex items-center gap-4">
                             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
@@ -926,9 +991,10 @@ export default function TenantPortal() {
                             {getStatusBadge(payment.status)}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 

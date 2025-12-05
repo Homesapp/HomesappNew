@@ -1,0 +1,108 @@
+Ya tenemos la idea de una sección de ayuda por rol, pero ahora quiero ayuda en contexto dentro de cada módulo, para que el usuario no se pierda.
+
+1) Icono de ayuda en cada sección principal
+
+En las vistas importantes quiero un icono de ayuda ? en la parte superior derecha del contenido (no del header global), por ejemplo en:
+
+Portal Tenant:
+
+Pagos,
+
+Mantenimiento,
+
+Documentos.
+
+Portal Owner:
+
+Pagos,
+
+Mantenimiento,
+
+Documentos.
+
+Vistas de Leads / Kanban de vendedores.
+
+Configuración de agencia externa.
+
+Al hacer clic en ese icono:
+
+Abrir un panel lateral o modal con:
+
+título de la sección (“Ayuda con Pagos”, “Ayuda con Mantenimiento”, etc.),
+
+3–5 bullets explicando:
+
+qué se puede hacer en esa pantalla,
+
+qué significan los estados,
+
+pasos básicos (ej. “Paso 1: selecciona un pago pendiente, Paso 2: sube el comprobante…”).
+
+un link al detalle más largo en la página general de ayuda, si existe (/help/...).
+
+El contenido puede ser estático en el frontend (archivo de textos), no hace falta que venga de la base de datos ahora mismo.
+
+2) Estados vacíos con ayuda
+
+En lugar de listar tablas vacías, quiero mensajes amigables, por ejemplo:
+
+Portal Tenant – Pagos:
+
+“Aquí verás tu historial de pagos de renta y servicios.
+En cuanto registremos tu primer pago, aparecerá en esta lista.”
+
+Portal Owner – Pagos:
+
+“Aquí podrás revisar pagos marcados por tu inquilino y verificarlos.
+Por ahora no hay movimientos registrados para este contrato.”
+
+Leads de vendedor:
+
+“Todavía no tienes leads asignados.
+Empieza compartiendo tu catálogo o tu link de captación para recibir interesados.”
+
+Cada estado vacío debe incluir un botón de acción relevante, por ejemplo:
+
+Ver catálogo de propiedades
+
+Crear primer ticket
+
+Invitar agente
+
+3) Conexión con la sección de ayuda por rol
+
+Cuando un usuario está en un módulo y abre la ayuda contextual, quiero que haya un enlace a la ayuda “larga”, por ejemplo:
+
+/help/tenant/payments
+
+/help/tenant/maintenance
+
+/help/owner/payments
+
+/help/seller/leads
+
+/help/agency/settings
+
+Si aún no existen esas rutas:
+
+crear vistas simples con texto explicativo, imágenes o GIFs más adelante,
+
+pero dejar ya preparados los links.
+
+4) Mobile-first
+
+Es importante que:
+
+el icono ? sea accesible en mobile (no se pierda en el header),
+
+los modales/paneles de ayuda se vean bien en pantallas pequeñas (scrollable, sin cortar texto),
+
+y que los mensajes de estado vacío se lean bien en vertical.
+
+Al finalizar, por favor:
+
+indiquen en qué módulos implementaron el icono de ayuda contextual,
+
+qué contenido muestra cada uno (bullet points),
+
+y adjunten capturas de una pantalla con ayuda contextual abierta en desktop y otra en mobile.

@@ -49,7 +49,8 @@ import {
   Filter,
   Download,
   Eye,
-  Users
+  Users,
+  X
 } from "lucide-react";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
@@ -228,6 +229,11 @@ export default function OwnerPortal() {
   const [showServiceDialog, setShowServiceDialog] = useState(false);
   const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
   const [showChargeDialog, setShowChargeDialog] = useState(false);
+  
+  // Payment filters
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
+  const [paymentCategoryFilter, setPaymentCategoryFilter] = useState<string>("all");
+  const [paymentYearFilter, setPaymentYearFilter] = useState<string>("all");
 
   const serviceForm = useForm<z.infer<typeof serviceAccountSchema>>({
     resolver: zodResolver(serviceAccountSchema),
@@ -1024,6 +1030,66 @@ export default function OwnerPortal() {
                 </CardContent>
               </Card>
 
+              {/* Payment Filters */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{t("common.filters", "Filters")}:</span>
+                </div>
+                <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                  <SelectTrigger className="w-[140px]" data-testid="select-payment-status-filter">
+                    <SelectValue placeholder={t("common.status", "Status")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("common.allStatuses", "All Statuses")}</SelectItem>
+                    <SelectItem value="pending">{t("status.pending", "Pending")}</SelectItem>
+                    <SelectItem value="paid">{t("status.paid", "Paid")}</SelectItem>
+                    <SelectItem value="verified">{t("status.verified", "Verified")}</SelectItem>
+                    <SelectItem value="overdue">{t("status.overdue", "Overdue")}</SelectItem>
+                    <SelectItem value="rejected">{t("status.rejected", "Rejected")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={paymentCategoryFilter} onValueChange={setPaymentCategoryFilter}>
+                  <SelectTrigger className="w-[140px]" data-testid="select-payment-category-filter">
+                    <SelectValue placeholder={t("common.category", "Category")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("common.allCategories", "All Categories")}</SelectItem>
+                    <SelectItem value="rent">{t("category.rent", "Rent")}</SelectItem>
+                    <SelectItem value="utilities">{t("category.utilities", "Utilities")}</SelectItem>
+                    <SelectItem value="maintenance">{t("category.maintenance", "Maintenance")}</SelectItem>
+                    <SelectItem value="deposit">{t("category.deposit", "Deposit")}</SelectItem>
+                    <SelectItem value="other">{t("category.other", "Other")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={paymentYearFilter} onValueChange={setPaymentYearFilter}>
+                  <SelectTrigger className="w-[120px]" data-testid="select-payment-year-filter">
+                    <SelectValue placeholder={t("common.year", "Year")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("common.allYears", "All Years")}</SelectItem>
+                    {[2025, 2024, 2023, 2022].map((year) => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(paymentStatusFilter !== "all" || paymentCategoryFilter !== "all" || paymentYearFilter !== "all") && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setPaymentStatusFilter("all");
+                      setPaymentCategoryFilter("all");
+                      setPaymentYearFilter("all");
+                    }}
+                    data-testid="button-clear-payment-filters"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    {t("common.clearFilters", "Clear")}
+                  </Button>
+                )}
+              </div>
+
               {/* Portal 2.0 Payment Records with Verification Workflow - Always shown */}
               <Card>
                 <CardHeader>
@@ -1035,14 +1101,29 @@ export default function OwnerPortal() {
                     <div className="flex items-center justify-center p-8">
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
-                  ) : portalPayments.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-8 text-center">
-                      <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">{t("owner.noPaymentRecords", "No payment records yet")}</p>
-                    </div>
-                  ) : (
+                  ) : (() => {
+                    const filteredPayments = portalPayments.filter((payment) => {
+                      if (paymentStatusFilter !== "all" && payment.status !== paymentStatusFilter) return false;
+                      if (paymentCategoryFilter !== "all" && payment.category !== paymentCategoryFilter) return false;
+                      if (paymentYearFilter !== "all") {
+                        const paymentYear = new Date(payment.dueDate).getFullYear().toString();
+                        if (paymentYear !== paymentYearFilter) return false;
+                      }
+                      return true;
+                    });
+                    
+                    return filteredPayments.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 text-center">
+                        <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground">
+                          {portalPayments.length === 0 
+                            ? t("owner.noPaymentRecords", "No payment records yet")
+                            : t("common.noMatchingRecords", "No matching records")}
+                        </p>
+                      </div>
+                    ) : (
                       <div className="divide-y">
-                        {portalPayments.map((payment) => (
+                        {filteredPayments.map((payment) => (
                           <div key={payment.id} className="p-4 space-y-3" data-testid={`payment-record-${payment.id}`}>
                             <div className="flex items-center justify-between gap-4 flex-wrap">
                               <div className="flex items-center gap-4">
@@ -1134,9 +1215,10 @@ export default function OwnerPortal() {
                           </div>
                         ))}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

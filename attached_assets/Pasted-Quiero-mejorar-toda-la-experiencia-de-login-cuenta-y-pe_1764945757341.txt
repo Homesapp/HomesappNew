@@ -1,0 +1,119 @@
+Quiero mejorar toda la experiencia de login, cuenta y perfil, y la navegación entre la app interna y el sitio público.
+
+1) Rutas claras de login
+
+Definir y documentar claramente:
+
+/login → login general de HomesApp (usuarios, agentes, admin).
+
+/portal/login o /portal → login del Portal (tenant/owner) usando external_portal_access_tokens.
+
+En el header del sitio público, quiero:
+
+Botón Iniciar sesión → /login.
+
+Links para:
+
+Portal Inquilinos → /portal/tenant (si no hay sesión, que vaya al login del portal).
+
+Portal Propietarios → /portal/owner (igual, con login del portal).
+
+2) Usuario logueado + navegación
+
+Cuando un usuario esté logueado en HomesApp:
+
+Mostrar un icono de usuario o avatar arriba a la derecha.
+
+Al hacer clic, desplegar un menú con:
+
+Mi cuenta / Perfil → /account.
+
+Mis favoritos (si está implementado).
+
+Mis solicitudes / visitas (si hay sección de leads del usuario).
+
+Si el usuario tiene rol de portal:
+
+Ir al Portal Inquilino
+
+Ir al Portal Propietario
+
+Ver sitio público (si está en panel interno → que lo lleve al home o a /buscar-propiedades sin hacer logout).
+
+Cerrar sesión.
+
+El logo de HomesApp en el header debe llevar al home público (/) sin cerrar sesión.
+
+3) Página “Mi cuenta” / Perfil
+
+Crear una vista /account (o similar) donde el usuario vea:
+
+a) Datos personales
+
+Nombre completo
+
+Email
+
+Teléfono/WhatsApp
+
+Foto de perfil (opcional)
+
+Roles asociados (ej. buyer, tenant, owner, seller, agency_admin, super_admin).
+
+b) Preferencias
+
+Idioma preferido: ES / EN.
+
+Zona principal de interés (combo de zonas/barrios).
+
+Notificaciones:
+
+Email ON/OFF.
+
+In-app: checkboxes por categoría (Leads, Pagos, Mantenimiento, Mensajes).
+
+c) Atajos
+
+Botones visibles para:
+
+Ver mis favoritos (wishlist de propiedades).
+
+Ver mis solicitudes / leads.
+
+Ir al Portal Inquilino (si aplica).
+
+Ir al Portal Propietario (si aplica).
+
+d) Seguridad
+
+Sección para cambiar contraseña (si no es login social).
+
+Mostrar fecha/hora del último login (simplemente informativo).
+
+Toda esta página debe ser responsive y fácil de usar en mobile.
+
+4) Unificación de experiencia
+
+Revisar todos los puntos donde se hace login (páginas, modales, flujos de invitación) y asegurarse de que:
+
+usen estas rutas (/login, /portal/...),
+
+y que, después de loguearse, el usuario:
+
+vuelva a la página desde donde estaba (si aplica), o
+
+vaya al dashboard que corresponda a su rol principal.
+
+Asegurarse de que no haya casos donde:
+
+el usuario no tenga forma de volver al home público,
+
+o quede atrapado en una sección sin navegación clara.
+
+Al final, por favor:
+
+indiquen qué rutas de login quedaron definidas,
+
+cómo quedó el menú de usuario (opciones),
+
+y muestren una captura de la página /account en desktop y mobile.
