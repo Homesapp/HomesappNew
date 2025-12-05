@@ -1941,40 +1941,74 @@ export default function OwnerPortal() {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        {chatMessages.map((msg) => (
-                          <div
-                            key={msg.id}
-                            className={`flex gap-3 ${msg.senderType === "owner" ? "justify-end" : "justify-start"}`}
-                          >
-                            {msg.senderType !== "owner" && (
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {msg.isAi ? "AI" : "S"}
-                                </AvatarFallback>
-                              </Avatar>
-                            )}
-                            <div
-                              className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                                msg.senderType === "owner"
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted"
-                              }`}
-                            >
-                              <p className="text-sm">{msg.message}</p>
-                              <p className="text-xs mt-1 opacity-70">
-                                {format(new Date(msg.sentAt), "h:mm a")}
-                              </p>
+                      <div className="space-y-3">
+                        {chatMessages.map((msg, index) => {
+                          const isUser = msg.senderType === "owner";
+                          const showDate = index === 0 || 
+                            format(new Date(msg.sentAt), "MMM d") !== 
+                            format(new Date(chatMessages[index - 1].sentAt), "MMM d");
+                          
+                          return (
+                            <div key={msg.id}>
+                              {/* Date separator */}
+                              {showDate && (
+                                <div className="flex items-center justify-center my-4">
+                                  <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                                    {format(new Date(msg.sentAt), "EEEE, MMM d", { locale: locale === "es" ? es : undefined })}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              <div
+                                className={`flex gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+                                data-testid={`chat-message-${msg.id}`}
+                              >
+                                {/* Avatar */}
+                                <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
+                                  <AvatarFallback className={isUser ? "bg-primary text-primary-foreground" : "bg-muted"}>
+                                    {isUser ? (
+                                      <User className="h-4 w-4" />
+                                    ) : msg.isAi ? (
+                                      <MessageSquare className="h-4 w-4" />
+                                    ) : (
+                                      <Building className="h-4 w-4" />
+                                    )}
+                                  </AvatarFallback>
+                                </Avatar>
+                                
+                                {/* Message bubble */}
+                                <div className={`max-w-[75%] ${isUser ? "items-end" : "items-start"} flex flex-col`}>
+                                  {/* Sender label */}
+                                  {!isUser && (
+                                    <span className="text-xs text-muted-foreground mb-1 px-2">
+                                      {msg.isAi ? t("chat.aiAssistant", "AI Assistant") : t("chat.agencySupport", "Agency Support")}
+                                    </span>
+                                  )}
+                                  
+                                  <div
+                                    className={`px-4 py-2.5 ${
+                                      isUser
+                                        ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-md"
+                                        : "bg-muted rounded-2xl rounded-tl-md"
+                                    }`}
+                                  >
+                                    <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                                  </div>
+                                  
+                                  {/* Timestamp and status */}
+                                  <div className={`flex items-center gap-1 mt-1 px-2 ${isUser ? "flex-row-reverse" : ""}`}>
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(new Date(msg.sentAt), "h:mm a", { locale: locale === "es" ? es : undefined })}
+                                    </span>
+                                    {isUser && (
+                                      <CheckCircle2 className="h-3 w-3 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            {msg.senderType === "owner" && (
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  <User className="h-4 w-4" />
-                                </AvatarFallback>
-                              </Avatar>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </ScrollArea>
