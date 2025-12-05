@@ -8171,6 +8171,9 @@ export const externalUnits = pgTable("external_units", {
   agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
   condominiumId: varchar("condominium_id").references(() => externalCondominiums.id, { onDelete: "cascade" }), // Null si es propiedad independiente
   slug: varchar("slug", { length: 150 }), // URL-friendly slug (e.g., departamento-d1-105)
+  shortId: varchar("short_id", { length: 8 }), // Last 8 chars of UUID for short URLs (e.g., a715449b)
+  zoneSlug: varchar("zone_slug", { length: 100 }), // URL-friendly zone (e.g., la-veleta)
+  propertyTypeSlug: varchar("property_type_slug", { length: 50 }), // URL-friendly property type (e.g., departamento)
   unitNumber: varchar("unit_number", { length: 50 }).notNull(), // Número de unidad/apartamento
   zone: varchar("zone", { length: 100 }), // Zona/colonia donde se ubica la unidad
   city: varchar("city", { length: 100 }), // Ciudad
@@ -8256,6 +8259,9 @@ export const externalUnits = pgTable("external_units", {
   index("idx_external_units_active").on(table.isActive),
   index("idx_external_units_zone").on(table.zone),
   index("idx_external_units_publish_status").on(table.publishStatus),
+  index("idx_external_units_slug").on(table.slug),
+  index("idx_external_units_short_id").on(table.shortId),
+  index("idx_external_units_zone_slug").on(table.zoneSlug),
   unique("unique_unit_number_per_condominium").on(table.condominiumId, table.unitNumber),
 ]);
 

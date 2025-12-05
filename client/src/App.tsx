@@ -38,6 +38,7 @@ import InteractiveMap from "@/pages/InteractiveMap";
 import PropertyDetails from "@/pages/PropertyDetails";
 import PropertyFullDetails from "@/pages/PropertyFullDetails";
 import PublicUnitDetail from "@/pages/PublicUnitDetail";
+import PublicUnitDetailSEO, { PublicUnitDetailShort } from "@/pages/PublicUnitDetailSEO";
 import Favorites from "@/pages/Favorites";
 import LeadsKanban from "@/pages/LeadsKanban";
 import RentalsKanban from "@/pages/RentalsKanban";
@@ -277,10 +278,11 @@ function AuthenticatedApp() {
         <Route path="/mapa-interactivo" component={InteractiveMap} />
         <Route path="/solicitud-proveedor" component={ProviderApplication} />
         <Route path="/aplicar" component={Apply} />
-        <Route path="/p/:slug" component={PropertyFullDetails} />
+        <Route path="/p/:shortId" component={PublicUnitDetailShort} />
         <Route path="/propiedad/:id/completo" component={PropertyFullDetails} />
         <Route path="/unidad/:id" component={PublicUnitDetail} />
         <Route path="/propiedad-externa/:id" component={PublicUnitDetail} />
+        <Route path="/:agencySlug/:operation/:propertyType/:zone/:unitSlugWithShortId" component={PublicUnitDetailSEO} />
         <Route path="/propiedad/:id" component={PropertyDetails} />
         <Route path="/favoritos" component={Favorites} />
         <Route path="/terminos" component={Terms} />
@@ -437,10 +439,11 @@ function AuthenticatedApp() {
               <Route path="/buscar-propiedades" component={PropertySearch} />
         <Route path="/mapa-interactivo" component={InteractiveMap} />
               <Route path="/aplicar" component={Apply} />
-              <Route path="/p/:slug" component={PropertyFullDetails} />
+              <Route path="/p/:shortId" component={PublicUnitDetailShort} />
         <Route path="/propiedad/:id/completo" component={PropertyFullDetails} />
               <Route path="/unidad/:id" component={PublicUnitDetail} />
               <Route path="/propiedad-externa/:id" component={PublicUnitDetail} />
+              <Route path="/:agencySlug/:operation/:propertyType/:zone/:unitSlugWithShortId" component={PublicUnitDetailSEO} />
               <Route path="/propiedad/:id" component={PropertyDetails} />
               <Route path="/favoritos" component={Favorites} />
               <Route path="/mis-solicitudes" component={MyApplications} />

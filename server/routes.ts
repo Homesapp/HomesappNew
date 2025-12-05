@@ -43319,6 +43319,149 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     }
   });
 
+  // =====================================================
+  // SEO-FRIENDLY PUBLIC URL ROUTES
+  // =====================================================
+  
+  // GET /api/public/property/short/:shortId - Resolve short URL to property
+  app.get("/api/public/property/short/:shortId", async (req, res) => {
+    try {
+      const { shortId } = req.params;
+      
+      // First try to find by shortId column
+      let unit = await db
+        .select()
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.shortId, shortId),
+          eq(externalUnits.isActive, true),
+          eq(externalUnits.publishStatus, "approved")
+        ))
+        .limit(1);
+      
+      if (!unit[0]) {
+        // Fallback: search by first 8 chars of UUID
+        const allUnits = await db
+          .select()
+          .from(externalUnits)
+          .where(and(
+            eq(externalUnits.isActive, true),
+            eq(externalUnits.publishStatus, "approved")
+          ));
+        
+        unit = allUnits.filter(u => u.id.replace(/-/g, '').substring(0, 8) === shortId);
+      }
+      
+      if (!unit[0]) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+      
+      res.json({ unitId: unit[0].id });
+    } catch (error: any) {
+      console.error("Error resolving short URL:", error);
+      res.status(500).json({ error: error.message || "Error resolving short URL" });
+    }
+  });
+
+  // GET /api/public/property/seo/:agencySlug/:operation/:propertyType/:zone/:unitSlugWithShortId - SEO-friendly URL resolver
+  app.get("/api/public/property/seo/:agencySlug/:operation/:propertyType/:zone/:unitSlugWithShortId", async (req, res) => {
+    try {
+      const { agencySlug, operation, propertyType, zone, unitSlugWithShortId } = req.params;
+      
+      // Validate operation
+      if (!["renta", "venta"].includes(operation)) {
+        return res.status(400).json({ error: "Invalid operation. Use 'renta' or 'venta'" });
+      }
+      
+      // Extract shortId from unitSlugWithShortId (last 8 characters after the last dash)
+      const lastDashIndex = unitSlugWithShortId.lastIndexOf('-');
+      if (lastDashIndex === -1) {
+        return res.status(400).json({ error: "Invalid unit slug format" });
+      }
+      
+      const shortId = unitSlugWithShortId.substring(lastDashIndex + 1);
+      if (shortId.length !== 8) {
+        return res.status(400).json({ error: "Invalid short ID format" });
+      }
+      
+      // Find agency by slug
+      const agencies = await db
+        .select()
+        .from(externalAgencies)
+        .where(and(
+          eq(externalAgencies.isActive, true),
+          eq(externalAgencies.slug, agencySlug)
+        ))
+        .limit(1);
+      
+      if (!agencies[0]) {
+        // Fallback: try to match by generated slug from name
+        const allAgencies = await db
+          .select()
+          .from(externalAgencies)
+          .where(eq(externalAgencies.isActive, true));
+        
+        const matchedAgency = allAgencies.find(a => {
+          const generatedSlug = (a.name || '')
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+          return generatedSlug === agencySlug;
+        });
+        
+        if (!matchedAgency) {
+          return res.status(404).json({ error: "Agency not found" });
+        }
+        
+        agencies[0] = matchedAgency;
+      }
+      
+      // Find unit by shortId and agency
+      let unit = await db
+        .select()
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.agencyId, agencies[0].id),
+          eq(externalUnits.shortId, shortId),
+          eq(externalUnits.isActive, true),
+          eq(externalUnits.publishStatus, "approved")
+        ))
+        .limit(1);
+      
+      if (!unit[0]) {
+        // Fallback: search by first 8 chars of UUID
+        const allUnits = await db
+          .select()
+          .from(externalUnits)
+          .where(and(
+            eq(externalUnits.agencyId, agencies[0].id),
+            eq(externalUnits.isActive, true),
+            eq(externalUnits.publishStatus, "approved")
+          ));
+        
+        unit = allUnits.filter(u => u.id.replace(/-/g, '').substring(0, 8) === shortId);
+      }
+      
+      if (!unit[0]) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+      
+      res.json({ 
+        unitId: unit[0].id,
+        agencyId: agencies[0].id,
+        operation,
+        propertyType,
+        zone
+      });
+    } catch (error: any) {
+      console.error("Error resolving SEO URL:", error);
+      res.status(500).json({ error: error.message || "Error resolving SEO URL" });
+    }
+  });
+
+
 
   // =====================================================
   // SELLER MANAGEMENT VALIDATION SCHEMAS

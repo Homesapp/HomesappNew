@@ -1,0 +1,269 @@
+Voy a dividirlo en 3 cosas:
+
+Diseño de la sección “Mi perfil” (para todos los roles)
+
+Qué campos ve cada rol
+
+Cómo arreglar el flujo de cambio de contraseña (front + backend + checklist)
+
+1) Estructura profesional de “Mi perfil”
+
+En todos los roles, que la pantalla tenga el mismo patrón:
+
+Layout sugerido:
+
+Título arriba: “Mi perfil”
+
+Subtítulo: “Administra tu información personal, contacto y seguridad de tu cuenta.”
+
+Abajo, 3 tarjetas / tabs:
+
+Datos personales
+
+Contacto y preferencias
+
+Seguridad
+
+1.1. Tarjeta: Datos personales
+
+Campos base (para todos):
+
+Nombre
+
+Apellido
+
+Foto / avatar (opcional)
+
+Idioma preferido (ES / EN)
+
+Zona horaria (por futuro: notis, citas, etc.)
+
+Botón: Guardar cambios
+
+1.2. Tarjeta: Contacto y preferencias
+
+Campos genéricos:
+
+Email de acceso (solo lectura si no quieres permitir cambiarlo aquí)
+
+Teléfono
+
+WhatsApp (puede ser el mismo u otro)
+
+Notificaciones:
+
+✅ Recibir notificaciones de nuevas visitas
+
+✅ Recibir recordatorios de pagos
+
+✅ Recibir actualizaciones de la app
+
+Botón: Guardar cambios
+
+1.3. Tarjeta: Seguridad
+
+Sección “Cambiar contraseña” con:
+
+Contraseña actual
+
+Nueva contraseña
+
+Confirmar nueva contraseña
+
+Reglas debajo: “Mínimo 8 caracteres, 1 mayúscula, 1 número” (o lo que definas)
+
+Botón “Actualizar contraseña”
+
+Mostrar feedback claro:
+
+✅ Mensaje verde: “Tu contraseña se actualizó correctamente.”
+
+❌ Mensaje rojo con razón: “La contraseña actual no es correcta.” / “Las contraseñas no coinciden.”
+
+2) Campos por rol (misma pantalla, ajustes por rol)
+
+La misma página /mi-perfil para todos, pero activando cositas según el role.
+
+2.1 Admin “supremo” (HomesApp)
+
+Además de lo anterior, podrías mostrar:
+
+Nombre interno del rol: “Administrador de plataforma HomesApp”
+
+Campos internos:
+
+Empresa: HomesApp
+
+Permisos (solo lectura): super_admin, manage_agencies, etc.
+
+Solo para info, sin editar.
+
+2.2 Agencia externa (admin de agencia / vendedor)
+
+Además:
+
+Nombre de la agencia
+
+Logo de la agencia (solo vista o link a configuración de agencia)
+
+Rol dentro de la agencia: Owner, Asesor, etc.
+
+Firma / nombre comercial (para contratos y mensajes al cliente)
+
+2.3 Propietario
+
+Además:
+
+Tipo de propietario: Persona física / Persona moral
+
+RFC (opcional)
+
+Preferencia de contacto: Email / WhatsApp / Llamada
+
+Banco / método de pago (solo si más adelante manejas pagos)
+
+2.4 Inquilino
+
+Más simple:
+
+Número de personas en su grupo (opcional)
+
+Mascotas: Sí / No
+
+Preferencias (ej. “No llamadas, solo WhatsApp”)
+
+Todo esto lo puedes manejar con un objeto base de perfil + campos adicionales según role.
+
+3) Que el cambio de contraseña funcione (el problema que mencionas)
+
+Te dejo un flujo claro que puedes implementar. Asumo algo estilo React front + API REST en backend, pero se adapta fácil a lo que tengas.
+
+3.1. API en backend (ruta propuesta)
+
+POST /api/auth/change-password
+
+Body esperado:
+
+{
+  "currentPassword": "xxxx",
+  "newPassword": "yyyy"
+}
+
+
+Respuesta en éxito:
+
+{
+  "success": true,
+  "message": "Password updated"
+}
+
+
+Errores típicos:
+
+400 → validación de campos
+
+401 → contraseña actual incorrecta
+
+500 → error interno
+
+Ejemplo (Node/Express muy resumido):
+
+app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Datos incompletos' });
+  }
+
+  const user = await User.findById(userId); // o tu método
+
+  const isValid = await comparePassword(currentPassword, user.passwordHash);
+  if (!isValid) {
+    return res.status(401).json({ success: false, message: 'La contraseña actual es incorrecta.' });
+  }
+
+  const newHash = await hashPassword(newPassword);
+  user.passwordHash = newHash;
+  await user.save();
+
+  return res.json({ success: true, message: 'Contraseña actualizada correctamente.' });
+});
+
+
+Importante: usar siempre hash (bcrypt/argon2) y nunca guardar la contraseña en texto plano.
+
+3.2. Frontend (formulario React de ejemplo)
+function SecuritySection() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+
+    if (newPassword !== confirm) {
+      setError('Las contraseñas nuevas no coinciden.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.message || 'No se pudo actualizar la contraseña.');
+      } else {
+        setMessage('Tu contraseña se actualizó correctamente.');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirm('');
+      }
+    } catch (err) {
+      setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleChangePassword} className="space-y-3 max-w-md">
+      <input
+        type="password"
+        placeholder="Contraseña actual"
+        value={currentPassword}
+        onChange={e => setCurrentPassword(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Nueva contraseña"
+        value={newPassword}
+        onChange={e => setNewPassword(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Confirmar nueva contraseña"
+        value={confirm}
+        onChange={e => setConfirm(e.target.value)}
+      />
+
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {message && <p className="text-green-600 text-sm">{message}</p>}
+
+      <button type="submit" disabled={loading}>
+        {loading ? 'Actualizando...' : 'Actualizar contraseña'}
+      </button>
+    </form>
+  );
+}
