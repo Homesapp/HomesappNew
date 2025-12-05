@@ -1095,6 +1095,11 @@ export function FirstStepsChecklist({
     );
   }
 
+  const handleDismiss = () => {
+    hideChecklist(userRole);
+    setIsHidden(true);
+  };
+
   return (
     <Card className={cn("border-primary/20", className)} data-testid="card-first-steps">
       <CardHeader className="pb-3">
@@ -1105,9 +1110,20 @@ export function FirstStepsChecklist({
               {isEn ? "First Steps" : "Primeros Pasos"}
             </CardTitle>
           </div>
-          <Badge variant="secondary" className="font-normal" data-testid="badge-checklist-progress">
-            {completedCount}/{checklist.length}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="font-normal" data-testid="badge-checklist-progress">
+              {completedCount}/{checklist.length}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              onClick={handleDismiss}
+              data-testid="button-dismiss-checklist"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <Progress value={progress} className="h-1.5 mt-2" data-testid="progress-checklist" />
       </CardHeader>
