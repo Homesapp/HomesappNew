@@ -19,6 +19,7 @@ const translations: Record<Language, Record<string, string>> = {
     "header.switchToOwner": "Cambiar a Propietario",
     "header.switchToClient": "Cambiar a Cliente",
     "header.logout": "Cerrar sesión",
+    "header.goToPlatform": "Entrar a la plataforma",
     
     // Common
     "common.loading": "Cargando...",
@@ -1078,6 +1079,7 @@ const translations: Record<Language, Record<string, string>> = {
     "header.switchToOwner": "Switch to Owner",
     "header.switchToClient": "Switch to Client",
     "header.logout": "Log out",
+    "header.goToPlatform": "Go to platform",
     
     // Common
     "common.loading": "Loading...",
