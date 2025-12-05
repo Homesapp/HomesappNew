@@ -1,0 +1,182 @@
+2. REIMPORTAR 48,000 FOTOS DESDE GOOGLE DRIVE (ALTA CALIDAD)
+2.1. Objetivo de tamaño y resolución
+
+👉 Acción (config imagen):
+
+Para cada foto:
+
+Redimensionar con:
+
+lado más largo ≈ 1600 px (ej. width=1600 y height proporcional, sin deformar).
+
+No aumentar tamaño si el original es menor (no hacer upscale).
+
+Formato:
+
+Ideal: WebP o JPEG optimizado.
+
+Tamaño objetivo promedio:
+
+48,000 fotos →
+
+100 KB c/u → ~4.6 GB
+
+120 KB c/u → ~5.5 GB
+
+150 KB c/u → ~6.9 GB
+
+👉 Apuntar a 120–150 KB promedio por foto (ajustando quality).
+
+2.2. Campos necesarios para migrar
+
+👉 Acción (ver DB y ajustar modelo):
+
+Asegurarse de que en cada Photo tengamos:
+
+driveFileId o algún identificador para volver a descargar el original desde Drive.
+
+qualityVersion (0/1 vieja, 2 nueva).
+
+migrationStatus (pending, processing, done, error).
+
+Si no existe driveFileId, recordar de dónde se obtienen las fotos originalmente (carpeta en Drive, patrón de nombre, etc.) y guardar esa referencia antes de iniciar la migración.
+
+2.3. Arquitectura del proceso de migración (para que NO se cuelgue)
+
+👉 Acción (backend):
+
+Crear una tarea de migración en background, NO dentro de una sola llamada HTTP larga.
+
+Piezas:
+
+Tabla/campo migrationStatus en Photo.
+
+Script/worker tipo node scripts/migratePhotosHighRes.ts.
+
+Procesamiento en lotes:
+
+Ej.: 100–200 fotos por ciclo máximo.
+
+Límites:
+
+Concurrencia bajita (2–3 fotos en paralelo).
+
+Retries controlados.
+
+Flujo del worker:
+
+Paso 1: Seleccionar N fotos con:
+
+migrationStatus = 'pending'
+
+y source = 'drive'
+
+Paso 2: Marcar cada una como processing.
+
+Paso 3: Para cada foto:
+
+Descargar original desde Google Drive usando driveFileId.
+
+Procesar imagen (resize + compress).
+
+Subir a storage (el mismo que están usando ahora).
+
+Actualizar url, width, height, sizeBytes, qualityVersion = 2, migrationStatus = 'done'.
+
+(Opcional) Borrar archivo antiguo de baja calidad del storage.
+
+Paso 4: Si hay error en alguna foto:
+
+Marcar migrationStatus = 'error' y guardar errorMessage (nuevo campo opcional).
+
+Paso 5: Salir cuando ya no haya más fotos pending.
+
+Ejecución:
+
+Comando ejecutable en Replit:
+
+node scripts/migratePhotosHighRes.js
+
+
+Este script puede correr varias veces; cada vez procesará el siguiente lote de pending.
+
+2.4. Ejemplo de pseudocódigo del script de migración
+
+👉 Acción (para Replit, Node/TS):
+
+// scripts/migratePhotosHighRes.ts
+import { getPendingPhotos, markAsProcessing, updatePhotoSuccess, markAsError } from '../db/photos';
+import { downloadFromDrive } from '../services/googleDrive';
+import { uploadToStorage } from '../services/storage';
+import sharp from 'sharp';
+
+const BATCH_SIZE = 100;     // fotos por corrida
+const CONCURRENCY = 3;      // fotos en paralelo
+
+async function processPhoto(photo) {
+  try {
+    // 1. Descargar desde Drive
+    const originalBuffer = await downloadFromDrive(photo.driveFileId);
+
+    // 2. Procesar con Sharp (o similar)
+    const processed = await sharp(originalBuffer)
+      .resize({
+        width: 1600,
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 70 }) // ajustar calidad según pruebas
+      .toBuffer();
+
+    // 3. Subir a storage (ej: units/{unitId}/primary/{photoId}.webp)
+    const path = `units/${photo.unitId}/${photo.type}/${photo.id}.webp`;
+    const url = await uploadToStorage(path, processed, 'image/webp');
+
+    // 4. Actualizar DB
+    const metadata = await sharp(processed).metadata();
+    await updatePhotoSuccess(photo.id, {
+      url,
+      width: metadata.width,
+      height: metadata.height,
+      sizeBytes: processed.length,
+      qualityVersion: 2,
+    });
+
+  } catch (err) {
+    console.error('Error processing photo', photo.id, err);
+    await markAsError(photo.id, err.message || 'unknown error');
+  }
+}
+
+async function main() {
+  const photos = await getPendingPhotos(BATCH_SIZE);
+  if (!photos.length) {
+    console.log('No pending photos');
+    return;
+  }
+
+  // marcar processing
+  await markAsProcessing(photos.map(p => p.id));
+
+  // procesar con concurrencia limitada
+  const chunks = [];
+  for (let i = 0; i < photos.length; i += CONCURRENCY) {
+    chunks.push(photos.slice(i, i + CONCURRENCY));
+  }
+
+  for (const chunk of chunks) {
+    await Promise.all(chunk.map(processPhoto));
+  }
+
+  console.log('Batch finished:', photos.length, 'photos processed');
+}
+
+main().then(() => process.exit(0));
+
+
+importante:
+
+downloadFromDrive debe usar la Google Drive API con rate limiting.
+
+uploadToStorage puede ser el mismo servicio que ya usan hoy.
+
+Probar primero con 100–200 fotos antes de lanzar todas las 48,000.

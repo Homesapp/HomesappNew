@@ -8348,6 +8348,26 @@ export const externalUnitMediaStatusEnum = pgEnum("external_unit_media_status", 
   "error",        // Analysis failed
 ]);
 
+export const photoSlotTypeEnum = pgEnum("photo_slot_type", [
+  "primary",      // Max 5 photos
+  "secondary",    // Max 20 photos
+]);
+
+export const photoSourceEnum = pgEnum("photo_source", [
+  "drive",        // Imported from Google Drive
+  "manual_upload", // Uploaded manually
+  "airbnb",       // Imported from Airbnb
+  "other",        // Other source
+]);
+
+export const photoMigrationStatusEnum = pgEnum("photo_migration_status", [
+  "none",         // Not migrated / original
+  "pending",      // Queued for migration
+  "processing",   // Currently being migrated
+  "done",         // Migration complete
+  "error",        // Migration failed
+]);
+
 export const externalUnitMediaLabelEnum = pgEnum("external_unit_media_label", [
   "kitchen",         // Cocina
   "bedroom",         // Recámara
@@ -8373,10 +8393,29 @@ export const externalUnitMedia = pgTable("external_unit_media", {
   driveWebViewUrl: text("drive_web_view_url"), // URL to view in Drive/embed
   thumbnailUrl: text("thumbnail_url"), // Thumbnail in Object Storage (for photos)
   
+  // Photo Slot System (primary max 5, secondary max 20)
+  photoSlot: photoSlotTypeEnum("photo_slot").default("secondary"), // primary or secondary
+  position: integer("position").default(1), // Order within slot (1-5 for primary, 1-20 for secondary)
+  
   // Original file info
   fileName: varchar("file_name", { length: 500 }),
   mimeType: varchar("mime_type", { length: 100 }),
   fileSize: integer("file_size"), // Size in bytes
+  
+  // Image dimensions (for proper display)
+  width: integer("width"), // Image width in pixels
+  height: integer("height"), // Image height in pixels
+  
+  // Storage and source tracking
+  storagePath: text("storage_path"), // Object storage path
+  storageUrl: text("storage_url"), // Public URL in object storage
+  source: photoSourceEnum("source").default("drive"), // Where the photo came from
+  
+  // Quality and migration tracking for reimport
+  qualityVersion: integer("quality_version").default(1), // 1=original, 2=high quality reimport
+  migrationStatus: photoMigrationStatusEnum("migration_status").default("none"), // For batch reimport tracking
+  migrationError: text("migration_error"), // Error message if migration failed
+  migratedAt: timestamp("migrated_at"), // When the migration was completed
   
   // AI Classification
   status: externalUnitMediaStatusEnum("status").default("pending").notNull(),
@@ -8401,6 +8440,9 @@ export const externalUnitMedia = pgTable("external_unit_media", {
   index("idx_external_unit_media_type").on(table.mediaType),
   index("idx_external_unit_media_status").on(table.status),
   index("idx_external_unit_media_label").on(table.aiPrimaryLabel),
+  index("idx_external_unit_media_slot").on(table.photoSlot),
+  index("idx_external_unit_media_migration").on(table.migrationStatus),
+  index("idx_external_unit_media_quality").on(table.qualityVersion),
 ]);
 
 export const insertExternalUnitMediaSchema = createInsertSchema(externalUnitMedia).omit({

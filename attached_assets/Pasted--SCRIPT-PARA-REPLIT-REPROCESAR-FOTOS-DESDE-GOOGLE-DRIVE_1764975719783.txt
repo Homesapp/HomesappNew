@@ -1,0 +1,335 @@
+📄 SCRIPT PARA REPLIT – REPROCESAR FOTOS DESDE GOOGLE DRIVE
+
+Objetivo:
+
+Reprocesar todas las fotos antiguas ya importadas desde Google Drive, pero en alta calidad controlada.
+
+Hacerlo en batches, con control de errores y sin reventar la memoria ni los límites de tiempo.
+
+Dejar trazabilidad en la base de datos (qué está procesado, qué falló, etc.).
+
+1. Diagnóstico rápido de por qué se detenía el script
+
+👨‍💻 Acciones para Replit (investigación):
+
+Buscar el script anterior de importación de fotos (nombre de archivo/proceso).
+
+Revisar:
+
+¿Procesaba TODAS las fotos en un solo for gigante?
+
+¿Sin límite de concurrencia (muchos downloads + resizes a la vez)?
+
+¿Sin try/catch general ni reintentos?
+
+¿Corría en un entorno con timeout (ej: función HTTP / job que se corta a X minutos)?
+
+Confirmar si usa alguna librería tipo sharp, jimp o similar para procesar imágenes.
+
+Ver logs de cuando “se detiene”:
+
+¿Error por tamaño de memoria?
+
+¿Timeout?
+
+¿Rate limit de Google Drive?
+
+¿Falla alguna promesa y no se maneja, parando todo?
+
+🔍 Conclusión esperada (spoiler):
+
+Procesar 48k imágenes en un solo proceso lineal y pesado sin batches ni manejo de errores es receta ideal para que se “muera” por memoria, timeout o rate limits.
+
+2. Diseño del nuevo flujo de reprocesamiento
+2.1. Modelo / columnas en la base de datos
+
+👨‍💻 Acción: agregar/confirmar columnas en la tabla de fotos (o donde guardes las imágenes de cada unidad):
+
+En tabla UnitPhoto (nombre a ajustar):
+
+id
+
+unitId (FK a Unidad)
+
+driveFileId (string) → id del archivo en Google Drive.
+
+originalUrl (string) → si se guardó alguna vez.
+
+processedUrl (string, nullable) → URL de la foto ya reprocesada y subida al storage final.
+
+processedAt (datetime, nullable)
+
+width (int, nullable)
+
+height (int, nullable)
+
+sizeBytes (int, nullable)
+
+status (string/enum):
+
+pending (nunca procesada)
+
+processing
+
+processed
+
+error
+
+errorMessage (string/text, nullable)
+
+retryCount (int, default 0)
+
+Si ya existe algo parecido, adaptarlo. La idea es tener una forma de saber:
+
+Qué falta procesar.
+
+Qué se quebró.
+
+Cuánto pesa cada imagen.
+
+3. Worker / script de reprocesamiento en batches
+3.1. Configuración base
+
+👨‍💻 Acción: crear un script dedicado tipo scripts/reprocessPhotos.ts (Node) que:
+
+NO esté atado a una petición HTTP (para evitar timeouts).
+
+Se pueda ejecutar como:
+
+node scripts/reprocessPhotos.js
+
+
+o una tarea de “Background worker / Cron” dentro de Replit.
+
+Use:
+
+Google Drive API para descargar la foto por driveFileId.
+
+sharp (recomendado) para resize/compress.
+
+El storage que ya uses (S3 / Supabase / Cloudinary / etc.) para subir la versión final.
+
+3.2. Parámetros / constantes
+
+En el script:
+
+BATCH_SIZE = 50 (cuántas fotos procesa en cada iteración de la DB).
+
+CONCURRENCY = 5 (máximo número de fotos procesadas en paralelo).
+
+TARGET_MAX_WIDTH = 1600
+
+TARGET_MAX_HEIGHT = 1600 (o 1900, pero con fit: 'inside' da igual, se mantiene proporción).
+
+JPEG_QUALITY = 75 (luego se ajusta si queda muy pesado).
+
+3.3. Lógica principal
+
+Pseudo-código para Replit:
+
+async function main() {
+  while (true) {
+    // 1. Obtener un batch de fotos pendientes
+    const photos = await db.unitPhoto.findMany({
+      where: {
+        status: { in: ['pending', 'error'] },
+        retryCount: { lt: 5 },
+      },
+      take: BATCH_SIZE,
+    });
+
+    if (photos.length === 0) {
+      console.log('No hay más fotos pendientes. Fin.');
+      break;
+    }
+
+    console.log(`Procesando batch de ${photos.length} fotos...`);
+
+    // Marcar como "processing" para evitar que otro worker las tome
+    await markAsProcessing(photos.map(p => p.id));
+
+    // 2. Procesar en paralelo con límite de concurrencia
+    await processWithConcurrency(photos, CONCURRENCY);
+
+    // (opcional) Pausa corta para evitar rate limit de Drive
+    await sleep(2000);
+  }
+}
+
+
+processWithConcurrency:
+
+async function processWithConcurrency(photos, concurrency) {
+  const queue = [...photos];
+  const workers: Promise<void>[] = [];
+
+  for (let i = 0; i < concurrency; i++) {
+    workers.push((async () => {
+      while (queue.length > 0) {
+        const photo = queue.shift();
+        if (!photo) return;
+        await processSinglePhoto(photo);
+      }
+    })());
+  }
+
+  await Promise.all(workers);
+}
+
+
+processSinglePhoto:
+
+async function processSinglePhoto(photo) {
+  try {
+    // 1. Descargar desde Google Drive
+    const buffer = await downloadFromGoogleDrive(photo.driveFileId);
+
+    // 2. Reprocesar con sharp
+    const sharp = require('sharp');
+    const image = sharp(buffer);
+    const metadata = await image.metadata();
+
+    const resizedBuffer = await image
+      .resize({
+        width: TARGET_MAX_WIDTH,
+        height: TARGET_MAX_HEIGHT,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality: JPEG_QUALITY,
+        progressive: true,
+        mozjpeg: true,
+      })
+      .toBuffer();
+
+    // 3. Subir a storage final
+    const url = await uploadToStorage(resizedBuffer, {
+      // ruta/nombre basado en unitId + photoId, etc.
+    });
+
+    // 4. Guardar en DB
+    await db.unitPhoto.update({
+      where: { id: photo.id },
+      data: {
+        processedUrl: url,
+        processedAt: new Date(),
+        width: metadata.width,
+        height: metadata.height,
+        sizeBytes: resizedBuffer.length,
+        status: 'processed',
+        retryCount: { increment: 1 },
+        errorMessage: null,
+      },
+    });
+
+    console.log(`Foto ${photo.id} procesada OK (${resizedBuffer.length} bytes).`);
+  } catch (err) {
+    console.error(`Error procesando foto ${photo.id}`, err);
+    await db.unitPhoto.update({
+      where: { id: photo.id },
+      data: {
+        status: 'error',
+        retryCount: { increment: 1 },
+        errorMessage: String(err.message || err),
+      },
+    });
+  }
+}
+
+
+Clave:
+
+Si algo falla en una foto, el script no se detiene, solo marca esa en error y sigue con las demás.
+
+Se limita el número de fotos procesadas simultáneamente para no saturar memoria ni la API de Drive.
+
+4. Integración con los roles / secciones visibles
+
+Aunque el reprocesamiento es “backend”, podemos dar visibilidad en la app:
+
+4.1. Admin HomesApp (super admin)
+
+👨‍💻 Acciones para Replit:
+
+En el panel de Admin HomesApp → sección tipo “Mantenimiento del sistema” o “Media”:
+
+Mostrar:
+
+Total fotos
+
+Fotos processed
+
+Fotos pending
+
+Fotos error
+
+Espacio total estimado (sumatoria de sizeBytes convertido a GB).
+
+Permitir:
+
+Botón “Ver fotos con error” → tabla con id, unidad, errorMessage.
+
+Botón “Reintentar fotos con error” → setear status=pending para esas.
+
+4.2. Admin de Agencia / Asesor
+
+👨‍💻 Acciones para Replit:
+
+En la vista de “Unidad” (donde ven fotos):
+
+Si todas las fotos están processed → nada raro, solo se ve bien.
+
+Si alguna está en pending o error:
+
+Mostrar icono (ej: ⚠️) indicando que la calidad aún está en proceso o que hay error.
+
+Pero sin romper la experiencia; es más un detalle interno.
+
+5. Control de espacio (5–7 GB)
+
+👨‍💻 Acciones para Replit:
+
+Después de tener el worker funcionando, tomar una muestra de, por ejemplo, 100–200 fotos procesadas:
+
+Sacar promedio de sizeBytes.
+
+Estimar:
+
+avgSizeBytes × 48000 y convertir a GB.
+
+Si se pasa mucho de 7 GB:
+
+Bajar JPEG_QUALITY de 75 → 70 o 65.
+
+Volver a procesar solo las más grandes (o todas, según lo que se decida).
+
+Crear un pequeño endpoint/admin interno:
+
+GET /api/admin/storage-summary
+
+Devuelve:
+
+totalPhotos
+
+totalBytes
+
+avgBytes
+
+Para que Admin HomesApp lo vea en su panel.
+
+6. Ejecución en Replit (muy importante)
+
+👨‍💻 Acciones concretas:
+
+Crear un Background Worker / Tarea programada (si el entorno lo permite) que ejecute node scripts/reprocessPhotos.js.
+
+O al menos:
+
+Permitir ejecutarlo manualmente desde la consola cuando se haga el reprocesado masivo.
+
+Asegurarse de que:
+
+El script loggee progreso (cada X fotos).
+
+Se puedan ver logs si algo falla.
