@@ -160,6 +160,9 @@ export default function ExternalRentals() {
   
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Agency selector for admin/master users (Portal tab)
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string>("");
 
   // Portal tab states
   const [portalSearchQuery, setPortalSearchQuery] = useState("");
@@ -175,6 +178,27 @@ export default function ExternalRentals() {
   const [showPassword, setShowPassword] = useState(false);
 
   const dateLocale = language === "es" ? es : enUS;
+  
+  // Fetch current user to check role
+  const { data: currentUser } = useQuery<{ id: string; role: string; externalAgencyId?: string }>({
+    queryKey: ['/api/user'],
+  });
+  
+  // Check if user is admin/master
+  const isAdminOrMaster = currentUser?.role === 'admin' || currentUser?.role === 'master';
+  
+  // Fetch all agencies for admin/master users
+  const { data: agencies } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/external-agencies'],
+    enabled: isAdminOrMaster && activeTab === 'portal',
+  });
+  
+  // Auto-select first agency when agencies load
+  useEffect(() => {
+    if (isAdminOrMaster && agencies && agencies.length > 0 && !selectedAgencyId) {
+      setSelectedAgencyId(agencies[0].id);
+    }
+  }, [agencies, isAdminOrMaster, selectedAgencyId]);
 
   // OPTIMIZED: Single consolidated query for all rentals data (contracts, filters, stats)
   const { data: overviewData, isLoading, isError, error, refetch } = useQuery<RentalsOverviewResponse>({
@@ -274,20 +298,21 @@ export default function ExternalRentals() {
     },
   });
 
-  // Portal tokens query
+  // Portal tokens query - includes agencyId for admin/master users
   const { data: portalTokens = [], isLoading: isLoadingPortalTokens } = useQuery<PortalToken[]>({
-    queryKey: ["/api/external/portal-tokens", portalRoleFilter, portalStatusFilter],
+    queryKey: ["/api/external/portal-tokens", portalRoleFilter, portalStatusFilter, selectedAgencyId],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (portalRoleFilter !== "all") params.append("role", portalRoleFilter);
       if (portalStatusFilter !== "all") params.append("status", portalStatusFilter);
+      if (selectedAgencyId) params.append("agencyId", selectedAgencyId);
       const response = await fetch(`/api/external/portal-tokens?${params.toString()}`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch tokens");
       return response.json();
     },
-    enabled: activeTab === 'portal',
+    enabled: activeTab === 'portal' && (!isAdminOrMaster || !!selectedAgencyId),
   });
 
   const resetPasswordMutation = useMutation({
@@ -1161,6 +1186,28 @@ export default function ExternalRentals() {
                       : "Manage access credentials for tenant and owner portals"}
                   </CardDescription>
                 </div>
+                {isAdminOrMaster && agencies && agencies.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-muted-foreground whitespace-nowrap">
+                      {language === "es" ? "Agencia:" : "Agency:"}
+                    </label>
+                    <Select
+                      value={selectedAgencyId}
+                      onValueChange={setSelectedAgencyId}
+                    >
+                      <SelectTrigger className="w-[200px]" data-testid="select-portal-agency">
+                        <SelectValue placeholder={language === "es" ? "Seleccionar agencia" : "Select agency"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agencies.map((agency) => (
+                          <SelectItem key={agency.id} value={agency.id}>
+                            {agency.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

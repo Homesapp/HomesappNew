@@ -623,7 +623,13 @@ export function registerPortalRoutes(
   // GET all portal tokens for the agency
   app.get("/api/external/portal-tokens", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
-      const agencyId = await getUserAgencyId(req);
+      let agencyId = await getUserAgencyId(req);
+      
+      // Admin/master users can specify agencyId via query param
+      const userRole = req.user?.cachedRole || req.user?.role || req.session?.adminUser?.role;
+      if ((userRole === 'admin' || userRole === 'master') && req.query.agencyId) {
+        agencyId = req.query.agencyId;
+      }
       
       if (!agencyId) {
         return res.status(403).json({ message: "User is not assigned to any agency" });
