@@ -17,6 +17,7 @@ import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OnboardingTourDialog } from "@/components/OnboardingSystem";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import { FeedbackButton } from "@/components/FeedbackSystem";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -651,6 +652,8 @@ function AuthenticatedApp() {
           onboardingCompleted={currentUser.onboardingCompleted || false}
         />
       )}
+      {/* Floating feedback button for all authenticated users */}
+      {currentUser && <FeedbackButton variant="floating" />}
     </SidebarProvider>
   );
 }
