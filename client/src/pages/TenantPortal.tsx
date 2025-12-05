@@ -40,7 +40,11 @@ import {
   Info,
   DollarSign,
   Receipt,
-  User
+  User,
+  ExternalLink,
+  ScrollText,
+  Filter,
+  Download
 } from "lucide-react";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
@@ -413,14 +417,26 @@ export default function TenantPortal() {
               <Home className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold">{t("tenant.portal", "Tenant Portal")}</h1>
+              <h1 className="text-lg font-semibold">{t("tenant.portal", "Portal del Inquilino")}</h1>
               <p className="text-sm text-muted-foreground">{session.user.name}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
-            <LogOut className="mr-2 h-4 w-4" />
-            {t("common.logout", "Logout")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setLocation("/")}
+              data-testid="button-go-home"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{t("portal.goToHomesApp", "Ir a HomesApp")}</span>
+              <span className="sm:hidden">Home</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{t("common.logout", "Cerrar sesión")}</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -429,107 +445,217 @@ export default function TenantPortal() {
           <TabsList className="mb-6 flex-wrap h-auto gap-1" data-testid="tabs-navigation">
             <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
               <Home className="h-4 w-4" />
-              {t("tenant.overview", "Overview")}
+              <span className="hidden sm:inline">{t("tenant.overview", "Inicio")}</span>
             </TabsTrigger>
             <TabsTrigger value="payments" className="gap-2" data-testid="tab-payments">
               <CreditCard className="h-4 w-4" />
-              {t("tenant.payments", "Payments")}
+              <span className="hidden sm:inline">{t("tenant.payments", "Pagos")}</span>
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="gap-2" data-testid="tab-maintenance">
               <Wrench className="h-4 w-4" />
-              {t("tenant.maintenance", "Maintenance")}
+              <span className="hidden sm:inline">{t("tenant.maintenance", "Mantenimiento")}</span>
             </TabsTrigger>
             <TabsTrigger value="documents" className="gap-2" data-testid="tab-documents">
               <FileText className="h-4 w-4" />
-              {t("tenant.documents", "Documents")}
+              <span className="hidden sm:inline">{t("tenant.documents", "Documentos")}</span>
+            </TabsTrigger>
+            <TabsTrigger value="contract" className="gap-2" data-testid="tab-contract">
+              <ScrollText className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("tenant.contract", "Contrato")}</span>
             </TabsTrigger>
             <TabsTrigger value="support" className="gap-2" data-testid="tab-support">
               <MessageSquare className="h-4 w-4" />
-              {t("tenant.support", "Support")}
+              <span className="hidden sm:inline">{t("tenant.support", "Mensajes")}</span>
+              {unreadCount && unreadCount.unread > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1 flex items-center justify-center text-xs">
+                  {unreadCount.unread > 9 ? '9+' : unreadCount.unread}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t("tenant.nextPayment", "Next Payment")}
-                  </CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
+            <div className="space-y-6">
+              {/* Hero Card - Next Payment */}
+              <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20" data-testid="card-hero-payment">
+                <CardContent className="p-6">
                   {contractLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : !contractInfo ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <CreditCard className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">{t("tenant.noContractData", "No hay informaci\u00f3n de contrato disponible")}</p>
+                    </div>
                   ) : (
-                    <>
-                      <div className="text-2xl font-bold">
-                        {contractInfo?.currency} ${contractInfo?.monthlyRent?.toLocaleString()}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                          {t("tenant.nextRentPayment", "Pr\u00f3ximo Pago de Renta")}
+                        </p>
+                        <div className="flex items-baseline gap-2" data-testid="text-next-payment-amount">
+                          <span className="text-4xl font-bold">{contractInfo.currency || "MXN"}</span>
+                          <span className="text-4xl font-bold">${(contractInfo.monthlyRent ?? 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                            <span className="text-sm" data-testid="text-next-payment-date">
+                              {nextPaymentDate ? format(nextPaymentDate, "d 'de' MMMM, yyyy", { locale: es }) : t("tenant.noDate", "Sin fecha")}
+                            </span>
+                          </div>
+                          {daysUntilPayment !== null && (
+                            <Badge 
+                              variant={daysUntilPayment <= 0 ? "destructive" : daysUntilPayment <= 5 ? "secondary" : "outline"}
+                              className="gap-1"
+                              data-testid="badge-days-until-payment"
+                            >
+                              {daysUntilPayment < 0 && <AlertTriangle className="h-3 w-3" />}
+                              {daysUntilPayment === 0
+                                ? t("tenant.dueToday", "Vence hoy")
+                                : daysUntilPayment < 0
+                                ? t("tenant.overdue", "Vencido")
+                                : `${daysUntilPayment} ${t("tenant.daysLeft", "d\u00edas restantes")}`}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {nextPaymentDate && format(nextPaymentDate, "MMMM d, yyyy", { locale: locale === "es" ? es : undefined })}
-                      </p>
-                      {daysUntilPayment !== null && (
-                        <Badge variant={daysUntilPayment <= 5 ? "destructive" : "secondary"} className="mt-2">
-                          {daysUntilPayment === 0
-                            ? t("tenant.dueToday", "Due today")
-                            : daysUntilPayment < 0
-                            ? t("tenant.overdue", "Overdue")
-                            : t("tenant.daysRemaining", `${daysUntilPayment} days remaining`)}
-                        </Badge>
-                      )}
-                    </>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button onClick={() => setShowReceiptDialog(true)} data-testid="button-register-payment-hero">
+                          <Upload className="mr-2 h-4 w-4" />
+                          {t("tenant.registerPayment", "Registrar Pago")}
+                        </Button>
+                        <Button variant="outline" onClick={() => setActiveTab("contract")} data-testid="button-view-contract-hero">
+                          <ScrollText className="mr-2 h-4 w-4" />
+                          {t("tenant.viewContract", "Ver Contrato")}
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t("tenant.contractStatus", "Contract Status")}
-                  </CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {contractLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="default" className="gap-1">
+              {/* Quick Stats */}
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <Card data-testid="card-stat-contract-status">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("tenant.contractStatus", "Estado")}</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {contractLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : contractInfo ? (
+                      <>
+                        <Badge variant="default" className="gap-1" data-testid="badge-contract-status">
                           <CheckCircle2 className="h-3 w-3" />
-                          {contractInfo?.status}
+                          {contractInfo.status === 'active' ? 'Vigente' : contractInfo.status || 'N/A'}
                         </Badge>
-                      </div>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {t("tenant.validUntil", "Valid until")}:{" "}
-                        {contractInfo?.endDate && format(new Date(contractInfo.endDate), "MMMM d, yyyy", { locale: locale === "es" ? es : undefined })}
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+                        <p className="mt-2 text-xs text-muted-foreground" data-testid="text-contract-end-date">
+                          {t("tenant.until", "Hasta")}: {contractInfo.endDate ? format(new Date(contractInfo.endDate), "dd/MM/yyyy") : 'N/A'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">N/A</p>
+                    )}
+                  </CardContent>
+                </Card>
 
+                <Card data-testid="card-stat-open-tickets">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("tenant.openTickets", "Tickets")}</CardTitle>
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {ticketsLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold" data-testid="text-open-tickets-count">
+                          {tickets.filter((t) => t.status !== "resolved").length}
+                        </div>
+                        <p className="text-xs text-muted-foreground" data-testid="text-total-tickets-count">
+                          {tickets.length} {t("tenant.total", "total")}
+                        </p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-stat-pending-payments">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("tenant.pendingPayments", "Pendientes")}</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {paymentSummaryLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold text-yellow-600" data-testid="text-pending-count">{paymentSummary?.pendingCount ?? 0}</div>
+                        <p className="text-xs text-muted-foreground">{t("tenant.toRegister", "por registrar")}</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-stat-messages">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("tenant.messages", "Mensajes")}</CardTitle>
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600" data-testid="text-unread-count">{unreadCount?.unread ?? 0}</div>
+                    <p className="text-xs text-muted-foreground">{t("tenant.unread", "sin leer")}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t("tenant.openTickets", "Open Tickets")}
-                  </CardTitle>
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">{t("tenant.quickActions", "Acciones R\u00e1pidas")}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {ticketsLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">
-                        {tickets.filter((t) => t.status !== "resolved").length}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {t("tenant.totalTickets", "Total tickets")}: {tickets.length}
-                      </p>
-                    </>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setShowReceiptDialog(true)}
+                      data-testid="button-quick-register-payment"
+                    >
+                      <Upload className="h-5 w-5" />
+                      <span className="text-xs">{t("tenant.registerPayment", "Registrar Pago")}</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setShowMaintenanceDialog(true)}
+                      data-testid="button-quick-report-issue"
+                    >
+                      <Wrench className="h-5 w-5" />
+                      <span className="text-xs">{t("tenant.reportIssue", "Reportar Problema")}</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setActiveTab("support")}
+                      data-testid="button-quick-messages"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                      <span className="text-xs">{t("tenant.sendMessage", "Enviar Mensaje")}</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setActiveTab("contract")}
+                      data-testid="button-quick-contract"
+                    >
+                      <ScrollText className="h-5 w-5" />
+                      <span className="text-xs">{t("tenant.viewContract", "Ver Contrato")}</span>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1110,75 +1236,201 @@ export default function TenantPortal() {
                 )}
               </div>
 
-              <Separator />
+            </div>
+          </TabsContent>
 
+          <TabsContent value="contract">
+            <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold mb-4">{t("tenant.earlyTermination", "Early Termination")}</h3>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      <AlertTriangle className="h-6 w-6 text-yellow-500 mt-1" />
-                      <div className="flex-1">
-                        <p className="font-medium">{t("tenant.terminationNotice", "Request Early Termination")}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {t("tenant.terminationDesc", "Submit a request to end your rental contract early. This may involve additional fees as per your contract terms.")}
-                        </p>
-                        <Dialog open={showTerminationDialog} onOpenChange={setShowTerminationDialog}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" className="mt-4" data-testid="button-request-termination">
-                              {t("tenant.requestTermination", "Request Termination")}
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>{t("tenant.terminationRequest", "Termination Request")}</DialogTitle>
-                              <DialogDescription>
-                                {t("tenant.terminationRequestDesc", "Please provide details for your termination request")}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <Form {...terminationForm}>
-                              <form onSubmit={terminationForm.handleSubmit((data) => requestTerminationMutation.mutate(data))} className="space-y-4">
-                                <FormField
-                                  control={terminationForm.control}
-                                  name="requestedDate"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>{t("tenant.requestedMoveOut", "Requested Move-out Date")}</FormLabel>
-                                      <FormControl>
-                                        <Input type="date" {...field} data-testid="input-termination-date" />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <FormField
-                                  control={terminationForm.control}
-                                  name="reason"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>{t("tenant.reason", "Reason")}</FormLabel>
-                                      <FormControl>
-                                        <Textarea rows={4} {...field} data-testid="input-termination-reason" />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <DialogFooter>
-                                  <Button type="submit" disabled={requestTerminationMutation.isPending} data-testid="button-submit-termination">
-                                    {requestTerminationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    {t("tenant.submit", "Submit")}
-                                  </Button>
-                                </DialogFooter>
-                              </form>
-                            </Form>
-                          </DialogContent>
-                        </Dialog>
+                <h2 className="text-lg font-semibold">{t("tenant.contractDetails", "Detalles del Contrato")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("tenant.contractDetailsDesc", "Informaci\u00f3n de tu contrato de arrendamiento")}
+                </p>
+              </div>
+
+              {/* Contract Summary Hero */}
+              <Card className="bg-gradient-to-br from-muted/50 to-background" data-testid="card-contract-summary">
+                <CardContent className="p-6">
+                  {contractLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                  ) : !contractInfo ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <ScrollText className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">{t("tenant.noContractData", "No hay informaci\u00f3n de contrato disponible")}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex items-start justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <ScrollText className="h-7 w-7 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold">{t("tenant.rentalContract", "Contrato de Arrendamiento")}</h3>
+                            <p className="text-sm text-muted-foreground" data-testid="text-contract-property">{contractInfo.propertyTitle || 'N/A'}</p>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={contractInfo.status === 'active' ? 'default' : 'secondary'}
+                          className="gap-1 text-sm py-1"
+                          data-testid="badge-contract-status"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {contractInfo.status === 'active' ? t("contract.active", "Vigente") : contractInfo.status || 'N/A'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-start-date">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.startDate", "Fecha de Inicio")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.startDate ? format(new Date(contractInfo.startDate), "d MMM yyyy", { locale: es }) : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-end-date">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.endDate", "Fecha de T\u00e9rmino")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.endDate ? format(new Date(contractInfo.endDate), "d MMM yyyy", { locale: es }) : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-rent">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.monthlyRent", "Renta Mensual")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.currency || 'MXN'} ${(contractInfo.monthlyRent ?? 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-deposit">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.deposit", "Dep\u00f3sito")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.currency || 'MXN'} ${(contractInfo.depositAmount ?? 0).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <Button variant="outline" data-testid="button-download-contract">
+                          <Download className="mr-2 h-4 w-4" />
+                          {t("contract.downloadPDF", "Descargar Contrato")}
+                        </Button>
+                        <Button variant="outline" data-testid="button-download-inventory">
+                          <FileText className="mr-2 h-4 w-4" />
+                          {t("contract.inventory", "Inventario")}
+                        </Button>
                       </div>
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Property & Agency Info */}
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      {t("contract.property", "Propiedad")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="font-medium">{contractInfo?.propertyTitle}</p>
+                    {contractInfo?.propertyAddress && (
+                      <p className="text-sm text-muted-foreground">{contractInfo.propertyAddress}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      {t("contract.managedBy", "Administrado por")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="font-medium">{contractInfo?.agencyName}</p>
+                    {contractInfo?.agencyPhone && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        {contractInfo.agencyPhone}
+                      </div>
+                    )}
+                    {contractInfo?.agencyEmail && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                        {contractInfo.agencyEmail}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Early Termination */}
+              <Card className="border-yellow-200 dark:border-yellow-900/50 bg-yellow-50/50 dark:bg-yellow-900/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-yellow-700 dark:text-yellow-500">
+                    <AlertTriangle className="h-4 w-4" />
+                    {t("tenant.earlyTermination", "Terminaci\u00f3n Anticipada")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {t("tenant.terminationDesc", "Solicita terminar tu contrato antes de tiempo. Esto puede implicar cargos adicionales seg\u00fan las condiciones de tu contrato.")}
+                  </p>
+                  <Dialog open={showTerminationDialog} onOpenChange={setShowTerminationDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" data-testid="button-request-termination">
+                        {t("tenant.requestTermination", "Solicitar Terminaci\u00f3n")}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>{t("tenant.terminationRequest", "Solicitud de Terminaci\u00f3n")}</DialogTitle>
+                        <DialogDescription>
+                          {t("tenant.terminationRequestDesc", "Proporciona los detalles de tu solicitud")}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Form {...terminationForm}>
+                        <form onSubmit={terminationForm.handleSubmit((data) => requestTerminationMutation.mutate(data))} className="space-y-4">
+                          <FormField
+                            control={terminationForm.control}
+                            name="requestedDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("tenant.requestedMoveOut", "Fecha de Salida Solicitada")}</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} data-testid="input-termination-date" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={terminationForm.control}
+                            name="reason"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("tenant.reason", "Motivo")}</FormLabel>
+                                <FormControl>
+                                  <Textarea rows={4} {...field} data-testid="input-termination-reason" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <DialogFooter>
+                            <Button type="submit" disabled={requestTerminationMutation.isPending} data-testid="button-submit-termination">
+                              {requestTerminationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              {t("tenant.submit", "Enviar")}
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

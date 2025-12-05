@@ -43,7 +43,13 @@ import {
   Flame,
   AlertCircle,
   TrendingUp,
-  Check
+  Check,
+  ExternalLink,
+  ScrollText,
+  Filter,
+  Download,
+  Eye,
+  Users
 } from "lucide-react";
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
@@ -497,14 +503,26 @@ export default function OwnerPortal() {
               <Key className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold">{t("owner.portal", "Owner Portal")}</h1>
+              <h1 className="text-lg font-semibold">{t("owner.portal", "Portal del Propietario")}</h1>
               <p className="text-sm text-muted-foreground">{session.user.name}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
-            <LogOut className="mr-2 h-4 w-4" />
-            {t("common.logout", "Logout")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setLocation("/")}
+              data-testid="button-go-home"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{t("portal.goToHomesApp", "Ir a HomesApp")}</span>
+              <span className="sm:hidden">Home</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{t("common.logout", "Cerrar sesi\u00f3n")}</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -513,183 +531,273 @@ export default function OwnerPortal() {
           <TabsList className="mb-6 flex-wrap h-auto gap-1" data-testid="tabs-navigation">
             <TabsTrigger value="overview" className="gap-2" data-testid="tab-overview">
               <Building2 className="h-4 w-4" />
-              {t("owner.overview", "Overview")}
+              <span className="hidden sm:inline">{t("owner.overview", "Inicio")}</span>
             </TabsTrigger>
-            <TabsTrigger value="payments" className="gap-2" data-testid="tab-payments">
+            <TabsTrigger value="payments" className="gap-2 relative" data-testid="tab-payments">
               <CreditCard className="h-4 w-4" />
-              {t("owner.payments", "Payments")}
+              <span className="hidden sm:inline">{t("owner.payments", "Pagos")}</span>
               {pendingReceipts.length > 0 && (
-                <Badge variant="destructive" className="ml-1">{pendingReceipts.length}</Badge>
+                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {pendingReceipts.length}
+                </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="services" className="gap-2" data-testid="tab-services">
               <Zap className="h-4 w-4" />
-              {t("owner.services", "Services")}
+              <span className="hidden sm:inline">{t("owner.services", "Servicios")}</span>
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="gap-2" data-testid="tab-maintenance">
               <Wrench className="h-4 w-4" />
-              {t("owner.maintenance", "Maintenance")}
+              <span className="hidden sm:inline">{t("owner.maintenance", "Mantenimiento")}</span>
             </TabsTrigger>
             <TabsTrigger value="documents" className="gap-2" data-testid="tab-documents">
               <FileText className="h-4 w-4" />
-              {t("owner.documents", "Documents")}
+              <span className="hidden sm:inline">{t("owner.documents", "Documentos")}</span>
+            </TabsTrigger>
+            <TabsTrigger value="contract" className="gap-2" data-testid="tab-contract">
+              <ScrollText className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("owner.contract", "Contrato")}</span>
             </TabsTrigger>
             <TabsTrigger value="support" className="gap-2" data-testid="tab-support">
               <MessageSquare className="h-4 w-4" />
-              {t("owner.support", "Support")}
+              <span className="hidden sm:inline">{t("owner.support", "Mensajes")}</span>
+              {unreadCount && unreadCount.unread > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1 flex items-center justify-center text-xs">
+                  {unreadCount.unread > 9 ? '9+' : unreadCount.unread}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t("owner.monthlyRent", "Monthly Rent")}
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {contractLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
+            <div className="space-y-6">
+              {/* Hero Card - Payment Summary */}
+              <Card className="bg-gradient-to-br from-green-500/10 via-green-500/5 to-background border-green-500/20" data-testid="card-hero-income">
+                <CardContent className="p-6">
+                  {contractLoading || financialsLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                    </div>
+                  ) : !contractInfo && !financials ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <TrendingUp className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">{t("owner.noIncomeData", "No hay informaci\u00f3n de ingresos disponible")}</p>
+                    </div>
                   ) : (
-                    <>
-                      <div className="text-2xl font-bold">
-                        {contractInfo?.currency} ${contractInfo?.monthlyRent?.toLocaleString()}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                          {t("owner.netIncomeThisMonth", "Ingreso Neto Este Mes")}
+                        </p>
+                        <div className="flex items-baseline gap-2" data-testid="text-net-income">
+                          <span className="text-4xl font-bold text-green-600">{financials?.currency || contractInfo?.currency || "MXN"}</span>
+                          <span className="text-4xl font-bold text-green-600">${(financials?.netIncome ?? 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <DollarSign className="h-4 w-4" />
+                            <span className="text-sm" data-testid="text-monthly-rent">
+                              {t("owner.monthlyRent", "Renta")}: {contractInfo?.currency || "MXN"} ${(contractInfo?.monthlyRent ?? 0).toLocaleString()}
+                            </span>
+                          </div>
+                          {pendingReceipts.length > 0 && (
+                            <Badge variant="secondary" className="gap-1" data-testid="badge-pending-receipts">
+                              <Receipt className="h-3 w-3" />
+                              {pendingReceipts.length} {t("owner.pendingApproval", "por aprobar")}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {t("owner.dueDay", "Due on day")} {contractInfo?.paymentDay}
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t("owner.pendingApproval", "Pending Approval")}
-                  </CardTitle>
-                  <Receipt className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {receiptsLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">{pendingReceipts.length}</div>
-                      <p className="text-xs text-muted-foreground">
-                        {t("owner.receiptsToReview", "Receipts to review")}
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t("owner.openTickets", "Open Tickets")}
-                  </CardTitle>
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {ticketsLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">
-                        {tickets.filter((t) => t.status !== "resolved").length}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {t("owner.maintenanceRequests", "Maintenance requests")}
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {t("owner.netIncome", "Net Income")}
-                  </CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  {financialsLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <>
-                      <div className="text-2xl font-bold">
-                        {financials?.currency || "USD"} ${financials?.netIncome?.toLocaleString() || 0}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {t("owner.thisMonth", "This month")}
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle>{t("owner.propertyDetails", "Property Details")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {contractLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{contractInfo?.propertyTitle}</span>
-                      </div>
-                      {contractInfo?.propertyAddress && (
-                        <p className="text-sm text-muted-foreground pl-6">{contractInfo.propertyAddress}</p>
-                      )}
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>
-                          {contractInfo?.startDate && format(new Date(contractInfo.startDate), "MMM d, yyyy", { locale: locale === "es" ? es : undefined })}
-                          {" - "}
-                          {contractInfo?.endDate && format(new Date(contractInfo.endDate), "MMM d, yyyy", { locale: locale === "es" ? es : undefined })}
-                        </span>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button onClick={() => setActiveTab("payments")} data-testid="button-view-payments-hero">
+                          <Eye className="mr-2 h-4 w-4" />
+                          {t("owner.viewPayments", "Ver Pagos")}
+                        </Button>
+                        <Button variant="outline" onClick={() => setActiveTab("contract")} data-testid="button-view-contract-hero">
+                          <ScrollText className="mr-2 h-4 w-4" />
+                          {t("owner.viewContract", "Ver Contrato")}
+                        </Button>
                       </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle>{t("owner.tenantInfo", "Tenant Information")}</CardTitle>
+              {/* Quick Stats */}
+              <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                <Card data-testid="card-stat-monthly-rent">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("owner.monthlyRent", "Renta")}</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {contractLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : contractInfo ? (
+                      <>
+                        <div className="text-2xl font-bold" data-testid="text-stat-rent">${(contractInfo.monthlyRent ?? 0).toLocaleString()}</div>
+                        <p className="text-xs text-muted-foreground">{t("owner.dueDay", "D\u00eda")} {contractInfo.paymentDay ?? 1}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">N/A</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-stat-pending-receipts">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("owner.pendingApproval", "Pendientes")}</CardTitle>
+                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {receiptsLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold text-yellow-600" data-testid="text-stat-pending">{pendingReceipts.length}</div>
+                        <p className="text-xs text-muted-foreground">{t("owner.toReview", "por revisar")}</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-stat-open-tickets">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("owner.openTickets", "Tickets")}</CardTitle>
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {ticketsLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold" data-testid="text-stat-tickets">{tickets.filter((t) => t.status !== "resolved").length}</div>
+                        <p className="text-xs text-muted-foreground">{t("owner.active", "activos")}</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card data-testid="card-stat-messages">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium">{t("owner.messages", "Mensajes")}</CardTitle>
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600" data-testid="text-stat-unread">{unreadCount?.unread ?? 0}</div>
+                    <p className="text-xs text-muted-foreground">{t("owner.unread", "sin leer")}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">{t("owner.quickActions", "Acciones R\u00e1pidas")}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {contractLoading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{contractInfo?.tenantName}</span>
-                      </div>
-                      {contractInfo?.tenantEmail && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Mail className="h-4 w-4" />
-                          {contractInfo.tenantEmail}
-                        </div>
-                      )}
-                      {contractInfo?.tenantPhone && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Phone className="h-4 w-4" />
-                          {contractInfo.tenantPhone}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setActiveTab("payments")}
+                      data-testid="button-quick-payments"
+                    >
+                      <CreditCard className="h-5 w-5" />
+                      <span className="text-xs">{t("owner.reviewPayments", "Revisar Pagos")}</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setActiveTab("maintenance")}
+                      data-testid="button-quick-maintenance"
+                    >
+                      <Wrench className="h-5 w-5" />
+                      <span className="text-xs">{t("owner.viewMaintenance", "Mantenimiento")}</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setActiveTab("support")}
+                      data-testid="button-quick-messages"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                      <span className="text-xs">{t("owner.sendMessage", "Enviar Mensaje")}</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-auto py-4 flex-col gap-2"
+                      onClick={() => setActiveTab("contract")}
+                      data-testid="button-quick-contract"
+                    >
+                      <ScrollText className="h-5 w-5" />
+                      <span className="text-xs">{t("owner.viewContract", "Ver Contrato")}</span>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
+
+              {/* Property & Tenant Info Cards */}
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      {t("owner.propertyDetails", "Propiedad")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {contractLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="font-medium">{contractInfo?.propertyTitle}</p>
+                        {contractInfo?.propertyAddress && (
+                          <p className="text-sm text-muted-foreground">{contractInfo.propertyAddress}</p>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            {contractInfo?.startDate && format(new Date(contractInfo.startDate), "d MMM yyyy", { locale: es })}
+                            {" - "}
+                            {contractInfo?.endDate && format(new Date(contractInfo.endDate), "d MMM yyyy", { locale: es })}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      {t("owner.tenantInfo", "Inquilino")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {contractLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="font-medium">{contractInfo?.tenantName}</p>
+                        {contractInfo?.tenantEmail && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Mail className="h-4 w-4" />
+                            {contractInfo.tenantEmail}
+                          </div>
+                        )}
+                        {contractInfo?.tenantPhone && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="h-4 w-4" />
+                            {contractInfo.tenantPhone}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Portal 2.0 Payment Summary - Always shown */}
               <Card className="lg:col-span-4">
@@ -1369,6 +1477,168 @@ export default function OwnerPortal() {
                   </div>
                 )}
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="contract">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold">{t("owner.contractDetails", "Detalles del Contrato")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("owner.contractDetailsDesc", "Informaci\u00f3n del contrato de arrendamiento de tu propiedad")}
+                </p>
+              </div>
+
+              {/* Contract Summary Hero */}
+              <Card className="bg-gradient-to-br from-muted/50 to-background" data-testid="card-contract-summary">
+                <CardContent className="p-6">
+                  {contractLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                  ) : !contractInfo ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center">
+                      <ScrollText className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">{t("owner.noContractData", "No hay informaci\u00f3n de contrato disponible")}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex items-start justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <ScrollText className="h-7 w-7 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold">{t("owner.rentalContract", "Contrato de Arrendamiento")}</h3>
+                            <p className="text-sm text-muted-foreground" data-testid="text-contract-property">{contractInfo.propertyTitle || 'N/A'}</p>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={contractInfo.status === 'active' ? 'default' : 'secondary'}
+                          className="gap-1 text-sm py-1"
+                          data-testid="badge-contract-status"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {contractInfo.status === 'active' ? t("contract.active", "Vigente") : contractInfo.status || 'N/A'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-start-date">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.startDate", "Fecha de Inicio")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.startDate ? format(new Date(contractInfo.startDate), "d MMM yyyy", { locale: es }) : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-end-date">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.endDate", "Fecha de T\u00e9rmino")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.endDate ? format(new Date(contractInfo.endDate), "d MMM yyyy", { locale: es }) : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-rent">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.monthlyRent", "Renta Mensual")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.currency || 'MXN'} ${(contractInfo.monthlyRent ?? 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-background border" data-testid="card-contract-deposit">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("contract.deposit", "Dep\u00f3sito")}</p>
+                          <p className="text-lg font-semibold mt-1">
+                            {contractInfo.currency || 'MXN'} ${(contractInfo.depositAmount ?? 0).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <Button variant="outline" data-testid="button-download-contract">
+                          <Download className="mr-2 h-4 w-4" />
+                          {t("contract.downloadPDF", "Descargar Contrato")}
+                        </Button>
+                        <Button variant="outline" data-testid="button-download-inventory">
+                          <FileText className="mr-2 h-4 w-4" />
+                          {t("contract.inventory", "Inventario")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Tenant & Property Info */}
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      {t("contract.property", "Propiedad")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="font-medium">{contractInfo?.propertyTitle}</p>
+                    {contractInfo?.propertyAddress && (
+                      <p className="text-sm text-muted-foreground">{contractInfo.propertyAddress}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      {t("contract.tenant", "Inquilino")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="font-medium">{contractInfo?.tenantName}</p>
+                    {contractInfo?.tenantEmail && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                        {contractInfo.tenantEmail}
+                      </div>
+                    )}
+                    {contractInfo?.tenantPhone && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        {contractInfo.tenantPhone}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Management Agency */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    {t("contract.managedBy", "Administrado por")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-2">
+                      <p className="font-medium">{contractInfo?.agencyName}</p>
+                      {contractInfo?.agencyPhone && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-4 w-4" />
+                          {contractInfo.agencyPhone}
+                        </div>
+                      )}
+                      {contractInfo?.agencyEmail && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-4 w-4" />
+                          {contractInfo.agencyEmail}
+                        </div>
+                      )}
+                    </div>
+                    <Button variant="outline" onClick={() => setActiveTab("support")} data-testid="button-contact-agency">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      {t("contract.contactAgency", "Contactar Agencia")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
