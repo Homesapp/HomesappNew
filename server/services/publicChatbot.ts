@@ -214,6 +214,9 @@ function getNextStep(currentStep: ChatFlowStep, userResponse: string, state: Con
     case "owner_rent_price":
       return "owner_rent_confirm";
     case "owner_rent_confirm":
+      if (userResponse === "restart" || userResponse.toLowerCase().includes("corregir")) {
+        return "owner_rent_name";
+      }
       return "owner_complete";
       
     case "owner_sale_name":
@@ -230,6 +233,9 @@ function getNextStep(currentStep: ChatFlowStep, userResponse: string, state: Con
     case "owner_sale_price":
       return "owner_sale_confirm";
     case "owner_sale_confirm":
+      if (userResponse === "restart" || userResponse.toLowerCase().includes("corregir")) {
+        return "owner_sale_name";
+      }
       return "owner_complete";
       
     case "rent_name":
@@ -250,6 +256,9 @@ function getNextStep(currentStep: ChatFlowStep, userResponse: string, state: Con
     case "rent_pets":
       return "rent_confirm";
     case "rent_confirm":
+      if (userResponse === "restart" || userResponse.toLowerCase().includes("corregir")) {
+        return "rent_name";
+      }
       return "rent_complete";
       
     case "buy_name":
@@ -268,6 +277,9 @@ function getNextStep(currentStep: ChatFlowStep, userResponse: string, state: Con
     case "buy_type":
       return "buy_confirm";
     case "buy_confirm":
+      if (userResponse === "restart" || userResponse.toLowerCase().includes("corregir")) {
+        return "buy_name";
+      }
       return "buy_complete";
       
     case "other_help":

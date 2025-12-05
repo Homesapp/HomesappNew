@@ -106,7 +106,7 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
       }
     } catch (error) {
       console.error("Error starting conversation:", error);
-      const brandName = sourcePage?.includes("trh") ? "Tulum Rental Homes" : "HomesApp";
+      const brandName = (sourcePage?.includes("trh") || sourcePage?.includes("tulum-rental")) ? "Tulum Rental Homes" : "HomesApp";
       setMessages([{
         role: "assistant",
         content: `Hola, soy el asistente de ${brandName}.\n\n¿En qué puedo ayudarte hoy?`,
@@ -263,7 +263,7 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
                 <MessageCircle className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">{sourcePage?.includes("trh") ? "Tulum Rental Homes" : "HomesApp"}</h3>
+                <h3 className="font-semibold text-sm">{(sourcePage?.includes("trh") || sourcePage?.includes("tulum-rental")) ? "Tulum Rental Homes" : "HomesApp"}</h3>
                 <p className="text-xs opacity-80">Asistente Virtual</p>
               </div>
             </div>
