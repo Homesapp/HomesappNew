@@ -851,6 +851,14 @@ export const users = pgTable("users", {
   additionalRole: userRoleEnum("additional_role"),
   status: userStatusEnum("status").notNull().default("approved"),
   phone: varchar("phone"),
+  whatsapp: varchar("whatsapp", { length: 50 }), // WhatsApp number (can be different from phone)
+  timezone: varchar("timezone", { length: 100 }).default("America/Mexico_City"), // User timezone for scheduling
+  notificationPreferences: jsonb("notification_preferences").$type<{
+    newVisits: boolean;
+    paymentReminders: boolean;
+    appUpdates: boolean;
+    emailNotifications: boolean;
+  }>(), // User notification preferences
   emailVerified: boolean("email_verified").notNull().default(false),
   preferredLanguage: varchar("preferred_language", { length: 2 }).notNull().default("es"),
   hasSeenWelcome: boolean("has_seen_welcome").notNull().default(false),
@@ -910,10 +918,18 @@ export type User = typeof users.$inferSelect;
 export const updateUserProfileSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido").max(100).optional(),
   lastName: z.string().min(1, "El apellido es requerido").max(100).optional(),
-  phone: z.string().max(20).optional().or(z.literal("")),
-  bio: z.string().max(500).optional().or(z.literal("")),
-  profileImageUrl: z.string().optional().or(z.literal("")),
+  phone: z.string().max(20).optional().transform(v => v === "" ? null : v),
+  whatsapp: z.string().max(50).optional().transform(v => v === "" ? null : v),
+  bio: z.string().max(500).optional().transform(v => v === "" ? null : v),
+  profileImageUrl: z.string().optional().transform(v => v === "" ? null : v),
   preferredLanguage: z.enum(["es", "en"]).optional(),
+  timezone: z.string().max(100).optional().transform(v => v === "" ? null : v),
+  notificationPreferences: z.object({
+    newVisits: z.boolean(),
+    paymentReminders: z.boolean(),
+    appUpdates: z.boolean(),
+    emailNotifications: z.boolean(),
+  }).optional(),
 });
 
 export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
