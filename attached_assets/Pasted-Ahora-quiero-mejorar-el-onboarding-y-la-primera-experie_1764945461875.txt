@@ -1,0 +1,227 @@
+Ahora quiero mejorar el onboarding y la primera experiencia de uso para todos los roles:
+
+Cliente que se registra en HomesApp
+
+Inquilino (portal tenant)
+
+Propietario (portal owner)
+
+Vendedor / agente externo
+
+Admin de agencia externa (TRH)
+
+Broker / Admin HomesApp
+
+La idea es que nadie vea una pantalla vacía sin contexto, y que la primera vez tengan un pequeño tour o checklist muy claro.
+
+1) Mecanismo general de onboarding
+
+Implementar un mecanismo reutilizable que:
+
+Detecte el primer login de cada usuario/rol (puede ser:
+
+flag en base de datos o
+
+flag en localStorage usando un onboardingVersion por rol).
+
+Muestre:
+
+o un mini tour (tooltips) sobre la interfaz,
+
+o un checklist de “Primeros pasos” en el dashboard.
+
+Permita al usuario:
+
+marcar como “Entendido” o “No volver a mostrar”.
+
+Quiero que esto esté pensado mobile-first también, no solo desktop.
+
+2) Onboarding para Cliente / Usuario público que se registra
+
+Cuando alguien se registra como usuario en HomesApp (no portal), quiero:
+
+Un pequeño bloque en el dashboard o en el home después del login que diga:
+
+“¿Qué quieres hacer ahora?”
+
+Botón: Buscar propiedades
+
+Botón: Guardar favoritos (explicar el corazón / wishlist)
+
+Botón: Agendar una visita
+
+Si no tiene leads ni solicitudes todavía:
+
+vista vacía con mensaje tipo:
+
+“Aún no has contactado ninguna propiedad. Empieza buscando en nuestro catálogo.”
+
+Botón Ver propiedades en Tulum.
+
+3) Onboarding para TENANT (Portal Inquilino)
+
+La primera vez que un inquilino entra a /portal/tenant:
+
+Mostrar un pequeño tour de 3 pasos sobre el dashboard:
+
+“Aquí verás tu próximo pago y su fecha límite.”
+
+“Aquí puedes registrar pagos y subir comprobantes.”
+
+“Aquí reportas problemas de mantenimiento y ves tus documentos.”
+
+Además, en el dashboard, incluir un bloque de “Primeros pasos” (checklist):
+
+✅ Ver mi contrato.
+
+✅ Registrar mi primer pago (cuando corresponda).
+
+✅ Probar crear un ticket de mantenimiento (solo si lo necesita).
+
+En vistas vacías (sin pagos registrados, sin tickets):
+
+usar mensajes amigables + botón de acción:
+
+“Todavía no tienes tickets de mantenimiento. Si algo no funciona en la propiedad, repórtalo aquí.”
+
+4) Onboarding para OWNER (Portal Propietario)
+
+La primera vez en /portal/owner:
+
+Tour breve sobre:
+
+Card de ingresos del mes (rent payments).
+
+Sección de pagos por verificar.
+
+Tickets de mantenimiento activos.
+
+Documentos (contratos, recibos, reportes).
+
+Checklist de “Primeros pasos como propietario”:
+
+✅ Revisar datos de mi contrato / propiedad.
+
+✅ Ver la lista de pagos y entender estados (pendiente / pagado / verificado).
+
+✅ Subir documentos importantes (escrituras, contrato firmado, etc.).
+
+En caso de que todavía no haya pagos ni tickets:
+
+mensaje claro explicando que se irán viendo movimientos conforme el inquilino use el portal.
+
+5) Onboarding para VENDEDOR / AGENTE EXTERNO
+
+Este rol es clave. En su dashboard (ej. /external/ventas o similar) quiero:
+
+Un bloque grande arriba de “Primeros pasos como vendedor” con:
+
+Completa tu perfil (nombre, foto, datos de contacto).
+
+Revisa el catálogo de propiedades.
+
+Comparte links de propiedades o links de lead con tus contactos.
+
+Revisa tus leads y actualiza el estatus.
+
+En la sección de Leads:
+
+vista vacía amigable:
+
+“Todavía no tienes leads. Empieza compartiendo propiedades o tu link personal.”
+
+Botones:
+
+Ver catálogo
+
+Copiar link de lead / Link de Broker.
+
+En la sección de Redes Sociales:
+
+un pequeño texto fijo explicando cómo usar las plantillas y el editor de fotos (no solo la interfaz en blanco).
+
+6) Onboarding para ADMIN DE AGENCIA EXTERNA (TRH)
+
+Para el admin de TRH (y posibles otras agencias) quiero un onboarding tipo “setup inicial”:
+
+En su dashboard, un recuadro de “Configuración inicial de la agencia”:
+
+Paso 1: Subir logo, nombre comercial, datos de contacto.
+
+Paso 2: Invitar a agentes (vendedores externos).
+
+Paso 3: Revisar catálogo de propiedades asociadas a la agencia.
+
+Paso 4: Revisar configuración de comisiones y reportes.
+
+Cada paso debe tener:
+
+botón directo (“Subir logo”, “Invitar agente”, etc.),
+
+y marcarse como completo cuando se configura.
+
+En secciones vacías (sin agentes, sin reportes):
+
+mensajes claros con botón para crear/invitar.
+
+7) Onboarding para Broker / Admin HomesApp
+
+Para el rol más alto (administrador general), quiero:
+
+Un “panel de control” con:
+
+Atajos a:
+
+gestión de agencias externas,
+
+configuración global (idiomas, comisiones por defecto, zonas),
+
+monitor de leads y contratos.
+
+Un pequeño bloque de texto de ayuda con link a la sección de ayuda específica del admin.
+
+No hace falta un tour gráfico muy complejo, pero sí un bloque de “Acciones frecuentes”:
+
+Ver propiedades activas
+
+Revisar contratos
+
+Revisar ingresos (Admin Income)
+
+8) Sección de ayuda contextual
+
+Ya que tenemos secciones de ayuda por rol, quiero:
+
+Que desde cada pantalla haya un link o ícono de ayuda que:
+
+lleve directamente al artículo relevante de ese módulo, no solo a una página genérica.
+
+Ejemplos:
+
+En Pagos del portal → ayuda sobre “Cómo registrar un pago” y “Estados de pago”.
+
+En Mantenimiento → “Cómo crear un ticket” / “Cómo se actualiza el estado”.
+
+En Leads de vendedor → “Cómo usar el Kanban de leads”.
+
+A largo plazo, esa ayuda puede ser estática dentro de la app (componentes de texto), no hace falta algo externo por ahora.
+
+9) Mobile-first
+
+Es importante que prueben todo el onboarding en mobile:
+
+tours o tooltips que no se corten en pantalla chica,
+
+checklists que se vean bien en scroll,
+
+botones grandes y fáciles de presionar.
+
+Al finalizar, por favor:
+
+indiquen qué mecanismo usaron para detectar “primer login” por rol,
+
+compartan capturas de los dashboards con los bloques de “Primeros pasos”,
+
+y ejemplos de vistas vacías con sus respectivos mensajes y botones.
+
+La meta es que cada rol tenga claro qué hacer en sus primeros minutos dentro de HomesApp, sin pantallas vacías ni confusas.

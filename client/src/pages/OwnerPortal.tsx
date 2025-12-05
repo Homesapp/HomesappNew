@@ -71,6 +71,8 @@ interface ContractInfo {
   agencyEmail?: string;
   tenantName: string;
   tenantEmail?: string;
+  contractUrl?: string;
+  inventoryUrl?: string;
   tenantPhone?: string;
 }
 
@@ -590,8 +592,9 @@ export default function OwnerPortal() {
                           {t("owner.netIncomeThisMonth", "Ingreso Neto Este Mes")}
                         </p>
                         <div className="flex items-baseline gap-2" data-testid="text-net-income">
-                          <span className="text-4xl font-bold text-green-600">{financials?.currency || contractInfo?.currency || "MXN"}</span>
-                          <span className="text-4xl font-bold text-green-600">${(financials?.netIncome ?? 0).toLocaleString()}</span>
+                          <span className="text-4xl font-bold text-green-600">
+                            {financials?.currency || contractInfo?.currency || "MXN"} ${(financials?.netIncome ?? 0).toLocaleString()}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
                           <div className="flex items-center gap-2 text-muted-foreground">
@@ -1551,11 +1554,21 @@ export default function OwnerPortal() {
                       </div>
 
                       <div className="flex flex-wrap gap-3 pt-2">
-                        <Button variant="outline" data-testid="button-download-contract">
+                        <Button 
+                          variant="outline" 
+                          data-testid="button-download-contract"
+                          disabled={!contractInfo.contractUrl}
+                          title={!contractInfo.contractUrl ? t("contract.notAvailable", "Documento no disponible") : undefined}
+                        >
                           <Download className="mr-2 h-4 w-4" />
                           {t("contract.downloadPDF", "Descargar Contrato")}
                         </Button>
-                        <Button variant="outline" data-testid="button-download-inventory">
+                        <Button 
+                          variant="outline" 
+                          data-testid="button-download-inventory"
+                          disabled={!contractInfo.inventoryUrl}
+                          title={!contractInfo.inventoryUrl ? t("contract.notAvailable", "Documento no disponible") : undefined}
+                        >
                           <FileText className="mr-2 h-4 w-4" />
                           {t("contract.inventory", "Inventario")}
                         </Button>
