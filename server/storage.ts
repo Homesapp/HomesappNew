@@ -14864,18 +14864,48 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
-  async getMigrationStats(): Promise<{ none: number; pending: number; processing: number; done: number; error: number }> {
+  async getMigrationStats(): Promise<{
+    totalPhotos: number;
+    processedPhotos: number;
+    pendingPhotos: number;
+    processingPhotos: number;
+    errors: number;
+    notMigrated: number;
+    lastUpdatedAt: string | null;
+    percentComplete: number;
+  }> {
     const photos = await db
-      .select({ migrationStatus: externalUnitMedia.migrationStatus })
+      .select({ 
+        migrationStatus: externalUnitMedia.migrationStatus,
+        migratedAt: externalUnitMedia.migratedAt 
+      })
       .from(externalUnitMedia)
       .where(eq(externalUnitMedia.mediaType, 'photo'));
 
+    const none = photos.filter(p => p.migrationStatus === 'none' || !p.migrationStatus).length;
+    const pending = photos.filter(p => p.migrationStatus === 'pending').length;
+    const processing = photos.filter(p => p.migrationStatus === 'processing').length;
+    const done = photos.filter(p => p.migrationStatus === 'done').length;
+    const error = photos.filter(p => p.migrationStatus === 'error').length;
+    
+    const totalPhotos = photos.length;
+    const processedPhotos = done;
+    const pendingPhotos = pending + processing;
+    
+    const lastMigrated = photos
+      .filter(p => p.migratedAt)
+      .map(p => p.migratedAt)
+      .sort((a, b) => (b?.getTime() || 0) - (a?.getTime() || 0))[0];
+
     return {
-      none: photos.filter(p => p.migrationStatus === 'none' || !p.migrationStatus).length,
-      pending: photos.filter(p => p.migrationStatus === 'pending').length,
-      processing: photos.filter(p => p.migrationStatus === 'processing').length,
-      done: photos.filter(p => p.migrationStatus === 'done').length,
-      error: photos.filter(p => p.migrationStatus === 'error').length
+      totalPhotos,
+      processedPhotos,
+      pendingPhotos,
+      processingPhotos: processing,
+      errors: error,
+      notMigrated: none,
+      lastUpdatedAt: lastMigrated?.toISOString() || null,
+      percentComplete: totalPhotos > 0 ? Math.round((processedPhotos / totalPhotos) * 100) : 0
     };
   }
 

@@ -308,6 +308,7 @@ async function runReimport(): Promise<void> {
 
     console.log(`Processing ${photos.length} photos...`);
 
+    let batchProgress = 0;
     for (const photo of photos) {
       if (dryRun) {
         console.log(`[DRY RUN] Would process photo ${photo.id} (${photo.driveFileId})`);
@@ -317,15 +318,22 @@ async function runReimport(): Promise<void> {
 
       const result = await processPhoto(photo);
       stats.processed++;
+      batchProgress++;
 
       if (result.success) {
         stats.success++;
-        process.stdout.write('.');
       } else {
         stats.failed++;
         await markPhotoAsError(photo.id, result.error || 'Unknown error');
         stats.errors.push({ photoId: photo.id, error: result.error || 'Unknown error' });
-        process.stdout.write('X');
+      }
+
+      // Log progress every 100 photos (or at end of batch)
+      if (stats.processed % 100 === 0 || batchProgress === photos.length) {
+        const currentStats = await getStats();
+        const totalToProcess = currentStats.pending + currentStats.processing + currentStats.done + currentStats.error;
+        const percentComplete = totalToProcess > 0 ? Math.round((currentStats.done / totalToProcess) * 100) : 0;
+        console.log(`\n[Progress] ${currentStats.done}/${totalToProcess} (${percentComplete}%) | Success: ${stats.success}, Failed: ${stats.failed}, Pending: ${currentStats.pending}`);
       }
 
       // Rate limiting - small delay between photos
