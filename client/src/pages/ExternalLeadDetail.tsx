@@ -84,6 +84,8 @@ import {
   ChevronUp,
   Menu,
   Info,
+  Dog,
+  Cat,
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -710,7 +712,9 @@ export default function ExternalLeadDetail() {
                       {language === "es" ? "Mascotas" : "Pets"}
                     </p>
                     <p className="text-sm font-medium truncate">
-                      {activeCard.petsDescription || (language === "es" ? "Sí" : "Yes")}
+                      {(activeCard as any).pets?.length 
+                        ? `${(activeCard as any).pets.length} ${(activeCard as any).pets.length === 1 ? (language === "es" ? "mascota" : "pet") : (language === "es" ? "mascotas" : "pets")}`
+                        : activeCard.petsDescription || (language === "es" ? "Sí" : "Yes")}
                     </p>
                   </div>
                 </div>
@@ -727,6 +731,44 @@ export default function ExternalLeadDetail() {
                 </div>
               )}
             </div>
+
+            {/* Pet Photos Section */}
+            {(activeCard as any).pets && (activeCard as any).pets.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                  {language === "es" ? "Mascotas del Cliente" : "Client's Pets"}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {((activeCard as any).pets as Array<{type: string; name?: string; photoUrl?: string}>).map((pet, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                        {pet.photoUrl ? (
+                          <img 
+                            src={pet.photoUrl} 
+                            alt={pet.name || `Pet ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <>
+                            {pet.type === "dog" && <Dog className="w-5 h-5 text-amber-600" />}
+                            {pet.type === "cat" && <Cat className="w-5 h-5 text-amber-600" />}
+                            {pet.type === "other" && <PawPrint className="w-5 h-5 text-amber-600" />}
+                          </>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">
+                          {pet.name || (pet.type === "dog" ? (language === "es" ? "Perro" : "Dog") : pet.type === "cat" ? (language === "es" ? "Gato" : "Cat") : (language === "es" ? "Otro" : "Other"))}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {pet.type === "dog" ? (language === "es" ? "Perro" : "Dog") : pet.type === "cat" ? (language === "es" ? "Gato" : "Cat") : (language === "es" ? "Otro" : "Other")}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Zone/Location */}
             {activeCard.preferredZone && (
