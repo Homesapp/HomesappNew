@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { MessageCircle, X, Send, Loader2, Home, ShoppingBag, Building2, Eye, Phone, Calendar, MapPin, Bed } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Home, ShoppingBag, Building2, Eye, Phone, Calendar, MapPin, Bed, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChatbotMessage, QuickReply } from "@shared/schema";
 
@@ -10,12 +10,20 @@ interface FloatingChatProps {
   sourcePage?: string;
 }
 
-const chatPrompts = [
-  "Hola, escríbeme",
-  "¿Buscas propiedad?",
+const chatPromptsES = [
+  "Hola, escr\u00edbeme",
+  "Buscas propiedad?",
   "Te ayudo a encontrar",
   "Agenda una cita",
-  "¿Tienes dudas?",
+  "Tienes dudas?",
+];
+
+const chatPromptsEN = [
+  "Hi, write me!",
+  "Looking for property?",
+  "I can help you find",
+  "Schedule a visit",
+  "Any questions?",
 ];
 
 const quickReplyIcons: Record<string, typeof Home> = {
@@ -27,7 +35,15 @@ const quickReplyIcons: Record<string, typeof Home> = {
   other: Eye,
   more: Eye,
   done: Eye,
+  lang: Globe,
+  lang_en: Globe,
+  lang_es: Globe,
 };
+
+function detectBrowserLanguage(): "es" | "en" {
+  const browserLang = navigator.language || (navigator as any).userLanguage || "es";
+  return browserLang.startsWith("es") ? "es" : "en";
+}
 
 export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage" }: FloatingChatProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -41,11 +57,15 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [currentQuickReplies, setCurrentQuickReplies] = useState<QuickReply[]>([]);
   const [currentInputType, setCurrentInputType] = useState<string>("text");
+  const [language, setLanguage] = useState<"es" | "en">("es");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  const chatPrompts = language === "es" ? chatPromptsES : chatPromptsEN;
 
   useEffect(() => {
     setIsMounted(true);
+    setLanguage(detectBrowserLanguage());
     return () => setIsMounted(false);
   }, []);
 
@@ -107,24 +127,47 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
     } catch (error) {
       console.error("Error starting conversation:", error);
       const brandName = (sourcePage?.includes("trh") || sourcePage?.includes("tulum-rental")) ? "Tulum Rental Homes" : "HomesApp";
+      const lang = detectBrowserLanguage();
+      setLanguage(lang);
+      
+      const fallbackMessages = {
+        es: {
+          greeting: `Hola, soy el asistente de ${brandName}.\n\n¿En qué puedo ayudarte hoy?`,
+          rent: "Quiero rentar",
+          buy: "Quiero comprar",
+          owner: "Soy propietario",
+          other: "Tengo una duda",
+          changeLang: "Change to English",
+          changeLangValue: "lang_en"
+        },
+        en: {
+          greeting: `Hi! I'm the ${brandName} assistant.\n\nHow can I help you today?`,
+          rent: "I want to rent",
+          buy: "I want to buy",
+          owner: "I'm an owner",
+          other: "I have a question",
+          changeLang: "Cambiar a español",
+          changeLangValue: "lang_es"
+        }
+      };
+      
+      const m = fallbackMessages[lang];
+      const quickReplies = [
+        { id: "rent_long", label: m.rent, value: "rent_long" },
+        { id: "buy", label: m.buy, value: "buy" },
+        { id: "list", label: m.owner, value: "list_property" },
+        { id: "other", label: m.other, value: "other" },
+        { id: "lang", label: m.changeLang, value: m.changeLangValue },
+      ];
+      
       setMessages([{
         role: "assistant",
-        content: `Hola, soy el asistente de ${brandName}.\n\n¿En qué puedo ayudarte hoy?`,
+        content: m.greeting,
         timestamp: new Date().toISOString(),
-        quickReplies: [
-          { id: "rent_long", label: "Quiero rentar", value: "rent_long" },
-          { id: "buy", label: "Quiero comprar", value: "buy" },
-          { id: "list", label: "Soy propietario", value: "list_property" },
-          { id: "other", label: "Tengo una duda", value: "other" },
-        ],
+        quickReplies,
         inputType: "none"
       }]);
-      setCurrentQuickReplies([
-        { id: "rent_long", label: "Quiero rentar", value: "rent_long" },
-        { id: "buy", label: "Quiero comprar", value: "buy" },
-        { id: "list", label: "Soy propietario", value: "list_property" },
-        { id: "other", label: "Tengo una duda", value: "other" },
-      ]);
+      setCurrentQuickReplies(quickReplies);
       setCurrentInputType("none");
     } finally {
       setIsLoading(false);
@@ -183,9 +226,12 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
       setCurrentInputType(data.inputType || "text");
     } catch (error) {
       console.error("Error sending message:", error);
+      const errorContent = language === "es" 
+        ? "Lo siento, hubo un problema. ¿Podrías intentar de nuevo?"
+        : "Sorry, there was a problem. Could you try again?";
       const errorMessage: ChatbotMessage = {
         role: "assistant",
-        content: "Lo siento, hubo un problema. ¿Podrías intentar de nuevo?",
+        content: errorContent,
         timestamp: new Date().toISOString(),
         inputType: "text"
       };
@@ -197,6 +243,11 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
   };
 
   const handleQuickReply = (reply: QuickReply) => {
+    if (reply.value === "lang_en") {
+      setLanguage("en");
+    } else if (reply.value === "lang_es") {
+      setLanguage("es");
+    }
     sendMessage(reply.value);
   };
 
@@ -208,11 +259,20 @@ export function FloatingChat({ propertyId, condominiumId, sourcePage = "homepage
   };
 
   const getInputPlaceholder = () => {
-    switch (currentInputType) {
-      case "phone": return "+52 998 123 4567";
-      case "date": return "Ej: En 2 semanas";
-      case "number": return "Ej: 2";
-      default: return "Escribe tu respuesta...";
+    if (language === "es") {
+      switch (currentInputType) {
+        case "phone": return "+52 998 123 4567";
+        case "date": return "Ej: En 2 semanas";
+        case "number": return "Ej: 2";
+        default: return "Escribe tu respuesta...";
+      }
+    } else {
+      switch (currentInputType) {
+        case "phone": return "+52 998 123 4567";
+        case "date": return "E.g.: In 2 weeks";
+        case "number": return "E.g.: 2";
+        default: return "Type your response...";
+      }
     }
   };
 

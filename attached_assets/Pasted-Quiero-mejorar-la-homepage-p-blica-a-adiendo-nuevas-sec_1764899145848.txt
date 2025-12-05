@@ -1,0 +1,163 @@
+Quiero mejorar la homepage pública añadiendo nuevas secciones que expliquen mejor la app y den valor a inquilinos, propietarios y agentes.
+
+Actualmente la home tiene: hero, buscador, propiedades destacadas, bloque de mapa, etc.
+
+Necesito añadir y diseñar las siguientes secciones (en este orden aproximado, debajo del hero/buscador y de “Explora propiedades”):
+
+1) Sección “Quiénes somos”
+
+Título: “Quiénes somos”
+
+Subtítulo: “Smart Real Estate en Tulum y la Riviera Maya.”
+
+Texto corto explicando que:
+
+HomesApp es la plataforma de Tulum Rental Homes para rentas largas y ventas,
+
+trabajamos de forma digital, con transparencia y equipo local.
+
+Tres columnas con icono + texto:
+
+“+10 años en Tulum”
+
+“Procesos digitales”
+
+“Equipo certificado”
+
+Debe ser un bloque limpio, con fondo blanco o muy suave, alineado al estilo actual.
+
+2) Sección “Cómo funciona HomesApp”
+
+Título: “¿Cómo funciona HomesApp?”
+
+Subtítulo: “Pensado para inquilinos, propietarios y agentes.”
+
+Mostrar 3 pasos en cards o timeline:
+
+Descubre propiedades (buscador + mapa).
+
+Conéctate con un asesor (envío de solicitud / lead).
+
+Gestiona todo en tu portal (contratos, pagos, etc.).
+
+Incluir botones:
+
+Ver propiedades
+
+Ver cómo funciona el portal (puede apuntar a una página informativa o sección interna).
+
+3) Sección “Para inquilinos”
+
+Dos columnas (texto + imagen/ilustración de la app o mapa).
+
+Título: “Para inquilinos”
+
+Subtítulo: “Encuentra hogar, no solo una renta.”
+
+Bullets (4 puntos) destacando:
+
+filtros de búsqueda claros,
+
+acompañamiento del asesor,
+
+contratos digitales y claros,
+
+portal del inquilino (pagos, tickets, etc.).
+
+Botón principal: Quiero rentar a largo plazo.
+
+4) Sección “Para propietarios”
+
+Mismo estilo que la anterior (dos columnas, pero invertidas para hacer zigzag).
+
+Título: “Para propietarios”
+
+Subtítulo: “Más control, menos estrés.”
+
+Bullets:
+
+visibilidad total de propiedades, contratos y pagos,
+
+estados de cuenta y documentos en un solo lugar,
+
+mantenimiento documentado (tickets, fotos),
+
+acompañamiento local de TRH y HomesApp.
+
+Botones:
+
+Enlistar mi propiedad
+
+Solicitar una valuación
+
+Estas CTAs deben enlazar a los formularios públicos de owner / valuations que ya tenemos o que vayan a crear.
+
+5) Sección “Para agentes y brokers”
+
+Título: “Para agentes y brokers”
+
+Subtítulo: “Una plataforma pensada también para tu negocio.”
+
+Bullets:
+
+catálogo centralizado de propiedades verificadas,
+
+herramientas de leads y pipeline,
+
+módulo de redes sociales/marketing para listings,
+
+panel de agencia con métricas de equipo.
+
+Botón: Quiero ser agente aliado.
+
+Esta sección puede ir más abajo, como invitación a partners.
+
+6) Sección de testimonios / confianza
+
+Logo de Tulum Rental Homes y/o HomesApp.
+
+2–3 testimonios cortos (texto, nombre, rol).
+
+Mención de:
+
+experiencia local,
+
+cumplimiento regulatorio,
+
+enfoque en transparencia.
+
+Diseño ligero, que no rompa el ritmo visual.
+
+7) Sección de FAQ (preguntas frecuentes)
+
+Título: “Preguntas frecuentes”
+
+Lista tipo acordeón con preguntas típicas:
+
+¿Trabajan renta vacacional? (por ahora NO, solo renta larga y venta).
+
+¿Qué zonas cubren?
+
+¿Qué necesito para rentar?
+
+¿Cuál es el proceso para enlistar mi propiedad?
+
+8) Requerimientos generales
+
+Todas estas secciones deben:
+
+ser totalmente responsivas (desktop y mobile),
+
+mantener el mismo estilo visual de la home actual (tipografías, botones, colores),
+
+no romper el rendimiento de la página (carga ligera).
+
+Si es posible, centralizar los textos en un archivo de configuración o traducción para poder ajustarlos luego (ES/EN).
+
+Al final, por favor:
+
+indíquenme en qué orden colocaron cada sección,
+
+qué rutas o CTAs quedaron apuntando a formularios existentes,
+
+y compartan capturas de la home en desktop y mobile con las nuevas secciones para poder revisarlas.
