@@ -1,0 +1,301 @@
+I’d like to add two cross-cutting features to HomesApp:
+
+An in-app User Feedback mechanism (for suggestions and bug reports).
+
+A unified Notification system for important events (new leads, contract updates, upcoming appointments, etc.).
+
+Please design these to work consistently across all roles (public users, sellers, tenants, owners, agency admins, and the main HomesApp admin).
+
+1) In-App User Feedback Mechanism
+
+Goal:
+Let users easily send feedback (bugs, suggestions, other) from anywhere in the app, with context (who, where, what was happening).
+
+1.1. UI entry points
+
+Add a small, non-intrusive “Feedback” entry in the app:
+
+In the bottom left or right corner as a text link or icon (e.g. “💬 Feedback”).
+
+Also accessible from the user menu (avatar dropdown: Enviar feedback).
+
+This should appear in:
+
+External sellers dashboard.
+
+Agency admin dashboards.
+
+Portal tenant/owner.
+
+Admin/HomesApp dashboards.
+
+1.2. Feedback modal
+
+Clicking “Feedback” opens a modal with:
+
+Type of feedback (required):
+
+Bug / Error
+
+Suggestion / Improvement
+
+Question / Other
+
+Subject (short title).
+
+Description (required, multiline):
+
+Placeholder text guiding the user:
+“Describe qué estabas haciendo y qué salió mal / qué te gustaría mejorar.”
+
+Optional fields:
+
+“¿Cuán urgente es?” → Low / Medium / High.
+
+Optional contact preference (email/WhatsApp prefilled from profile if available).
+
+Hidden / automatic context:
+
+Current URL / route (page where the user is).
+
+User id, role(s), agencyId, contractId (if inside portal).
+
+Browser / device info (if easy to capture).
+
+Buttons:
+
+Enviar feedback
+
+Cancelar
+
+Show a friendly success message:
+“Gracias, tu comentario nos ayuda a mejorar HomesApp.”
+
+1.3. Data model
+
+Create a user_feedback table (or similar):
+
+id
+
+userId (nullable for anonymous/public if needed)
+
+role / roles
+
+agencyId (if applicable)
+
+type (bug, suggestion, other)
+
+subject
+
+description
+
+urgency (low, medium, high)
+
+pageUrl / route
+
+extraContext (JSON)
+
+status (new, in_review, resolved, dismissed)
+
+createdAt, updatedAt
+
+handledBy (admin id when someone picks it up)
+
+resolvedAt
+
+1.4. Admin view
+
+For the main HomesApp admin (and optionally agency admins):
+
+A Feedback section where they can:
+
+Filter by type, status, role, agency.
+
+See newest feedback first.
+
+Open a detail view showing full description and context.
+
+Change status (in_review, resolved, etc.).
+
+This can be a simple table with pagination (we already have table logic).
+
+2) Unified Notification System
+
+Goal:
+Create a centralized notification system for all roles, with in-app notifications and room for email/WhatsApp in the future.
+
+2.1. Notification types (first version)
+
+Start with these events:
+
+For Sellers / Agents:
+
+New lead assigned.
+
+Lead moved to next stage (visit scheduled, offer sent, contract signed).
+
+New message or note on one of their leads.
+
+New appointment / visit scheduled or modified.
+
+For Tenants (Portal):
+
+Payment status changed (owner verified or rejected a payment).
+
+New message from owner/TRH.
+
+New maintenance ticket update (status change or new comment).
+
+Upcoming payment / due date reminder (if/when cron is implemented).
+
+For Owners (Portal):
+
+Tenant marked a payment as paid.
+
+New maintenance ticket created.
+
+New message from tenant/TRH.
+
+Contract status change (near expiry, renewed, etc.).
+
+For Agency Admins / HomesApp Admin:
+
+New seller invited / registered.
+
+Volume of new leads in a period (could be later).
+
+Critical system feedback / bug report flagged as “high”.
+
+We don’t need to implement all advanced rules now, but the structure should support these cases.
+
+2.2. Data model
+
+Create a notifications table:
+
+id
+
+userId (recipient)
+
+role / roles (optional, for filtering)
+
+type (string enum: new_lead, lead_update, payment_verified, ticket_update, message, appointment, etc.)
+
+title (short message)
+
+body / description
+
+payload JSON (to store ids: leadId, contractId, propertyId, etc.)
+
+isRead (boolean)
+
+readAt (nullable)
+
+createdAt
+
+Later we can add channel (in_app, email, whatsapp) but for now focus on in_app.
+
+2.3. In-app UI – notification bell
+
+Add a notification bell icon in the top header next to the user avatar.
+
+Show a badge with the number of unread notifications.
+
+Clicking the bell opens a small panel/dropdown:
+
+List of last ~10 notifications with:
+
+title,
+
+date/time (relative: “hace 2h”),
+
+icon by type (lead, contract, payment, etc.).
+
+Each item should be clickable:
+
+When clicked:
+
+mark it as read,
+
+navigate to the relevant page (lead details, portal payments, ticket details, etc.) using the payload ids.
+
+Link at the bottom: Ver todas las notificaciones → full page.
+
+2.4. Full notifications page
+
+A dedicated page per user (e.g. /notifications):
+
+Filter by type (lead, payment, maintenance, message, system).
+
+Filter by read/unread.
+
+Pagination.
+
+Actions:
+
+Mark individual items as read/unread.
+
+Option to “Mark all as read”.
+
+2.5. Trigger points (backend integration)
+
+Please integrate notification creation in the main flows:
+
+When a lead is created or assigned → notification to the corresponding seller.
+
+When a lead changes stage → notification to seller (and maybe admin).
+
+When a payment status changes (pending → paid → verified / rejected) → notification to tenant and/or owner accordingly.
+
+When a maintenance ticket is created or updated → notification to the other party.
+
+When a new portal message is created → notification to recipient (tenant, owner, or admin).
+
+When a new appointment / visit is created or edited → notification to seller + (optionally) to client.
+
+Please keep this logic in one place (e.g. a notification service/helper) so it’s easy to extend later.
+
+2.6. Preferences
+
+On the Mi Cuenta / Account page (that you already adjusted):
+
+Add a simple “Notification settings” block:
+
+Toggle for in-app notifications per category:
+
+Leads
+
+Payments
+
+Maintenance
+
+Messages
+
+System / Other
+
+For now, these toggles can just control whether we create notifications or not per user/type (or at least be stored for future use).
+
+2.7. Mobile experience
+
+Please verify the notification bell and the notifications list/page:
+
+Look good in mobile header (no overlapping icons).
+
+Dropdown/panel is scrollable and usable on small screens.
+
+Full notifications page is responsive and easy to read.
+
+At the end, please:
+
+Confirm where the feedback data is stored and how admins can view it.
+
+Confirm where notifications are stored and how they are triggered.
+
+Share screenshots of:
+
+The feedback modal,
+
+The notification bell dropdown,
+
+The full notifications page,
+
+And one example of each role receiving a relevant notification (seller, tenant, owner).

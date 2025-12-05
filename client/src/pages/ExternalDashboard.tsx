@@ -26,7 +26,6 @@ import {
   UserPlus,
   Activity,
   Home,
-  MessageSquare,
   Bell,
   Share2,
   BarChart3
@@ -174,13 +173,6 @@ function SellerDashboard() {
       icon: Home,
       href: "/external/seller-catalog",
       color: "text-indigo-600",
-    },
-    {
-      title: language === "es" ? "Plantillas" : "Templates",
-      description: language === "es" ? "Mensajes de WhatsApp" : "WhatsApp messages",
-      icon: MessageSquare,
-      href: "/external/seller-templates",
-      color: "text-green-600",
     },
     {
       title: language === "es" ? "Reportes" : "Reports",
