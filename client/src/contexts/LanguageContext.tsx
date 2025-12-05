@@ -975,6 +975,7 @@ const translations: Record<Language, Record<string, string>> = {
     // User Profile Menu
     "userMenu.myAccount": "Mi Cuenta",
     "userMenu.myProfile": "Mi Perfil",
+    "userMenu.publicSite": "Ver Sitio Público",
     "userMenu.logout": "Cerrar Sesión",
     
     // Admin Profile
@@ -2365,6 +2366,7 @@ const translations: Record<Language, Record<string, string>> = {
     // User Profile Menu
     "userMenu.myAccount": "My Account",
     "userMenu.myProfile": "My Profile",
+    "userMenu.publicSite": "View Public Site",
     "userMenu.logout": "Log out",
     
     // Admin Profile

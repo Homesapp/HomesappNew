@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { LogOut, UserCircle } from "lucide-react";
+import { LogOut, UserCircle, Home, ExternalLink } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,6 +98,13 @@ export function UserProfileMenu({ user, isAdmin = false, onLogout }: UserProfile
           >
             <UserCircle className="mr-2 h-4 w-4" />
             <span>{t("userMenu.myProfile")}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setLocation("/")}
+            data-testid="menu-item-public-home"
+          >
+            <Home className="mr-2 h-4 w-4" />
+            <span>{t("userMenu.publicSite")}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

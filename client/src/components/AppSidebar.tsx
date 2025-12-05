@@ -474,26 +474,28 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <div className={state === "expanded" ? "flex flex-col items-center justify-center px-4 py-3" : "flex flex-col items-center justify-center p-2"}>
-            {state === "expanded" ? (
-              <>
+          <Link href="/" data-testid="link-logo-home" className="block">
+            <div className={state === "expanded" ? "flex flex-col items-center justify-center px-4 py-3 hover-elevate rounded-lg cursor-pointer" : "flex flex-col items-center justify-center p-2 hover-elevate rounded-lg cursor-pointer"}>
+              {state === "expanded" ? (
+                <>
+                  <img 
+                    src={logoUrl} 
+                    alt="HomesApp Logo" 
+                    className="h-16 w-auto object-contain"
+                    data-testid="img-sidebar-logo"
+                  />
+                  <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
+                </>
+              ) : (
                 <img 
-                  src={logoUrl} 
-                  alt="HomesApp Logo" 
-                  className="h-16 w-auto object-contain"
-                  data-testid="img-sidebar-logo"
+                  src={logoIconUrl} 
+                  alt="HomesApp" 
+                  className="h-10 w-10 object-contain"
+                  data-testid="img-sidebar-logo-icon"
                 />
-                <span className="text-xs text-muted-foreground mt-1 font-medium tracking-wide">Smart Real Estate</span>
-              </>
-            ) : (
-              <img 
-                src={logoIconUrl} 
-                alt="HomesApp" 
-                className="h-10 w-10 object-contain"
-                data-testid="img-sidebar-logo-icon"
-              />
-            )}
-          </div>
+              )}
+            </div>
+          </Link>
         </SidebarGroup>
         {filteredMain.length > 0 && (
           <SidebarGroup>

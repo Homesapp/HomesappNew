@@ -125,6 +125,7 @@ import Privacy from "@/pages/Privacy";
 import SellerApplicationPage from "@/pages/SellerApplicationPage";
 import OwnerApplicationPage from "@/pages/OwnerApplicationPage";
 import Help from "@/pages/Help";
+import HelpPage from "@/pages/HelpPage";
 import SellerCommissions from "@/pages/SellerCommissions";
 import SellerReports from "@/pages/SellerReports";
 import SellerPropertyCatalog from "@/pages/SellerPropertyCatalog";
@@ -622,7 +623,7 @@ function AuthenticatedApp() {
                   </ProtectedRoute>
                 )}
               </Route>
-              <Route path="/ayuda" component={Help} />
+              <Route path="/ayuda" component={HelpPage} />
               <Route path="/terminos" component={Terms} />
               <Route path="/privacidad" component={Privacy} />
               <Route path="/:agencySlug/:unitSlug" component={PublicUnitDetail} />

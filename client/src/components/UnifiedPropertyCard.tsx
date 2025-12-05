@@ -45,7 +45,7 @@ export type PropertyStatus =
   | "pending"
   | "inactive";
 
-export type CardContext = "seller" | "public" | "owner";
+export type CardContext = "seller" | "public" | "owner" | "tenant" | "admin";
 
 export type PropertyMetrics = {
   leads?: number;
@@ -54,6 +54,9 @@ export type PropertyMetrics = {
   lastUpdated?: string;
   occupancyRate?: number;
   lastPayment?: string;
+  contractStatus?: string;
+  nextPaymentDate?: string;
+  pendingTickets?: number;
 };
 
 export type MatchInfo = {
@@ -114,6 +117,14 @@ export interface UnifiedPropertyCardProps {
   onViewDocuments?: () => void;
   onWhatsApp?: () => void;
   onClick?: () => void;
+  
+  onViewContract?: () => void;
+  onReportIssue?: () => void;
+  onContactSupport?: () => void;
+  
+  onEdit?: () => void;
+  onViewLeads?: () => void;
+  onManage?: () => void;
   
   selectedLeadName?: string | null;
   onSendToLead?: () => void;
@@ -350,6 +361,12 @@ export function UnifiedPropertyCard({
   onViewDocuments,
   onWhatsApp,
   onClick,
+  onViewContract,
+  onReportIssue,
+  onContactSupport,
+  onEdit,
+  onViewLeads,
+  onManage,
   selectedLeadName,
   onSendToLead,
   isFavoriteLoading,
@@ -613,6 +630,45 @@ export function UnifiedPropertyCard({
             )}
           </div>
         )}
+        
+        {context === "tenant" && metrics && (
+          <div className="flex items-center gap-3 pt-2 border-t text-xs text-muted-foreground">
+            {metrics.contractStatus && (
+              <div className="flex items-center gap-1">
+                <FileText className="h-3 w-3" />
+                <span>Contrato: <strong className="text-foreground">{metrics.contractStatus}</strong></span>
+              </div>
+            )}
+            {metrics.nextPaymentDate && (
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                <span>Próximo pago: <strong className="text-foreground">{metrics.nextPaymentDate}</strong></span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {context === "admin" && metrics && (
+          <div className="flex items-center gap-3 pt-2 border-t text-xs text-muted-foreground">
+            {metrics.leads !== undefined && (
+              <div className="flex items-center gap-1">
+                <Users className="h-3 w-3" />
+                <span>Leads: <strong className="text-foreground">{metrics.leads}</strong></span>
+              </div>
+            )}
+            {metrics.views !== undefined && (
+              <div className="flex items-center gap-1">
+                <Eye className="h-3 w-3" />
+                <span>Vistas: <strong className="text-foreground">{metrics.views}</strong></span>
+              </div>
+            )}
+            {metrics.pendingTickets !== undefined && metrics.pendingTickets > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-amber-600">Tickets: <strong>{metrics.pendingTickets}</strong></span>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="p-3 pt-0 flex gap-2 flex-wrap mt-auto">
@@ -743,6 +799,86 @@ export function UnifiedPropertyCard({
               >
                 <FileText className="h-4 w-4" />
                 Documentos
+              </Button>
+            )}
+          </>
+        )}
+        
+        {context === "tenant" && (
+          <>
+            {onViewContract && (
+              <Button 
+                size="sm" 
+                className="flex-1 gap-1.5"
+                onClick={onViewContract}
+                data-testid={`button-contract-${id}`}
+              >
+                <FileText className="h-4 w-4" />
+                Ver contrato
+              </Button>
+            )}
+            {onReportIssue && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="flex-1 gap-1.5"
+                onClick={onReportIssue}
+                data-testid={`button-report-${id}`}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Reportar problema
+              </Button>
+            )}
+            {onContactSupport && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="gap-1.5"
+                onClick={onContactSupport}
+                data-testid={`button-support-${id}`}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Soporte
+              </Button>
+            )}
+          </>
+        )}
+        
+        {context === "admin" && (
+          <>
+            {onEdit && (
+              <Button 
+                size="sm" 
+                className="flex-1 gap-1.5"
+                onClick={onEdit}
+                data-testid={`button-edit-${id}`}
+              >
+                <Eye className="h-4 w-4" />
+                Editar
+              </Button>
+            )}
+            {onViewLeads && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="flex-1 gap-1.5"
+                onClick={onViewLeads}
+                data-testid={`button-view-leads-${id}`}
+              >
+                <Users className="h-4 w-4" />
+                Ver leads
+              </Button>
+            )}
+            {onViewPortal && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="gap-1.5"
+                onClick={onViewPortal}
+                data-testid={`button-admin-portal-${id}`}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Portal
               </Button>
             )}
           </>
