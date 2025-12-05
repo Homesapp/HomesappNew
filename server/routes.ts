@@ -9459,7 +9459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Leads/CRM routes
-  app.get("/api/leads", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.get("/api/leads", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const currentUser = await storage.getUser(userId);
@@ -9494,7 +9494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.get("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -9523,7 +9523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Validate phone number for duplicates (real-time validation)
-  app.get("/api/leads/validate-phone/:phone", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.get("/api/leads/validate-phone/:phone", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { phone } = req.params;
       
@@ -9581,7 +9581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/leads", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.post("/api/leads", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -9729,7 +9729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.patch("/api/leads/:id", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -9777,7 +9777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/leads/:id/status", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.patch("/api/leads/:id/status", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -9854,7 +9854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get lead history
-  app.get("/api/leads/:id/history", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.get("/api/leads/:id/history", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -9969,7 +9969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get lead appointments history
-  app.get("/api/leads/:id/appointments", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.get("/api/leads/:id/appointments", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -11104,7 +11104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Seller/Admin Appointment Management Routes
   // Create appointment with lead (seller can only use their own leads)
-  app.post("/api/seller/appointments/create-with-lead", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.post("/api/seller/appointments/create-with-lead", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     let googleEventId: string | null = null;
     
     try {
@@ -11243,7 +11243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seller/Admin approve appointment directly
-  app.post("/api/seller/appointments/:id/approve", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.post("/api/seller/appointments/:id/approve", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -11291,7 +11291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seller/Admin cancel appointment directly
-  app.post("/api/seller/appointments/:id/cancel", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.post("/api/seller/appointments/:id/cancel", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { reason } = req.body;
@@ -11346,7 +11346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seller/Admin reschedule appointment directly
-  app.patch("/api/seller/appointments/:id/reschedule", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management"]), async (req: any, res) => {
+  app.patch("/api/seller/appointments/:id/reschedule", isAuthenticated, requireRole(["master", "admin", "admin_jr", "seller", "management", "sales_agent"]), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { newDate } = req.body;
@@ -46757,6 +46757,297 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
     }
   });
 
+
+
+  // ==========================================
+  // VALUATIONS API - Avalúos/CMA (Homesapp)
+  // ==========================================
+  
+  // Helper function to check valuation access
+  async function canAccessValuation(userId: string, valuation: any): Promise<boolean> {
+    const user = await storage.getUser(userId);
+    if (!user) return false;
+    if (["master", "admin", "admin_jr"].includes(user.role)) return true;
+    if (valuation.createdByUserId === userId) return true;
+    const property = await storage.getProperty(valuation.propertyId);
+    if (property && property.ownerId === userId) return true;
+    return false;
+  }
+
+  // GET /api/valuations - List valuations
+  app.get("/api/valuations", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Usuario no autenticado" });
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+      const filters: any = {};
+      if (user.role === "sales_agent") filters.createdByUserId = userId;
+      else if (user.role === "owner") filters.propertyId = req.query.propertyId;
+      if (req.query.type) filters.type = req.query.type;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.propertyId) filters.propertyId = req.query.propertyId;
+      const valuations = await storage.getValuations(filters);
+      res.json(valuations);
+    } catch (error: any) {
+      console.error("Error fetching valuations:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/valuations/:id
+  app.get("/api/valuations/:id", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Usuario no autenticado" });
+      const valuation = await storage.getValuationWithComparables(req.params.id);
+      if (!valuation) return res.status(404).json({ message: "Avalúo no encontrado" });
+      if (!(await canAccessValuation(userId, valuation))) return res.status(403).json({ message: "No tienes acceso" });
+      res.json(valuation);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/valuations - Create a new valuation
+  app.post("/api/valuations", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Usuario no autenticado" });
+      const schema = z.object({
+        propertyId: z.string().min(1),
+        type: z.enum(["sale", "rent_long", "rent_short"]).default("sale"),
+        squareMeters: z.number().optional().nullable(),
+        bedrooms: z.number().optional().nullable(),
+        bathrooms: z.number().optional().nullable(),
+        currency: z.string().default("USD"),
+      });
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) return res.status(400).json({ message: "Datos inválidos" });
+      const property = await storage.getProperty(validationResult.data.propertyId);
+      if (!property) return res.status(404).json({ message: "Propiedad no encontrada" });
+      const valuation = await storage.createValuation({
+        ...validationResult.data,
+        createdByUserId: userId!,
+        squareMeters: validationResult.data.squareMeters?.toString(),
+        bathrooms: validationResult.data.bathrooms?.toString(),
+      });
+      await createAuditLog(req, "create", "valuation", valuation.id, "Avalúo creado");
+      res.status(201).json(valuation);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/valuations/:id
+  app.patch("/api/valuations/:id", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "Usuario no autenticado" });
+      const valuation = await storage.getValuation(req.params.id);
+      if (!valuation) return res.status(404).json({ message: "Avalúo no encontrado" });
+      if (!(await canAccessValuation(userId, valuation))) return res.status(403).json({ message: "Sin permiso" });
+      if (!["draft", "pending_review"].includes(valuation.status)) return res.status(400).json({ message: "Solo borradores" });
+      const updated = await storage.updateValuation(req.params.id, req.body);
+      await createAuditLog(req, "update", "valuation", req.params.id, "Actualizado");
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/valuations/:id/status
+  app.post("/api/valuations/:id/status", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "No autenticado" });
+      const valuation = await storage.getValuation(req.params.id);
+      if (!valuation) return res.status(404).json({ message: "No encontrado" });
+      if (!(await canAccessValuation(userId, valuation))) return res.status(403).json({ message: "Sin permiso" });
+      const schema = z.object({ status: z.enum(["draft", "pending_review", "completed", "expired"]) });
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) return res.status(400).json({ message: "Datos inválidos" });
+      const updated = await storage.updateValuationStatus(req.params.id, validationResult.data.status, {});
+      await createAuditLog(req, "update", "valuation", req.params.id, "Estado cambiado");
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/valuations/:id
+  app.delete("/api/valuations/:id", isAuthenticated, requireRole([...SALES_ROLES, "master", "admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ message: "No autenticado" });
+      const valuation = await storage.getValuation(req.params.id);
+      if (!valuation) return res.status(404).json({ message: "No encontrado" });
+      if (valuation.status !== "draft") return res.status(400).json({ message: "Solo borradores" });
+      const user = await storage.getUser(userId);
+      if (valuation.createdByUserId !== userId && !["master", "admin"].includes(user?.role || "")) {
+        return res.status(403).json({ message: "Sin permiso" });
+      }
+      await storage.deleteValuation(req.params.id);
+      await createAuditLog(req, "delete", "valuation", req.params.id, "Eliminado");
+      res.json({ message: "Eliminado" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/valuations/:id/comparables
+  app.get("/api/valuations/:id/comparables", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const valuation = await storage.getValuation(req.params.id);
+      if (!valuation) return res.status(404).json({ message: "No encontrado" });
+      if (!(await canAccessValuation(userId, valuation))) return res.status(403).json({ message: "Sin acceso" });
+      const comparables = await storage.getValuationComparables(req.params.id);
+      res.json(comparables);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/valuations/:id/comparables
+  app.post("/api/valuations/:id/comparables", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const valuation = await storage.getValuation(req.params.id);
+      if (!valuation) return res.status(404).json({ message: "No encontrado" });
+      if (!(await canAccessValuation(userId, valuation))) return res.status(403).json({ message: "Sin permiso" });
+      const comparable = await storage.createValuationComparable({ valuationId: req.params.id, ...req.body });
+      res.status(201).json(comparable);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // PATCH /api/valuation-comparables/:id
+  app.patch("/api/valuation-comparables/:id", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const comparable = await storage.getValuationComparable(req.params.id);
+      if (!comparable) return res.status(404).json({ message: "No encontrado" });
+      const valuation = await storage.getValuation(comparable.valuationId);
+      if (!valuation || !(await canAccessValuation(userId, valuation))) return res.status(403).json({ message: "Sin permiso" });
+      const updated = await storage.updateValuationComparable(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DELETE /api/valuation-comparables/:id
+  app.delete("/api/valuation-comparables/:id", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const comparable = await storage.getValuationComparable(req.params.id);
+      if (!comparable) return res.status(404).json({ message: "No encontrado" });
+      const valuation = await storage.getValuation(comparable.valuationId);
+      if (!valuation || !(await canAccessValuation(userId, valuation))) return res.status(403).json({ message: "Sin permiso" });
+      await storage.deleteValuationComparable(req.params.id);
+      res.json({ message: "Eliminado" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // GET /api/valuation-requests
+  app.get("/api/valuation-requests", isAuthenticated, requireRole([...SALES_ROLES, "owner"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+      const filters: any = {};
+      if (user.role === "owner") filters.requestedByUserId = userId;
+      else if (user.role === "sales_agent") filters.assignedAgentId = userId;
+      if (req.query.status) filters.status = req.query.status;
+      if (req.query.propertyId) filters.propertyId = req.query.propertyId;
+      const requests = await storage.getValuationRequests(filters);
+      res.json(requests);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/valuation-requests
+  app.post("/api/valuation-requests", isAuthenticated, requireRole(["owner", ...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const schema = z.object({
+        propertyId: z.string().min(1),
+        type: z.enum(["sale", "rent_long", "rent_short"]).default("sale"),
+        ownerNotes: z.string().optional().nullable(),
+      });
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) return res.status(400).json({ message: "Datos inválidos" });
+      const property = await storage.getProperty(validationResult.data.propertyId);
+      if (!property) return res.status(404).json({ message: "Propiedad no encontrada" });
+      const user = await storage.getUser(userId);
+      if (user?.role === "owner" && property.ownerId !== userId) return res.status(403).json({ message: "Solo tus propiedades" });
+      const request = await storage.createValuationRequest({ ...validationResult.data, requestedByUserId: userId! });
+      await createAuditLog(req, "create", "valuation_request", request.id, "Solicitud creada");
+      res.status(201).json(request);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/valuation-requests/:id/assign
+  app.post("/api/valuation-requests/:id/assign", isAuthenticated, requireRole(["master", "admin", "admin_jr"]), async (req: any, res) => {
+    try {
+      const request = await storage.getValuationRequest(req.params.id);
+      if (!request) return res.status(404).json({ message: "No encontrado" });
+      const schema = z.object({ agentId: z.string().min(1) });
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) return res.status(400).json({ message: "Datos inválidos" });
+      const agent = await storage.getUser(validationResult.data.agentId);
+      if (!agent || !SALES_ROLES.includes(agent.role)) return res.status(400).json({ message: "Agente no válido" });
+      const updated = await storage.assignValuationRequest(req.params.id, validationResult.data.agentId);
+      await createAuditLog(req, "update", "valuation_request", req.params.id, "Asignado");
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/valuation-requests/:id/complete
+  app.post("/api/valuation-requests/:id/complete", isAuthenticated, requireRole([...SALES_ROLES]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const request = await storage.getValuationRequest(req.params.id);
+      if (!request) return res.status(404).json({ message: "No encontrado" });
+      if (request.assignedAgentId !== userId) return res.status(403).json({ message: "Solo el asignado" });
+      const schema = z.object({ valuationId: z.string().min(1) });
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) return res.status(400).json({ message: "Datos inválidos" });
+      const valuation = await storage.getValuation(validationResult.data.valuationId);
+      if (!valuation) return res.status(404).json({ message: "Avalúo no encontrado" });
+      const updated = await storage.completeValuationRequest(req.params.id, validationResult.data.valuationId);
+      await createAuditLog(req, "update", "valuation_request", req.params.id, "Completada");
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // POST /api/valuation-requests/:id/cancel
+  app.post("/api/valuation-requests/:id/cancel", isAuthenticated, requireRole(["owner", ...SALES_ROLES, "master", "admin"]), async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const request = await storage.getValuationRequest(req.params.id);
+      if (!request) return res.status(404).json({ message: "No encontrado" });
+      const user = await storage.getUser(userId);
+      const canCancel = ["master", "admin", "admin_jr"].includes(user?.role || "") || request.requestedByUserId === userId;
+      if (!canCancel) return res.status(403).json({ message: "Sin permiso" });
+      const updated = await storage.cancelValuationRequest(req.params.id);
+      await createAuditLog(req, "update", "valuation_request", req.params.id, "Cancelada");
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   return httpServer;
 }

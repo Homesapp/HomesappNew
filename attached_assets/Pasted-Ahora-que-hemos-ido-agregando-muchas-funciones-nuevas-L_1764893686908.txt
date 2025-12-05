@@ -1,0 +1,243 @@
+Ahora que hemos ido agregando muchas funciones nuevas (Leads/Kanban, Portal 2.0, contratos mejorados, sección de social media, propiedades en venta, agente de ventas, valuaciones, etc.), necesito que revisen y alineen bien todos los permisos y la UX de cada rol, especialmente:
+
+TRH Admin
+
+Agente de renta TRH
+
+Agente de ventas Homesapp
+
+Admin de agencia externa (broker)
+
+Vendedor externo
+
+Owner (propietario)
+
+Tenant / cliente
+
+y garanticen que:
+
+cada rol ve lo que necesita,
+
+no ve lo que no debe,
+
+y puede operar correctamente con todas las funciones nuevas.
+
+1) Auditoría de roles y permisos (general)
+
+Les pido que:
+
+Hagan una tabla / documento donde se resuma:
+
+filas = módulos principales:
+
+Leads & Kanban,
+
+Catálogo de propiedades / listings de renta,
+
+Catálogo de propiedades / listings de venta,
+
+Compare Properties,
+
+Detalle de listing público y flujo de lead / “Mis solicitudes”,
+
+Contratos (renta / venta),
+
+Portal Tenant,
+
+Portal Owner,
+
+Social Media / Marketing,
+
+Panel Broker (agencia externa),
+
+Valuaciones,
+
+Panel Agente de Ventas Homesapp.
+
+columnas = roles:
+
+TRH Admin, TRH Agent, Sales Agent Homesapp, External Agency Admin, External Seller, Owner, Tenant/Client.
+
+celdas = permisos:
+
+N = no acceso,
+
+R = solo lectura,
+
+RW = lectura/escritura.
+
+Confirmar que esa matriz de permisos se refleja realmente en:
+
+rutas del frontend,
+
+componentes visibles / menús,
+
+y en el backend (middleware de autorización por rol y agencyId).
+
+2) Foco especial: Admin de Agencia Externa (Broker)
+
+Para el rol de admin de agencia externa (broker, por ejemplo external_agency_admin), quiero asegurar que tenga todo lo necesario para administrar las nuevas funciones dentro de su propia agencia, pero sin ver info global de TRH ni de otras agencias.
+
+El admin de agencia externa debe poder:
+
+Equipo:
+
+Ver todos los usuarios/agents de su agencia.
+
+Crear/invitar nuevos vendedores externos.
+
+Activar/desactivar vendedores de su agencia.
+
+Leads:
+
+Ver todos los leads asociados a su agencyId (renta y/o venta, según corresponda).
+
+Reasignar leads entre sus vendedores.
+
+Ver el Kanban de leads filtrado a su agencia (no global).
+
+Propiedades / Listings:
+
+Ver todas las propiedades/listings de su agencia (renta y venta si aplica).
+
+Ver stats: nº de leads, citas, estado del listing.
+
+Acceder a las herramientas de Social Media para esas propiedades (como un manager).
+
+Contratos:
+
+Ver contratos (renta / venta) donde su agencia y/o sus agentes estén involucrados.
+
+No ver contratos de otras agencias.
+
+Según lo que sea viable en esta fase:
+
+poder iniciar solicitudes/ofertas,
+
+ver estado y documentos relevantes.
+
+Valuaciones:
+
+Ver valuaciones de propiedades de su agencia.
+
+Si su agencia también participa en ventas, poder solicitar o crear valuaciones (en colaboración con agentes de ventas Homesapp, si aplica).
+
+Reportes:
+
+Ver un dashboard de su agencia:
+
+leads por agente,
+
+contratos cerrados,
+
+propiedades activas,
+
+etc.
+
+Asegúrense de que:
+
+todas estas vistas están filtradas por agencyId en backend,
+
+y que el frontend no permita navegar a información de otras agencias.
+
+3) Conexión con nuevos módulos específicos
+
+Por favor revisen también, para cada uno de estos módulos:
+
+Leads / Kanban:
+
+TRH Admin → ve todo.
+
+TRH Agent → solo sus leads (y los de su agencia interna).
+
+Sales Agent Homesapp → solo leads compradores.
+
+External Agency Admin → todos los leads de su agencia.
+
+External Seller → solo sus leads.
+
+Owner/Tenant → NO acceden al Kanban, solo a “Mis solicitudes” / Portal.
+
+Propiedades / listings:
+
+TRH Admin → todos.
+
+TRH Agent → listings de renta TRH.
+
+Sales Agent Homesapp → listings de venta.
+
+External Agency Admin → listings de su agencia (renta/venta según configuración).
+
+External Seller → propiedades asignadas.
+
+Owner/Tenant → solo vía web pública / portal, no panel interno.
+
+Contratos (renta y venta):
+
+TRH Admin → todo.
+
+TRH Agent → contratos de renta donde participa.
+
+Sales Agent Homesapp → contratos de venta de sus deals.
+
+External Agency Admin → contratos vinculados con su agencia.
+
+External Seller → acceso limitado a su parte operativa.
+
+Owner/Tenant → solo contratos donde son parte, vía Portal.
+
+Portal Tenant / Owner:
+
+Solo tenant / owner ven su portal.
+
+TRH Admin y, si es necesario, ciertos roles pueden ver info para soporte (con auditoría).
+
+Valuaciones:
+
+TRH Admin → ver todas.
+
+Sales Agent Homesapp → crear/ver valuaciones de propiedades de venta que maneja.
+
+External Agency Admin → ver (y opcionalmente crear) valuaciones de sus propiedades.
+
+Owner → solo ver resumen de la valuación de su propiedad en su Portal.
+
+Social media / marketing:
+
+TRH Admin → ver todo.
+
+TRH Agent / External Seller → herramientas de social media para sus propiedades.
+
+External Agency Admin → ver y usar herramientas sobre cualquier propiedad de su agencia.
+
+4) Documentación y explicación final
+
+Al terminar esta revisión/ajuste, por favor:
+
+Documenten en un .md:
+
+la lista de roles activos,
+
+los permisos de cada rol por módulo,
+
+y cómo se hace la validación en backend (middleware, agencyId, etc.).
+
+Explíquenme en lenguaje simple:
+
+qué ve y qué puede hacer:
+
+un TRH Admin,
+
+un agente de renta TRH,
+
+un agente de ventas Homesapp,
+
+un admin de agencia externa (broker),
+
+un vendedor externo,
+
+un owner,
+
+un tenant/cliente.
+
+La idea es que no se quede ninguna función nueva “flotando” sin permisos claros, y que el admin de agencia externa tenga todas las herramientas necesarias para gestionar su propio equipo, leads, propiedades y contratos, sin ver información de otras agencias.

@@ -22,6 +22,10 @@ import {
   CalendarDays,
   Plus,
   Activity,
+  Calculator,
+  UserPlus,
+  BarChart3,
+  ListChecks,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -196,6 +200,17 @@ export default function SalesAgentDashboard() {
       contractClosed: "Cerrado",
       contractCancelled: "Cancelado",
       from: "de",
+      valuations: "Avalúos",
+      newValuation: "Nuevo Avalúo",
+      myBuyers: "Mis Compradores",
+      myProperties: "Mis Propiedades",
+      valuationRequests: "Solicitudes de Avalúo",
+      createValuation: "Crear Avalúo",
+      viewBuyers: "Ver Compradores",
+      viewProperties: "Ver Propiedades",
+      valuationsPending: "avalúos pendientes",
+      buyersActive: "compradores activos",
+      propertiesListed: "propiedades listadas",
     },
     en: {
       title: "Sales Agent Dashboard",
@@ -239,6 +254,17 @@ export default function SalesAgentDashboard() {
       contractClosed: "Closed",
       contractCancelled: "Cancelled",
       from: "from",
+      valuations: "Valuations",
+      newValuation: "New Valuation",
+      myBuyers: "My Buyers",
+      myProperties: "My Properties",
+      valuationRequests: "Valuation Requests",
+      createValuation: "Create Valuation",
+      viewBuyers: "View Buyers",
+      viewProperties: "View Properties",
+      valuationsPending: "valuations pending",
+      buyersActive: "active buyers",
+      propertiesListed: "properties listed",
     },
   };
 
@@ -373,6 +399,53 @@ export default function SalesAgentDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card data-testid="card-quick-actions">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ListChecks className="h-5 w-5" />
+            {t("quickActions")}
+          </CardTitle>
+          <CardDescription>
+            {language === "es" ? "Accede rápidamente a tus herramientas principales" : "Quick access to your main tools"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2" asChild data-testid="button-valuations">
+              <Link href="/sales/valuations">
+                <Calculator className="h-6 w-6 text-primary" />
+                <span className="font-medium">{t("valuations")}</span>
+                <span className="text-xs text-muted-foreground">{t("createValuation")}</span>
+              </Link>
+            </Button>
+            
+            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2" asChild data-testid="button-my-buyers">
+              <Link href="/sales/buyers">
+                <Users className="h-6 w-6 text-primary" />
+                <span className="font-medium">{t("myBuyers")}</span>
+                <span className="text-xs text-muted-foreground">{t("viewBuyers")}</span>
+              </Link>
+            </Button>
+            
+            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2" asChild data-testid="button-my-properties">
+              <Link href="/sales/properties">
+                <Building2 className="h-6 w-6 text-primary" />
+                <span className="font-medium">{t("myProperties")}</span>
+                <span className="text-xs text-muted-foreground">{t("viewProperties")}</span>
+              </Link>
+            </Button>
+            
+            <Button variant="outline" className="h-auto py-4 flex flex-col items-center gap-2" asChild data-testid="button-valuation-requests">
+              <Link href="/sales/valuation-requests">
+                <BarChart3 className="h-6 w-6 text-primary" />
+                <span className="font-medium">{t("valuationRequests")}</span>
+                <span className="text-xs text-muted-foreground">{t("valuationsPending")}</span>
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card data-testid="card-offers-pipeline">

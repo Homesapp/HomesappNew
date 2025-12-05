@@ -56,14 +56,21 @@ Properties can have multiple listings with different brands. The `listingType` f
 A complete sales workflow for property sales including:
 - **Sale Offers**: Full lifecycle management (draft → pending → under_review → counter_offer → accepted/rejected/expired/withdrawn) with Zod validation and strict RBAC
 - **Sale Contracts**: Complete contract workflow (draft → pending_signature → active → in_escrow → pending_closing → closed/cancelled) with event tracking, payment recording, and document management
-- **Sales Agent Dashboard**: Pipeline visualization for offers and contracts, commission tracking, quick actions, and full i18n support (Spanish/English)
+- **Sales Agent Dashboard**: Pipeline visualization for offers and contracts, commission tracking, quick actions for valuations/buyers/properties, and full i18n support (Spanish/English)
 - **Role-Based Access**: `sales_agent` role with strict per-resource ownership enforcement; agents can only access their own offers and contracts
 - **API Routes**: Complete REST API with Zod validation, ownership checks, and audit logging
+- **Valuations (CMA Tool)**: Comparative Market Analysis system with property data, comparable properties, adjustments, and price range generation (draft → pending_review → completed → expired workflow)
+- **Valuation Requests**: Owner portal integration allowing property owners to request valuations; agents can be assigned and complete requests
+- **My Buyers Page**: Kanban and list views for managing buyer leads with status pipeline (new → contacted → qualified → showing → negotiating → closed/lost)
+- **My Properties Page**: Grid and list views for sales properties with filtering and quick valuation creation
 
 Database tables for sales module:
 - `sale_offers`: Purchase offers with buyer leads, pricing, conditions, and financing details
 - `sale_contracts`: Compraventa contracts with buyer/seller information, escrow tracking, and document management
 - `sale_contract_events`: Timeline events for contract status changes and milestones
+- `valuations`: Property valuations with CMA methodology, price ranges, and comparable analysis
+- `valuation_comparables`: Comparable properties linked to valuations with adjustments and pricing
+- `valuation_requests`: Owner-initiated valuation requests with agent assignment workflow
 
 ## External Dependencies
 *   Google Calendar API

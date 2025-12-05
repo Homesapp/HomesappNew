@@ -91,6 +91,9 @@ import OwnerOffers from "@/pages/OwnerOffers";
 import OwnerDashboard from "@/pages/OwnerDashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import SalesAgentDashboard from "@/pages/SalesAgentDashboard";
+import SalesBuyers from "@/pages/SalesBuyers";
+import SalesProperties from "@/pages/SalesProperties";
+import SalesValuations from "@/pages/SalesValuations";
 import AdminProfile from "@/pages/AdminProfile";
 import ClientDashboard from "@/pages/ClientDashboard";
 import ClientHomeDashboard from "@/pages/ClientHomeDashboard";
@@ -445,7 +448,10 @@ function AuthenticatedApp() {
               <Route path="/sales/dashboard" component={SalesAgentDashboard} />
               <Route path="/sales/offers" component={SalesAgentDashboard} />
               <Route path="/sales/contracts" component={SalesAgentDashboard} />
-              <Route path="/sales/properties" component={SalesAgentDashboard} />
+              <Route path="/sales/properties" component={SalesProperties} />
+              <Route path="/sales/buyers" component={SalesBuyers} />
+              <Route path="/sales/valuations" component={SalesValuations} />
+              <Route path="/sales/valuation-requests" component={SalesValuations} />
               <Route path="/sales/leads" component={SalesAgentDashboard} />
               <Route path="/mis-propiedades" component={MyProperties} />
               <Route path="/my-properties" component={MyProperties} />

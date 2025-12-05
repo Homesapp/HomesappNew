@@ -545,6 +545,15 @@ import {
   saleContractEvents,
   type SaleContractEvent,
   type InsertSaleContractEvent,
+  valuations,
+  type Valuation,
+  type InsertValuation,
+  valuationComparables,
+  type ValuationComparable,
+  type InsertValuationComparable,
+  valuationRequests,
+  type ValuationRequest,
+  type InsertValuationRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, ilike, asc, desc, sql, isNull, isNotNull, count, inArray, SQL, between, not, notInArray, ne } from "drizzle-orm";
@@ -2103,6 +2112,49 @@ export interface IStorage {
     totalSalesValue: number;
     commissionEarned: number;
   }>;
+  
+  // ==========================================
+  // VALUATIONS - Avalúos/CMA (Homesapp)
+  // ==========================================
+  getValuation(id: string): Promise<Valuation | undefined>;
+  getValuations(filters?: { 
+    propertyId?: string; 
+    createdByUserId?: string; 
+    type?: string;
+    status?: string;
+  }): Promise<Valuation[]>;
+  getValuationWithComparables(id: string): Promise<(Valuation & { comparables: ValuationComparable[] }) | undefined>;
+  createValuation(valuation: InsertValuation): Promise<Valuation>;
+  updateValuation(id: string, updates: Partial<InsertValuation>): Promise<Valuation>;
+  updateValuationStatus(id: string, status: string, additionalData?: { 
+    priceMin?: string; 
+    priceTarget?: string; 
+    priceMax?: string;
+    validUntil?: Date;
+  }): Promise<Valuation>;
+  deleteValuation(id: string): Promise<void>;
+  
+  // Valuation Comparables
+  getValuationComparable(id: string): Promise<ValuationComparable | undefined>;
+  getValuationComparables(valuationId: string): Promise<ValuationComparable[]>;
+  createValuationComparable(comparable: InsertValuationComparable): Promise<ValuationComparable>;
+  updateValuationComparable(id: string, updates: Partial<InsertValuationComparable>): Promise<ValuationComparable>;
+  deleteValuationComparable(id: string): Promise<void>;
+  bulkCreateValuationComparables(comparables: InsertValuationComparable[]): Promise<ValuationComparable[]>;
+  
+  // Valuation Requests (Owner Portal)
+  getValuationRequest(id: string): Promise<ValuationRequest | undefined>;
+  getValuationRequests(filters?: { 
+    propertyId?: string; 
+    requestedByUserId?: string; 
+    assignedAgentId?: string;
+    status?: string;
+  }): Promise<ValuationRequest[]>;
+  createValuationRequest(request: InsertValuationRequest): Promise<ValuationRequest>;
+  updateValuationRequest(id: string, updates: Partial<InsertValuationRequest>): Promise<ValuationRequest>;
+  assignValuationRequest(id: string, agentId: string): Promise<ValuationRequest>;
+  completeValuationRequest(id: string, valuationId: string): Promise<ValuationRequest>;
+  cancelValuationRequest(id: string): Promise<ValuationRequest>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -15005,6 +15057,291 @@ export class DatabaseStorage implements IStorage {
       totalSalesValue,
       commissionEarned
     };
+  }
+
+  // ==========================================
+  // VALUATIONS - Avalúos/CMA (Homesapp)
+  // ==========================================
+  async getValuation(id: string): Promise<Valuation | undefined> {
+    const [valuation] = await db.select().from(valuations).where(eq(valuations.id, id));
+    return valuation;
+  }
+
+  async getValuations(filters?: { 
+    propertyId?: string; 
+    createdByUserId?: string; 
+    type?: string;
+    status?: string;
+  }): Promise<Valuation[]> {
+    const conditions: SQL[] = [];
+    
+    if (filters?.propertyId) {
+      conditions.push(eq(valuations.propertyId, filters.propertyId));
+    }
+    if (filters?.createdByUserId) {
+      conditions.push(eq(valuations.createdByUserId, filters.createdByUserId));
+    }
+    if (filters?.type) {
+      conditions.push(eq(valuations.type, filters.type as any));
+    }
+    if (filters?.status) {
+      conditions.push(eq(valuations.status, filters.status as any));
+    }
+
+    let query = db.select().from(valuations);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(valuations.createdAt));
+  }
+
+  async getValuationWithComparables(id: string): Promise<(Valuation & { comparables: ValuationComparable[] }) | undefined> {
+    const valuation = await this.getValuation(id);
+    if (!valuation) return undefined;
+
+    const comparables = await this.getValuationComparables(id);
+    return { ...valuation, comparables };
+  }
+
+  async createValuation(valuation: InsertValuation): Promise<Valuation> {
+    const [created] = await db.insert(valuations).values(valuation).returning();
+    return created;
+  }
+
+  async updateValuation(id: string, updates: Partial<InsertValuation>): Promise<Valuation> {
+    const [updated] = await db
+      .update(valuations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(valuations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateValuationStatus(id: string, status: string, additionalData?: { 
+    priceMin?: string; 
+    priceTarget?: string; 
+    priceMax?: string;
+    validUntil?: Date;
+  }): Promise<Valuation> {
+    const updateData: any = { status, updatedAt: new Date() };
+    
+    if (additionalData?.priceMin) {
+      updateData.priceMin = additionalData.priceMin;
+    }
+    if (additionalData?.priceTarget) {
+      updateData.priceTarget = additionalData.priceTarget;
+    }
+    if (additionalData?.priceMax) {
+      updateData.priceMax = additionalData.priceMax;
+    }
+    if (additionalData?.validUntil) {
+      updateData.validUntil = additionalData.validUntil;
+    }
+    
+    const [updated] = await db
+      .update(valuations)
+      .set(updateData)
+      .where(eq(valuations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteValuation(id: string): Promise<void> {
+    await db.delete(valuations).where(eq(valuations.id, id));
+  }
+
+  // Valuation Comparables
+  async getValuationComparable(id: string): Promise<ValuationComparable | undefined> {
+    const [comparable] = await db.select().from(valuationComparables).where(eq(valuationComparables.id, id));
+    return comparable;
+  }
+
+  async getValuationComparables(valuationId: string): Promise<ValuationComparable[]> {
+    return await db
+      .select()
+      .from(valuationComparables)
+      .where(eq(valuationComparables.valuationId, valuationId))
+      .orderBy(desc(valuationComparables.createdAt));
+  }
+
+  async createValuationComparable(comparable: InsertValuationComparable): Promise<ValuationComparable> {
+    const [created] = await db.insert(valuationComparables).values(comparable).returning();
+    
+    // Update comparables count on valuation
+    const allComparables = await this.getValuationComparables(comparable.valuationId);
+    const includedComparables = allComparables.filter(c => c.isIncluded);
+    const avgPrice = includedComparables.length > 0
+      ? includedComparables.reduce((sum, c) => sum + parseFloat(c.adjustedPrice || c.soldPrice || c.listingPrice || '0'), 0) / includedComparables.length
+      : null;
+    
+    await db
+      .update(valuations)
+      .set({ 
+        comparablesCount: allComparables.length,
+        averageComparablePrice: avgPrice?.toString() || null,
+        updatedAt: new Date()
+      })
+      .where(eq(valuations.id, comparable.valuationId));
+    
+    return created;
+  }
+
+  async updateValuationComparable(id: string, updates: Partial<InsertValuationComparable>): Promise<ValuationComparable> {
+    const [updated] = await db
+      .update(valuationComparables)
+      .set(updates)
+      .where(eq(valuationComparables.id, id))
+      .returning();
+    
+    // Update averages on valuation
+    const allComparables = await this.getValuationComparables(updated.valuationId);
+    const includedComparables = allComparables.filter(c => c.isIncluded);
+    const avgPrice = includedComparables.length > 0
+      ? includedComparables.reduce((sum, c) => sum + parseFloat(c.adjustedPrice || c.soldPrice || c.listingPrice || '0'), 0) / includedComparables.length
+      : null;
+    
+    await db
+      .update(valuations)
+      .set({ 
+        averageComparablePrice: avgPrice?.toString() || null,
+        updatedAt: new Date()
+      })
+      .where(eq(valuations.id, updated.valuationId));
+    
+    return updated;
+  }
+
+  async deleteValuationComparable(id: string): Promise<void> {
+    const comparable = await this.getValuationComparable(id);
+    if (!comparable) return;
+    
+    await db.delete(valuationComparables).where(eq(valuationComparables.id, id));
+    
+    // Update comparables count on valuation
+    const allComparables = await this.getValuationComparables(comparable.valuationId);
+    const includedComparables = allComparables.filter(c => c.isIncluded);
+    const avgPrice = includedComparables.length > 0
+      ? includedComparables.reduce((sum, c) => sum + parseFloat(c.adjustedPrice || c.soldPrice || c.listingPrice || '0'), 0) / includedComparables.length
+      : null;
+    
+    await db
+      .update(valuations)
+      .set({ 
+        comparablesCount: allComparables.length,
+        averageComparablePrice: avgPrice?.toString() || null,
+        updatedAt: new Date()
+      })
+      .where(eq(valuations.id, comparable.valuationId));
+  }
+
+  async bulkCreateValuationComparables(comparables: InsertValuationComparable[]): Promise<ValuationComparable[]> {
+    if (comparables.length === 0) return [];
+    
+    const created = await db.insert(valuationComparables).values(comparables).returning();
+    
+    // Update valuation counts for each unique valuation
+    const valuationIds = [...new Set(comparables.map(c => c.valuationId))];
+    for (const valuationId of valuationIds) {
+      const allComparables = await this.getValuationComparables(valuationId);
+      const includedComparables = allComparables.filter(c => c.isIncluded);
+      const avgPrice = includedComparables.length > 0
+        ? includedComparables.reduce((sum, c) => sum + parseFloat(c.adjustedPrice || c.soldPrice || c.listingPrice || '0'), 0) / includedComparables.length
+        : null;
+      
+      await db
+        .update(valuations)
+        .set({ 
+          comparablesCount: allComparables.length,
+          averageComparablePrice: avgPrice?.toString() || null,
+          updatedAt: new Date()
+        })
+        .where(eq(valuations.id, valuationId));
+    }
+    
+    return created;
+  }
+
+  // Valuation Requests (Owner Portal)
+  async getValuationRequest(id: string): Promise<ValuationRequest | undefined> {
+    const [request] = await db.select().from(valuationRequests).where(eq(valuationRequests.id, id));
+    return request;
+  }
+
+  async getValuationRequests(filters?: { 
+    propertyId?: string; 
+    requestedByUserId?: string; 
+    assignedAgentId?: string;
+    status?: string;
+  }): Promise<ValuationRequest[]> {
+    const conditions: SQL[] = [];
+    
+    if (filters?.propertyId) {
+      conditions.push(eq(valuationRequests.propertyId, filters.propertyId));
+    }
+    if (filters?.requestedByUserId) {
+      conditions.push(eq(valuationRequests.requestedByUserId, filters.requestedByUserId));
+    }
+    if (filters?.assignedAgentId) {
+      conditions.push(eq(valuationRequests.assignedAgentId, filters.assignedAgentId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(valuationRequests.status, filters.status as any));
+    }
+
+    let query = db.select().from(valuationRequests);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    return await query.orderBy(desc(valuationRequests.requestedAt));
+  }
+
+  async createValuationRequest(request: InsertValuationRequest): Promise<ValuationRequest> {
+    const [created] = await db.insert(valuationRequests).values(request).returning();
+    return created;
+  }
+
+  async updateValuationRequest(id: string, updates: Partial<InsertValuationRequest>): Promise<ValuationRequest> {
+    const [updated] = await db
+      .update(valuationRequests)
+      .set(updates)
+      .where(eq(valuationRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async assignValuationRequest(id: string, agentId: string): Promise<ValuationRequest> {
+    const [updated] = await db
+      .update(valuationRequests)
+      .set({ 
+        assignedAgentId: agentId, 
+        status: 'in_progress' as any,
+        assignedAt: new Date()
+      })
+      .where(eq(valuationRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async completeValuationRequest(id: string, valuationId: string): Promise<ValuationRequest> {
+    const [updated] = await db
+      .update(valuationRequests)
+      .set({ 
+        valuationId, 
+        status: 'completed' as any,
+        completedAt: new Date()
+      })
+      .where(eq(valuationRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async cancelValuationRequest(id: string): Promise<ValuationRequest> {
+    const [updated] = await db
+      .update(valuationRequests)
+      .set({ status: 'cancelled' as any })
+      .where(eq(valuationRequests.id, id))
+      .returning();
+    return updated;
   }
 }
 
