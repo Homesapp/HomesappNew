@@ -184,7 +184,7 @@ export default function ExternalConfiguration() {
   });
 
   // Fetch current user to check role
-  const { data: currentUser } = useQuery({
+  const { data: currentUser } = useQuery<{ role?: string }>({
     queryKey: ['/api/auth/user'],
   });
   
@@ -192,12 +192,12 @@ export default function ExternalConfiguration() {
   const canSwitchAgencies = currentUser?.role && ["master", "admin"].includes(currentUser.role);
 
   // Fetch all terms
-  const { data: allTerms, isLoading } = useQuery({
+  const { data: allTerms, isLoading } = useQuery<any[]>({
     queryKey: ['/api/external/configuration/terms'],
   });
 
   // Fetch agency data for PDF template selection
-  const { data: agencies, isLoading: isLoadingAgencies } = useQuery({
+  const { data: agencies, isLoading: isLoadingAgencies } = useQuery<any[]>({
     queryKey: ['/api/external-agencies'],
   });
   
@@ -480,7 +480,13 @@ export default function ExternalConfiguration() {
     const [aiCreditsEnabled, setAiCreditsEnabled] = useState(true);
 
     // Fetch integrations
-    const { data: integrations, isLoading: isLoadingIntegrations } = useQuery({
+    const { data: integrations, isLoading: isLoadingIntegrations } = useQuery<{
+      openaiUseReplitIntegration?: boolean;
+      openaiConnected?: boolean;
+      openaiHasCustomKey?: boolean;
+      googleCalendarConnected?: boolean;
+      googleCalendarEmail?: string;
+    }>({
       queryKey: [`/api/external-agencies/${agencyId}/integrations`],
       enabled: !!agencyId,
     });
@@ -828,7 +834,7 @@ export default function ExternalConfiguration() {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     // Fetch condominiums
-    const { data: condominiums, isLoading: isLoadingCondominiums } = useQuery({
+    const { data: condominiums, isLoading: isLoadingCondominiums } = useQuery<any[]>({
       queryKey: [`/api/external-condominiums`, agencyId],
       enabled: !!agencyId,
     });
@@ -859,7 +865,7 @@ export default function ExternalConfiguration() {
           spreadsheetId,
           sheetRange,
           condominiumId: selectedCondominiumId,
-        });
+        }) as Promise<{ message: string }>;
       },
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: ['/api/external-units'] });
@@ -1594,7 +1600,7 @@ export default function ExternalConfiguration() {
     const hasCategory = type === 'unit-characteristics' || type === 'amenities';
     const hasNameEn = type === 'unit-characteristics' || type === 'amenities';
 
-    const { data: items, isLoading } = useQuery({
+    const { data: items, isLoading } = useQuery<any[]>({
       queryKey: [apiEndpoint],
     });
 
