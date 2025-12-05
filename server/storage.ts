@@ -14646,6 +14646,212 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ==========================================
+  // Photo Slot Management Methods
+  // ==========================================
+
+  async getPhotosBySlot(unitId: string, slot: 'primary' | 'secondary'): Promise<ExternalUnitMedia[]> {
+    return await db
+      .select()
+      .from(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.mediaType, 'photo'),
+        eq(externalUnitMedia.photoSlot, slot),
+        eq(externalUnitMedia.isHidden, false)
+      ))
+      .orderBy(externalUnitMedia.position);
+  }
+
+  async countPhotosBySlot(unitId: string): Promise<{ primary: number; secondary: number }> {
+    const photos = await db
+      .select({ photoSlot: externalUnitMedia.photoSlot })
+      .from(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.mediaType, 'photo'),
+        eq(externalUnitMedia.isHidden, false)
+      ));
+    
+    return {
+      primary: photos.filter(p => p.photoSlot === 'primary').length,
+      secondary: photos.filter(p => p.photoSlot === 'secondary').length
+    };
+  }
+
+  async canAddPhoto(unitId: string, slot: 'primary' | 'secondary'): Promise<boolean> {
+    const counts = await this.countPhotosBySlot(unitId);
+    const maxPhotos = slot === 'primary' ? 5 : 20;
+    return counts[slot] < maxPhotos;
+  }
+
+  async addPhotoToSlot(unitId: string, slot: 'primary' | 'secondary', data: Omit<InsertExternalUnitMedia, 'unitId' | 'photoSlot' | 'position'>): Promise<ExternalUnitMedia | { error: string }> {
+    const maxPhotos = slot === 'primary' ? 5 : 20;
+    const counts = await this.countPhotosBySlot(unitId);
+    
+    if (counts[slot] >= maxPhotos) {
+      return { error: `Maximum ${maxPhotos} ${slot} photos allowed` };
+    }
+
+    const nextPosition = counts[slot] + 1;
+    
+    const [result] = await db
+      .insert(externalUnitMedia)
+      .values({
+        ...data,
+        unitId,
+        photoSlot: slot,
+        position: nextPosition,
+        mediaType: 'photo'
+      })
+      .returning();
+    
+    return result;
+  }
+
+  async reorderPhotosInSlot(unitId: string, slot: 'primary' | 'secondary', photoIds: string[]): Promise<void> {
+    for (let i = 0; i < photoIds.length; i++) {
+      await db
+        .update(externalUnitMedia)
+        .set({ position: i + 1, updatedAt: new Date() })
+        .where(and(
+          eq(externalUnitMedia.id, photoIds[i]),
+          eq(externalUnitMedia.unitId, unitId),
+          eq(externalUnitMedia.photoSlot, slot)
+        ));
+    }
+  }
+
+  async changePhotoSlot(photoId: string, newSlot: 'primary' | 'secondary'): Promise<ExternalUnitMedia | { error: string }> {
+    const [photo] = await db.select().from(externalUnitMedia).where(eq(externalUnitMedia.id, photoId));
+    if (!photo) return { error: 'Photo not found' };
+    
+    const canAdd = await this.canAddPhoto(photo.unitId, newSlot);
+    if (!canAdd) {
+      const maxPhotos = newSlot === 'primary' ? 5 : 20;
+      return { error: `Maximum ${maxPhotos} ${newSlot} photos allowed` };
+    }
+
+    const counts = await this.countPhotosBySlot(photo.unitId);
+    const newPosition = counts[newSlot] + 1;
+
+    const [result] = await db
+      .update(externalUnitMedia)
+      .set({ 
+        photoSlot: newSlot, 
+        position: newPosition,
+        updatedAt: new Date() 
+      })
+      .where(eq(externalUnitMedia.id, photoId))
+      .returning();
+
+    await this.compactPhotoPositions(photo.unitId, photo.photoSlot!);
+
+    return result;
+  }
+
+  async compactPhotoPositions(unitId: string, slot: 'primary' | 'secondary'): Promise<void> {
+    const photos = await this.getPhotosBySlot(unitId, slot);
+    for (let i = 0; i < photos.length; i++) {
+      if (photos[i].position !== i + 1) {
+        await db
+          .update(externalUnitMedia)
+          .set({ position: i + 1, updatedAt: new Date() })
+          .where(eq(externalUnitMedia.id, photos[i].id));
+      }
+    }
+  }
+
+  async deleteAllUnitPhotos(unitId: string): Promise<number> {
+    const result = await db
+      .delete(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.mediaType, 'photo')
+      ))
+      .returning();
+    return result.length;
+  }
+
+  async updatePhotoMigrationStatus(
+    photoId: string, 
+    status: 'none' | 'pending' | 'processing' | 'done' | 'error',
+    options?: { error?: string; qualityVersion?: number; storageUrl?: string; storagePath?: string; width?: number; height?: number }
+  ): Promise<ExternalUnitMedia | null> {
+    const updateData: any = {
+      migrationStatus: status,
+      updatedAt: new Date()
+    };
+
+    if (status === 'done') {
+      updateData.migratedAt = new Date();
+      if (options?.qualityVersion) updateData.qualityVersion = options.qualityVersion;
+      if (options?.storageUrl) updateData.storageUrl = options.storageUrl;
+      if (options?.storagePath) updateData.storagePath = options.storagePath;
+      if (options?.width) updateData.width = options.width;
+      if (options?.height) updateData.height = options.height;
+    }
+
+    if (status === 'error' && options?.error) {
+      updateData.migrationError = options.error;
+    }
+
+    const [result] = await db
+      .update(externalUnitMedia)
+      .set(updateData)
+      .where(eq(externalUnitMedia.id, photoId))
+      .returning();
+
+    return result || null;
+  }
+
+  async getPhotosForMigration(limit: number = 100, offset: number = 0): Promise<ExternalUnitMedia[]> {
+    return await db
+      .select()
+      .from(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.mediaType, 'photo'),
+        eq(externalUnitMedia.migrationStatus, 'pending')
+      ))
+      .orderBy(externalUnitMedia.createdAt)
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async markPhotosForMigration(unitId?: string): Promise<number> {
+    const conditions = [
+      eq(externalUnitMedia.mediaType, 'photo'),
+      eq(externalUnitMedia.migrationStatus, 'none')
+    ];
+    
+    if (unitId) {
+      conditions.push(eq(externalUnitMedia.unitId, unitId));
+    }
+
+    const result = await db
+      .update(externalUnitMedia)
+      .set({ migrationStatus: 'pending', updatedAt: new Date() })
+      .where(and(...conditions))
+      .returning();
+
+    return result.length;
+  }
+
+  async getMigrationStats(): Promise<{ none: number; pending: number; processing: number; done: number; error: number }> {
+    const photos = await db
+      .select({ migrationStatus: externalUnitMedia.migrationStatus })
+      .from(externalUnitMedia)
+      .where(eq(externalUnitMedia.mediaType, 'photo'));
+
+    return {
+      none: photos.filter(p => p.migrationStatus === 'none' || !p.migrationStatus).length,
+      pending: photos.filter(p => p.migrationStatus === 'pending').length,
+      processing: photos.filter(p => p.migrationStatus === 'processing').length,
+      done: photos.filter(p => p.migrationStatus === 'done').length,
+      error: photos.filter(p => p.migrationStatus === 'error').length
+    };
+  }
+
+  // ==========================================
   // SALE OFFERS - Ofertas de Compra (Homesapp)
   // ==========================================
   
