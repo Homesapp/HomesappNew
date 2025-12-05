@@ -1,0 +1,293 @@
+Quiero que reforcemos la experiencia de usuario del Portal 2.0 para los roles:
+
+Inquilino (tenant)
+
+Propietario (owner)
+
+La base de datos y endpoints ya están bastante avanzados (payments, services, documents, maintenance, messages, etc.). Ahora quiero que la UI/UX esté a la altura, sobre todo en mobile.
+
+1) Dashboard específico por rol
+
+Al entrar a:
+
+/portal/tenant
+
+/portal/owner
+
+Quiero un dashboard claro y resumido, no solo una lista más.
+
+Para TENANT (inquilino):
+
+Card grande arriba con:
+
+Próximo pago (categoría “Renta”),
+
+Monto esperado,
+
+Fecha límite (nextDueDate / dateDue más cercano pendiente),
+
+Estado (Pendiente / Atrasado / Pagado este mes).
+
+Debajo, tres bloques:
+
+Pagos recientes
+
+Últimos 3–5 registros de portal_payment_records (renta + servicios).
+
+Mantenimiento
+
+Últimos tickets abiertos con estado (ej: En revisión, En proceso).
+
+Mensajes
+
+Últimos mensajes no leídos del portal_messages.
+
+Botones destacados:
+
+Registrar pago / Subir comprobante
+
+Reportar un problema
+
+Ver contrato
+
+Para OWNER (propietario):
+
+Card grande arriba con:
+
+Total cobrado este mes (sumatoria de portal_payment_records en estado verified),
+
+Total pendiente (pagos pending o paid sin verificar),
+
+Nº de tickets abiertos.
+
+Bloques:
+
+Pagos a revisar
+
+Lista de pagos con estado paid esperando verificación.
+
+Mantenimiento abierto
+
+Tickets activos con prioridad.
+
+Mensajes recientes
+
+Últimos mensajes de tenant/TRH.
+
+Botones:
+
+Revisar pagos
+
+Ver tickets
+
+Subir documento
+
+Todo esto debe verse bien en desktop y mobile.
+
+2) Navegación del portal (menú lateral o tabs)
+
+Quiero que el portal tenga una navegación consistente con estas secciones:
+
+Inicio (Dashboard)
+
+Pagos
+
+Mantenimiento
+
+Documentos
+
+Mensajes
+
+Contrato
+
+(Opcional) Perfil / Configuración
+
+Para TENANT y OWNER, mostrar las mismas secciones pero con permisos distintos (por ejemplo, owner puede verificar pagos, tenant no).
+
+Además:
+
+Incluir un enlace visible para volver al sitio público / home (ej. “Ir a HomesApp”) sin cerrar sesión.
+
+3) UX de “Pagos”
+
+Aprovechando portal_service_configs y portal_payment_records, quiero:
+
+Vista de lista:
+
+Filtro por:
+
+categoría (renta, luz, agua, internet…),
+
+estado (pendiente, pagado, verificado, vencido),
+
+rango de fechas.
+
+Tabla o cards con:
+
+categoría / servicio,
+
+período (ej. Enero 2026),
+
+fecha límite,
+
+monto,
+
+estado con badge de color,
+
+ícono si tiene comprobante adjunto.
+
+TENANT: flujo “Registrar pago”
+
+Botón grande Registrar pago desde:
+
+Dashboard,
+
+sección de pagos (especialmente en filas “Pendiente”).
+
+Paso a paso:
+
+Seleccionar servicio/pago pendiente (renta / luz / agua…).
+
+Ingresar:
+
+fecha en que pagó,
+
+monto (prellenado, editable),
+
+notas opcionales.
+
+Subir comprobante (si ya está listo el flujo de upload, usarlo; si no, dejar marcador de posición con texto claro).
+
+Resultado:
+
+Cambiar estado a paid (marcado por tenant),
+
+Crear registro en portal_payment_records si no existe, o actualizarlo si ya existe.
+
+Notificación para OWNER para revisar/verificar.
+
+OWNER: flujo “Verificar / Rechazar”
+
+En la lista de pagos, para registros en estado paid:
+
+Botón Ver detalles → ver info + comprobante + notas del tenant.
+
+Botones:
+
+Verificar pago → estado verified, registrar verifiedBy, verifiedAt.
+
+Rechazar → estado rejected, permitir escribir motivo.
+
+Mostrar al owner un pequeño historial de acciones para cada pago.
+
+4) Mantenimiento
+
+Usando portal_ticket_updates:
+
+TENANT:
+
+Botón Crear ticket desde dashboard y desde la sección Mantenimiento.
+
+Formulario simple:
+
+categoría (ej. Plomería, Electricidad, General),
+
+descripción,
+
+urgencia (baja/media/alta),
+
+fotos opcionales.
+
+Mostrar línea de tiempo de actualizaciones (status_change, comment, photo_added).
+
+OWNER:
+
+Vista de todos los tickets del contrato (y si hay más contratos, listar por propiedad en futuro).
+
+Puede:
+
+cambiar estado (ej. Recibido, En proceso, Resuelto),
+
+agregar comentarios internos (isInternal: true) o visibles para tenant (isInternal: false),
+
+subir fotos/documentos relacionados.
+
+UI clara de estados con badges y fechas.
+
+5) Documentos
+
+Con portal_documents:
+
+Vista tipo “biblioteca de documentos”:
+
+filtros por tipo (contrato, factura, recibo, mantenimiento, otros),
+
+columnas: título, tipo, fecha, tamaño, quién lo subió.
+
+Respetar visibilidad:
+
+visibleToTenant, visibleToOwner.
+
+Desde OWNER/Admin:
+
+botón Subir documento,
+
+seleccionar visibilidad (solo owner, solo tenant, ambos).
+
+6) Mensajes
+
+Con portal_messages:
+
+Listado de conversaciones por contrato:
+
+ordenar por último mensaje,
+
+mostrar quién fue el último en escribir (tenant/owner/admin).
+
+En vista detalle:
+
+estilo chat simple (burbujas),
+
+campo para nuevo mensaje,
+
+soportar archivos adjuntos en futuro (por ahora puede quedar planeado).
+
+Importante:
+
+Respetar isInternal para mensajes solo visibles por owner/TRH.
+
+7) Contrato
+
+Sección que muestre:
+
+Resumen del contrato (fechas, renta, depósito, cláusulas clave).
+
+Estado (vigente, por vencer, terminado).
+
+PDF o documento principal descargable.
+
+Para tenant:
+
+botón “Solicitar terminación anticipada” (aunque sea solo un mensaje al owner/TRH por ahora).
+
+8) Mobile-first
+
+Es muy importante que verifiquen todo el Portal en mobile:
+
+Dashboard,
+
+Pagos,
+
+Mantenimiento,
+
+Documentos,
+
+Mensajes.
+
+En pantalla chica debe ser:
+
+fácil de leer,
+
+botones grandes,
+
+sin tablas rotas (usar cards donde sea necesario).
