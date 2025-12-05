@@ -124,6 +124,149 @@ export interface UnifiedPropertyCardProps {
   className?: string;
 }
 
+// Helper component for compact amenities icons aligned right
+interface AmenitiesIconsProps {
+  includedServices?: {
+    water?: boolean;
+    electricity?: boolean;
+    internet?: boolean;
+    hoa?: boolean;
+  };
+  petFriendly?: boolean;
+  furnished?: boolean;
+  hasParking?: boolean;
+  hasAC?: boolean;
+  amenities?: string[] | null;
+}
+
+function AmenitiesIcons({ 
+  includedServices, 
+  petFriendly, 
+  furnished, 
+  hasParking, 
+  hasAC,
+  amenities 
+}: AmenitiesIconsProps) {
+  // Build list of all amenity icons to display
+  const allIcons: { icon: JSX.Element; tooltip: string; key: string }[] = [];
+  
+  // Priority order: internet, AC, parking, pet-friendly, furnished, water, electricity, HOA
+  if (includedServices?.internet) {
+    allIcons.push({ 
+      icon: <Wifi className="h-3.5 w-3.5 text-purple-500" />, 
+      tooltip: "Internet incluido", 
+      key: "wifi" 
+    });
+  }
+  if (hasAC) {
+    allIcons.push({ 
+      icon: <Snowflake className="h-3.5 w-3.5 text-cyan-500" />, 
+      tooltip: "Aire acondicionado", 
+      key: "ac" 
+    });
+  }
+  if (hasParking) {
+    allIcons.push({ 
+      icon: <Car className="h-3.5 w-3.5 text-muted-foreground" />, 
+      tooltip: "Estacionamiento", 
+      key: "parking" 
+    });
+  }
+  if (petFriendly) {
+    allIcons.push({ 
+      icon: <PawPrint className="h-3.5 w-3.5 text-green-600" />, 
+      tooltip: "Acepta mascotas", 
+      key: "pet" 
+    });
+  }
+  if (furnished) {
+    allIcons.push({ 
+      icon: <Sofa className="h-3.5 w-3.5 text-amber-600" />, 
+      tooltip: "Amueblado", 
+      key: "furnished" 
+    });
+  }
+  if (includedServices?.water) {
+    allIcons.push({ 
+      icon: <Droplet className="h-3.5 w-3.5 text-blue-500" />, 
+      tooltip: "Agua incluida", 
+      key: "water" 
+    });
+  }
+  if (includedServices?.electricity) {
+    allIcons.push({ 
+      icon: <Zap className="h-3.5 w-3.5 text-yellow-500" />, 
+      tooltip: "Luz incluida", 
+      key: "electricity" 
+    });
+  }
+  if (includedServices?.hoa) {
+    allIcons.push({ 
+      icon: <Building className="h-3.5 w-3.5 text-green-600" />, 
+      tooltip: "HOA incluido", 
+      key: "hoa" 
+    });
+  }
+  
+  // Calculate total count of all amenities (icons + text amenities)
+  const totalAmenities = allIcons.length + (amenities?.length || 0);
+  
+  // If no amenities to show, return null
+  if (totalAmenities === 0) {
+    return null;
+  }
+  
+  // Show max 5 icons, then +N for the rest
+  const maxIcons = 5;
+  const visibleIcons = allIcons.slice(0, maxIcons);
+  const hiddenIconsCount = Math.max(0, allIcons.length - maxIcons);
+  const remainingCount = hiddenIconsCount + (amenities?.length || 0);
+  
+  return (
+    <div className="flex items-center gap-1.5 ml-auto">
+      {visibleIcons.map((item) => (
+        <Tooltip key={item.key}>
+          <TooltipTrigger asChild>
+            <span className="cursor-help">{item.icon}</span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {item.tooltip}
+          </TooltipContent>
+        </Tooltip>
+      ))}
+      {remainingCount > 0 && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-xs text-muted-foreground font-medium cursor-help">
+              +{remainingCount}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs max-w-[200px]">
+            <div className="space-y-1">
+              {allIcons.slice(maxIcons).map((item) => (
+                <div key={item.key} className="flex items-center gap-1.5">
+                  {item.icon}
+                  <span>{item.tooltip}</span>
+                </div>
+              ))}
+              {amenities && amenities.slice(0, 5).map((amenity, idx) => (
+                <div key={`amenity-${idx}`} className="text-muted-foreground">
+                  {amenity}
+                </div>
+              ))}
+              {amenities && amenities.length > 5 && (
+                <div className="text-muted-foreground">
+                  +{amenities.length - 5} más
+                </div>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
 const statusConfig: Record<PropertyStatus, { label: string; labelEn: string; className: string }> = {
   available: { 
     label: "Disponible", 
@@ -382,127 +525,56 @@ export function UnifiedPropertyCard({
           )}
         </div>
         
-        <div className="flex items-center gap-2 py-1 text-sm flex-wrap">
-          <div className="flex items-center gap-1">
-            <Bed className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">{bedrooms}</span>
-            <span className="text-muted-foreground text-xs">rec</span>
-          </div>
-          <Separator orientation="vertical" className="h-4" />
-          <div className="flex items-center gap-1">
-            <Bath className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">{bathrooms}</span>
-            <span className="text-muted-foreground text-xs">baños</span>
-          </div>
-          {area && area > 0 && (
-            <>
+        {/* Specs row with amenities aligned right */}
+        <div className="flex flex-col gap-1.5">
+          {/* Desktop: specs left, amenities right on same row */}
+          {/* Mobile: specs on first line, amenities on second line right-aligned */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* Left: Specs */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1">
+                <Bed className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{bedrooms}</span>
+                <span className="text-muted-foreground text-xs">rec</span>
+              </div>
               <Separator orientation="vertical" className="h-4" />
               <div className="flex items-center gap-1">
-                <Square className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{area}</span>
-                <span className="text-muted-foreground text-xs">m²</span>
+                <Bath className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{bathrooms}</span>
+                <span className="text-muted-foreground text-xs">baños</span>
               </div>
-            </>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-2 flex-wrap">
+              {area && area > 0 && (
+                <>
+                  <Separator orientation="vertical" className="h-4" />
+                  <div className="flex items-center gap-1">
+                    <Square className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{area}</span>
+                    <span className="text-muted-foreground text-xs">m²</span>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {/* Right: Compact amenities icons */}
+            <AmenitiesIcons 
+              includedServices={includedServices}
+              petFriendly={petFriendly}
+              furnished={furnished}
+              hasParking={hasParking}
+              hasAC={hasAC}
+              amenities={amenities}
+            />
+          </div>
+          
+          {/* Property type badge if applicable */}
           {propertyType && (
-            <Badge variant="secondary" className="text-xs">
-              {propertyType}
-            </Badge>
-          )}
-          {petFriendly && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="text-xs gap-1 text-green-600 border-green-200">
-                  <PawPrint className="h-3 w-3" />
-                  Pet friendly
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>Acepta mascotas</TooltipContent>
-            </Tooltip>
-          )}
-          {furnished && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="text-xs gap-1">
-                  <Sofa className="h-3 w-3" />
-                  Amueblado
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>Incluye muebles</TooltipContent>
-            </Tooltip>
+            <div className="flex items-center">
+              <Badge variant="secondary" className="text-xs">
+                {propertyType}
+              </Badge>
+            </div>
           )}
         </div>
-        
-        {includedServices && (
-          <div className="flex items-center gap-2 pt-1 border-t">
-            {includedServices.water && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Droplet className="h-3.5 w-3.5 text-blue-500" />
-                </TooltipTrigger>
-                <TooltipContent>Agua incluida</TooltipContent>
-              </Tooltip>
-            )}
-            {includedServices.electricity && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Zap className="h-3.5 w-3.5 text-yellow-500" />
-                </TooltipTrigger>
-                <TooltipContent>Luz incluida</TooltipContent>
-              </Tooltip>
-            )}
-            {includedServices.internet && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Wifi className="h-3.5 w-3.5 text-purple-500" />
-                </TooltipTrigger>
-                <TooltipContent>Internet incluido</TooltipContent>
-              </Tooltip>
-            )}
-            {includedServices.hoa && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Building className="h-3.5 w-3.5 text-green-600" />
-                </TooltipTrigger>
-                <TooltipContent>HOA incluido</TooltipContent>
-              </Tooltip>
-            )}
-            {hasParking && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Car className="h-3.5 w-3.5 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>Estacionamiento</TooltipContent>
-              </Tooltip>
-            )}
-            {hasAC && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Snowflake className="h-3.5 w-3.5 text-cyan-500" />
-                </TooltipTrigger>
-                <TooltipContent>Aire acondicionado</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        )}
-        
-        {amenities && amenities.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {amenities.slice(0, 4).map((amenity, idx) => (
-              <Badge key={idx} variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
-                {amenity}
-              </Badge>
-            ))}
-            {amenities.length > 4 && (
-              <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
-                +{amenities.length - 4}
-              </Badge>
-            )}
-          </div>
-        )}
         
         {context === "seller" && metrics && (
           <div className="flex items-center gap-3 pt-2 border-t text-xs text-muted-foreground">

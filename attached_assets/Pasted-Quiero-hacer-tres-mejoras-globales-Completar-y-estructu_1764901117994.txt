@@ -1,0 +1,131 @@
+Quiero hacer tres mejoras globales:
+
+Completar y estructurar la sección de ayuda para cada rol.
+
+Permitir volver al home público desde dentro de la app luego del login.
+
+Usar la misma card de propiedades (UnifiedPropertyCard) en todos los catálogos (clientes, propietarios, etc.), cambiando solo las acciones según el rol.
+
+1) Sección de ayuda por rol
+
+Actualmente cada rol tiene una sección de ayuda, pero está incompleta.
+
+Necesito que:
+
+Haya una ruta o vista de ayuda (por ejemplo /help) que cargue contenido según el rol actual (role + portalRole o lo que ya usen).
+
+Para cada rol muestren:
+
+“Qué puedo hacer con este rol” (resumen corto).
+
+Primeros pasos (3–5 items).
+
+Flujo típico de trabajo (ej. para vendedor: recibir lead → agendar visitas → oferta → contrato).
+
+Capturas o mini-tutorial con las secciones clave (catálogo, leads, contratos, portal).
+
+Preguntas frecuentes (FAQ) específicas de ese rol.
+
+Roles a cubrir:
+
+Vendedor externo / agente TRH.
+
+Admin de agencia externa (broker).
+
+Propietario (Portal Owner).
+
+Inquilino (Portal Tenant).
+
+Admin TRH / HomesApp.
+
+El contenido puede ser estático (texto en español) por ahora, pero bien organizado (cards, títulos, bullets) y 100% responsive.
+
+Además, en el menú lateral o header de cada rol debe existir un acceso claro a esta sección: Ayuda.
+
+2) Volver al home público desde la app
+
+Una vez que el usuario inicia sesión, queda “dentro” de la app y no tiene forma de volver al home público sin hacer logout.
+
+Quiero:
+
+Que el logo de HomesApp en el header (arriba a la izquierda) lleve al home público:
+
+ya sea / o /buscar-propiedades (ustedes deciden consistente con la navegación actual).
+
+Además, en el header (por ejemplo en el menú del usuario en la esquina superior derecha) agregar una opción:
+
+Ver sitio público / Ir a la página principal.
+
+Importante:
+
+Esto NO debe cerrar la sesión; el usuario debe poder estar logueado y a la vez navegar la web pública.
+
+Mantener también la opción de Cerrar sesión como acción separada.
+
+3) Unificar la vista de cards de propiedades en todos los catálogos
+
+Ahora que tenemos un UnifiedPropertyCard funcionando en /buscar-propiedades y catálogo, quiero:
+
+Usar esa misma card en:
+
+Catálogos que ven los vendedores/brokers.
+
+Listas de propiedades asociadas a clientes.
+
+Listas de propiedades de propietarios (portal owner, panel admin).
+
+Cualquier otra vista donde se muestren propiedades en grid/lista.
+
+Idea:
+
+El componente UnifiedPropertyCard debe recibir una prop de contexto, por ejemplo:
+
+context="seller" | "owner" | "tenant" | "admin" | "public".
+
+Según ese context, cambiar únicamente:
+
+qué botones se muestran en el footer,
+
+qué métricas internas se ven (ej. leads, visitas, ocupación, últimos pagos).
+
+Ejemplos:
+
+context="seller" (vendedor / broker):
+
+Botones: Buscar leads (primario), Compartir, Ver ficha.
+
+Métricas: Leads, Citas, Última actualización.
+
+context="public" (catálogo público):
+
+Botones: Consultar / Agendar visita, Ver detalles.
+
+Sin métricas internas.
+
+context="owner" (propietario):
+
+Botones: Ver portal de la unidad, Ver documentos, etc.
+
+Métricas: Ocupación, Último pago, Contrato activo.
+
+context="tenant" (inquilino):
+
+Botones: Ver contrato, Ver portal inquilino, Contactar soporte.
+
+context="admin" (TRH / HomesApp):
+
+Botones: Editar, Ir a portal, Ver leads.
+
+El objetivo es que:
+
+visualmente todas las cards de propiedades en la app se vean iguales (misma jerarquía y layout),
+
+pero que sean más útiles según el rol que las está viendo, gracias a las acciones específicas.
+
+Al terminar, por favor:
+
+indiquen en qué rutas/vistas está disponible la sección de ayuda y qué contiene cada una por rol,
+
+confirmen cómo quedó la navegación para volver al home público,
+
+y detallen en qué módulos están reutilizando UnifiedPropertyCard y qué context usa cada uno (vendedor, owner, tenant, admin, público).

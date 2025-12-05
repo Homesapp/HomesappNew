@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { 
-  Search, MapPin, Home, Sparkles, TrendingUp, Heart, Calendar, UserCircle,
+  Search, MapPin, Home, Sparkles, TrendingUp, Calendar, UserCircle,
   CalendarDays, Laptop, Award, ArrowRight, CheckCircle2, Building2, Users,
   FileText, Headphones, BarChart3, Share2, Quote, ChevronDown, ChevronUp,
   Shield, Handshake
@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AppointmentCard } from "@/components/AppointmentCard";
+import { UnifiedPropertyCard } from "@/components/UnifiedPropertyCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -291,69 +292,36 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {featuredProperties.map((property) => (
-                <Card
+                <UnifiedPropertyCard
                   key={property.id}
-                  className="group overflow-hidden hover-elevate cursor-pointer transition-all"
+                  id={property.id.toString()}
+                  title={getPropertyTitle(property)}
+                  location={property.location || "Tulum"}
+                  zone={property.zone}
+                  condominiumName={property.condominiumName}
+                  rentPrice={property.status === "rent" ? property.price : null}
+                  salePrice={property.status === "sale" ? property.price : null}
+                  currency={property.currency || "MXN"}
+                  bedrooms={property.bedrooms}
+                  bathrooms={property.bathrooms}
+                  area={property.area}
+                  status="available"
+                  images={property.primaryImages}
+                  propertyType={property.propertyType}
+                  petFriendly={property.petFriendly}
+                  furnished={property.furnished}
+                  hasParking={property.hasParking}
+                  hasAC={property.hasAC}
+                  includedServices={{
+                    water: property.includesWater,
+                    electricity: property.includesElectricity,
+                    internet: property.includesInternet,
+                    hoa: property.includesHoa,
+                  }}
+                  context="public"
                   onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
-                  data-testid={`card-featured-${property.id}`}
-                >
-                  <div className="relative h-56 overflow-hidden">
-                    {property.primaryImages && property.primaryImages.length > 0 ? (
-                      <img
-                        src={property.primaryImages[0]}
-                        alt={getPropertyTitle(property)}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        data-testid={`img-featured-property-${property.id}`}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <Home className="h-12 w-12 text-muted-foreground" />
-                      </div>
-                    )}
-                    <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground text-xs">
-                      Destacada
-                    </Badge>
-                    {isUserAuthenticated && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="absolute top-3 left-3 h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        data-testid={`button-featured-favorite-${property.id}`}
-                      >
-                        <Heart className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold mb-2 line-clamp-2 min-h-[2.75rem]" data-testid={`text-title-featured-${property.id}`}>
-                      {getPropertyTitle(property)}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                      <MapPin className="h-4 w-4 flex-shrink-0" />
-                      <span className="line-clamp-1" data-testid={`text-location-featured-${property.id}`}>
-                        {property.location}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground mb-3">
-                      <span data-testid={`text-bedrooms-featured-${property.id}`}>{property.bedrooms} rec</span>
-                      <span>•</span>
-                      <span data-testid={`text-bathrooms-featured-${property.id}`}>{property.bathrooms} ba</span>
-                      <span>•</span>
-                      <span data-testid={`text-area-featured-${property.id}`}>{property.area} m²</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="text-lg font-bold text-primary" data-testid={`text-price-featured-${property.id}`}>
-                        {formatPrice(property.price)}
-                      </span>
-                      <Badge variant="outline" className="capitalize text-xs" data-testid={`badge-status-featured-${property.id}`}>
-                        {property.status === "rent" ? "Renta" : "Venta"}
-                      </Badge>
-                    </div>
-                  </div>
-                </Card>
+                  onContact={() => setLocation(`/propiedad/${property.id}/completo`)}
+                />
               ))}
             </div>
           </div>
@@ -395,53 +363,36 @@ export default function Dashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {allProperties.map((property) => (
-                <Card
+                <UnifiedPropertyCard
                   key={property.id}
-                  className="group overflow-hidden hover-elevate cursor-pointer transition-all"
+                  id={property.id.toString()}
+                  title={getPropertyTitle(property)}
+                  location={property.location || "Tulum"}
+                  zone={property.zone}
+                  condominiumName={property.condominiumName}
+                  rentPrice={property.status === "rent" ? property.price : null}
+                  salePrice={property.status === "sale" ? property.price : null}
+                  currency={property.currency || "MXN"}
+                  bedrooms={property.bedrooms}
+                  bathrooms={property.bathrooms}
+                  area={property.area}
+                  status="available"
+                  images={property.primaryImages}
+                  propertyType={property.propertyType}
+                  petFriendly={property.petFriendly}
+                  furnished={property.furnished}
+                  hasParking={property.hasParking}
+                  hasAC={property.hasAC}
+                  includedServices={{
+                    water: property.includesWater,
+                    electricity: property.includesElectricity,
+                    internet: property.includesInternet,
+                    hoa: property.includesHoa,
+                  }}
+                  context="public"
                   onClick={() => setLocation(`/propiedad/${property.id}/completo`)}
-                  data-testid={`card-all-${property.id}`}
-                >
-                  <div className="relative h-48 overflow-hidden">
-                    {property.primaryImages && property.primaryImages.length > 0 ? (
-                      <img
-                        src={property.primaryImages[0]}
-                        alt={getPropertyTitle(property)}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        data-testid={`img-all-property-${property.id}`}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <Home className="h-10 w-10 text-muted-foreground" />
-                      </div>
-                    )}
-                    {property.featured && (
-                      <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-0.5">
-                        Destacada
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-semibold line-clamp-2 mb-2 min-h-[2.5rem] text-sm" data-testid={`text-title-all-${property.id}`}>
-                      {getPropertyTitle(property)}
-                    </h3>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="line-clamp-1" data-testid={`text-location-all-${property.id}`}>
-                        {property.location}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mb-2">
-                      <span data-testid={`text-bedrooms-all-${property.id}`}>{property.bedrooms} rec</span>
-                      <span>•</span>
-                      <span data-testid={`text-bathrooms-all-${property.id}`}>{property.bathrooms} ba</span>
-                      <span>•</span>
-                      <span data-testid={`text-area-all-${property.id}`}>{property.area} m²</span>
-                    </div>
-                    <div className="font-bold text-primary text-sm" data-testid={`text-price-all-${property.id}`}>
-                      {formatPrice(property.price)}
-                    </div>
-                  </div>
-                </Card>
+                  onContact={() => setLocation(`/propiedad/${property.id}/completo`)}
+                />
               ))}
             </div>
           )}
