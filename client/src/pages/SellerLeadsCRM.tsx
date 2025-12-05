@@ -504,7 +504,7 @@ export default function SellerLeadsCRM() {
             </p>
           </div>
           <Button 
-            onClick={() => navigate("/external/leads/new")}
+            onClick={() => navigate("/external/clients?createLead=true")}
             data-testid="button-create-lead"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -611,7 +611,7 @@ export default function SellerLeadsCRM() {
                   {!searchQuery && statusFilter === "all" && (
                     <Button 
                       className="mt-4" 
-                      onClick={() => navigate("/external/leads/new")}
+                      onClick={() => navigate("/external/clients?createLead=true")}
                       data-testid="button-create-lead-empty"
                     >
                       <Plus className="h-4 w-4 mr-2" />

@@ -236,6 +236,15 @@ export default function ExternalClients() {
     setViewMode(isMobile ? "cards" : "table");
   }, [isMobile]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("createLead") === "true") {
+      setActiveTab("leads");
+      setIsCreateLeadDialogOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   const { data: clientsResponse, isLoading } = useQuery<{ data: ExternalClient[]; total: number; limit: number; offset: number; hasMore: boolean }>({
     queryKey: ["/api/external-clients", statusFilter, verifiedFilter, debouncedSearchTerm, sortField, sortOrder, currentPage, itemsPerPage],
     queryFn: async () => {

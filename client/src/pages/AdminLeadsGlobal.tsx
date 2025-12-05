@@ -359,14 +359,42 @@ export default function AdminLeadsGlobal() {
   const leads = leadsResponse?.data || [];
   const requiresAgencySelection = leadsResponse?.requiresAgencySelection;
 
-  const { data: sellers = [] } = useQuery<UserType[]>({
-    queryKey: ["/api/external/sellers"],
+  interface SellerProfile {
+    id: string;
+    userId: string;
+    agencyId: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      profileImageUrl?: string;
+    } | null;
+  }
+
+  const { data: sellerProfiles = [] } = useQuery<SellerProfile[]>({
+    queryKey: ["/api/external/sellers", selectedAgencyId],
     queryFn: async () => {
-      const res = await fetch("/api/external/sellers", { credentials: "include" });
+      const params = new URLSearchParams();
+      if (selectedAgencyId) params.append("agencyId", selectedAgencyId);
+      const res = await fetch(`/api/external/sellers?${params.toString()}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
+    enabled: !isAdminOrMaster || !!selectedAgencyId,
   });
+
+  const sellers = useMemo(() => {
+    return sellerProfiles
+      .filter(p => p.user !== null)
+      .map(p => ({
+        id: p.userId,
+        firstName: p.user!.firstName,
+        lastName: p.user!.lastName,
+        email: p.user!.email,
+        profileImageUrl: p.user!.profileImageUrl,
+      }));
+  }, [sellerProfiles]);
 
   const assignMutation = useMutation({
     mutationFn: async ({ leadId, sellerId }: { leadId: string; sellerId: string }) => {
@@ -525,14 +553,17 @@ export default function AdminLeadsGlobal() {
             )}
             <Button 
               variant="outline"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/external-leads", selectedAgencyId] })}
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/external-leads", selectedAgencyId] });
+                queryClient.invalidateQueries({ queryKey: ["/api/external/sellers", selectedAgencyId] });
+              }}
               data-testid="button-refresh"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualizar
             </Button>
             <Button 
-              onClick={() => navigate("/external/leads/new")}
+              onClick={() => navigate("/external/clients?createLead=true")}
               data-testid="button-create-lead"
             >
               <Plus className="h-4 w-4 mr-2" />
