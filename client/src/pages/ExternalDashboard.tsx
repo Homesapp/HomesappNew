@@ -34,7 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import { FirstStepsChecklist, QuickActionsCard, EmptyState } from "@/components/OnboardingSystem";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
@@ -114,6 +114,7 @@ const ACTIVITY_TYPE_ICONS: Record<string, typeof Phone> = {
 
 function SellerDashboard() {
   const { language } = useLanguage();
+  const [, setLocation] = useLocation();
   const dateLocale = language === "es" ? es : enUS;
 
   const { data: summary, isLoading } = useQuery<SellerDashboardSummary>({
@@ -208,7 +209,7 @@ function SellerDashboard() {
         userRole="seller"
         onStepClick={(stepId, path) => {
           if (path) {
-            window.location.href = path;
+            setLocation(path);
           }
         }}
       />
@@ -532,6 +533,7 @@ function SellerDashboard() {
 
 function AdminDashboard() {
   const { language } = useLanguage();
+  const [, setLocation] = useLocation();
 
   const { data: summary, isLoading } = useQuery<DashboardSummary>({
     queryKey: ['/api/external-dashboard-summary'],
@@ -656,7 +658,7 @@ function AdminDashboard() {
         userRole="external_admin"
         onStepClick={(stepId, path) => {
           if (path) {
-            window.location.href = path;
+            setLocation(path);
           }
         }}
       />
