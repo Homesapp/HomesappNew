@@ -315,6 +315,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
 
   const externalManagementGroup = [
     { titleKey: "sidebar.externalDashboard", url: "/external/dashboard", icon: Home, roles: ["master", "admin", "external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_concierge", "external_agency_lawyer", "external_agency_seller"] },
+    { titleKey: "sidebar.externalLeadsGlobal", url: "/external/admin-leads", icon: FolderKanban, roles: ["master", "admin", "external_agency_admin"] },
     { titleKey: "sidebar.externalAccounts", url: "/external/accounts", icon: Users, roles: ["master", "admin", "external_agency_admin"] },
     { titleKey: "sidebar.externalSellersManagement", url: "/external/sellers-management", icon: UserCheck, roles: ["master", "admin", "external_agency_admin"] },
     { titleKey: "sidebar.externalAccesses", url: "/external/accesses", icon: Key, roles: ["master", "admin", "external_agency_admin", "external_agency_maintenance", "external_agency_staff"] },
@@ -866,7 +867,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
         <div className={state === "collapsed" ? "flex flex-col items-center gap-1 p-2 border-t" : "p-2 border-t space-y-1"}>
           <RoleToggle />
           {isExternalUser && userRole !== "external_agency_seller" ? (
-            <Link href="/external/configuration" data-testid="link-configuration">
+            <Link href="/external/agency/settings" data-testid="link-configuration">
               <Button
                 variant={state === "collapsed" ? "ghost" : "outline"}
                 size={state === "expanded" ? "default" : "icon"}
