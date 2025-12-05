@@ -285,6 +285,7 @@ import { registerPortalRoutes } from "./portal-routes";
 import { registerSocialMediaRoutes } from "./routes-social-media";
 import { registerImpersonationRoutes } from "./routes-impersonation";
 import { registerAgencySettingsRoutes } from "./routes-agency-settings";
+import { registerFeedbackNotificationRoutes } from "./feedbackNotificationRoutes";
 import { logSellerActivity } from "./activityService";
 import { eq, and, or, not, inArray, desc, asc, sql, ne, isNull, isNotNull, gte, lte, lt, ilike } from "drizzle-orm";
 import { registerOnboardingRoutes } from "./onboardingRoutes";
@@ -42996,6 +42997,7 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
   registerImpersonationRoutes(app);
   registerOnboardingRoutes(app);
   registerAgencySettingsRoutes(app);
+  registerFeedbackNotificationRoutes(app);
 
   // Register portal routes for tenant/owner portals
   registerPortalRoutes(
