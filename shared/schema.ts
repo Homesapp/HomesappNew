@@ -5716,6 +5716,193 @@ export const insertExternalAgencyStatsSchema = createInsertSchema(externalAgency
 export type InsertExternalAgencyStats = z.infer<typeof insertExternalAgencyStatsSchema>;
 export type ExternalAgencyStats = typeof externalAgencyStats.$inferSelect;
 
+// ============================================================================
+// EXTERNAL AGENCY SETTINGS SYSTEM
+// Configuración completa para administradores de agencias externas
+// ============================================================================
+
+// Lead Assignment Mode Enum
+export const leadAssignmentModeEnum = pgEnum("lead_assignment_mode", [
+  "admin_only",     // Todos los leads van al admin
+  "round_robin",    // Rotación entre agentes
+  "by_link_owner",  // Al dueño del link de captura
+  "manual",         // Asignación manual
+]);
+
+// External Agency Settings - Configuración general de la agencia
+export const externalAgencySettings = pgTable("external_agency_settings", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }).unique(),
+  
+  // Profile Data (extended)
+  website: text("website"),
+  socialMedia: jsonb("social_media").$type<{
+    facebook?: string;
+    instagram?: string;
+    linkedin?: string;
+    twitter?: string;
+    tiktok?: string;
+  }>(),
+  fiscalData: jsonb("fiscal_data").$type<{
+    razonSocial?: string;
+    rfc?: string;
+    direccionFiscal?: string;
+    regimenFiscal?: string;
+  }>(),
+  operatingZones: text("operating_zones").array(), // Array de zonas/colonias donde opera
+  operationType: varchar("operation_type", { length: 20 }).default("both"), // rent, sale, both
+  
+  // Pipeline Settings
+  leadAssignmentMode: leadAssignmentModeEnum("lead_assignment_mode").default("admin_only"),
+  defaultLeadView: varchar("default_lead_view", { length: 20 }).default("my_leads"), // my_leads, all_leads
+  pipelineColumns: jsonb("pipeline_columns").$type<{
+    columns: Array<{
+      id: string;
+      name: string;
+      color: string;
+      isActive: boolean;
+      isClosedWon: boolean;
+    }>;
+  }>(),
+  
+  // Catalog Preferences
+  catalogDefaultView: varchar("catalog_default_view", { length: 20 }).default("grid"), // grid, list
+  catalogDefaultSort: varchar("catalog_default_sort", { length: 30 }).default("date_desc"), // date_asc, date_desc, price_asc, price_desc
+  catalogDefaultFilters: jsonb("catalog_default_filters").$type<{
+    listingType?: string;
+    priceMin?: number;
+    priceMax?: number;
+    bedrooms?: number;
+  }>(),
+  favoriteZones: text("favorite_zones").array(),
+  favoriteCondominiums: text("favorite_condominiums").array(),
+  
+  // Notification Preferences
+  notificationEmail: varchar("notification_email", { length: 255 }),
+  notificationWhatsapp: varchar("notification_whatsapp", { length: 50 }),
+  notificationEvents: jsonb("notification_events").$type<{
+    newLead: boolean;
+    leadReassigned: boolean;
+    appointmentConfirmed: boolean;
+    appointmentCancelled: boolean;
+    offerAccepted: boolean;
+    offerRejected: boolean;
+    contractSigned: boolean;
+    paymentReceived: boolean;
+  }>(),
+  
+  // Form Configuration
+  formConfig: jsonb("form_config").$type<{
+    leadForm: {
+      requiredFields: string[];
+      thankYouMessage: string;
+    };
+    ownerForm: {
+      requiredFields: string[];
+      thankYouMessage: string;
+    };
+  }>(),
+  
+  // Commissions & Objectives
+  standardCommissionRate: integer("standard_commission_rate"), // Porcentaje * 100 (ej: 5% = 500)
+  monthlyTargets: jsonb("monthly_targets").$type<{
+    closingTarget: number;
+    commissionTarget: number;
+  }>(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agency_settings_agency").on(table.agencyId),
+]);
+
+export const insertExternalAgencySettingsSchema = createInsertSchema(externalAgencySettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencySettings = z.infer<typeof insertExternalAgencySettingsSchema>;
+export type ExternalAgencySettings = typeof externalAgencySettings.$inferSelect;
+
+// External Agency Message Templates - Plantillas de mensajes
+export const externalAgencyMessageTemplates = pgTable("external_agency_message_templates", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  category: varchar("category", { length: 50 }).notNull(), // first_contact, follow_up, appointment, closing, etc.
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  language: varchar("language", { length: 10 }).default("es"), // es, en
+  isActive: boolean("is_active").default(true),
+  orderIndex: integer("order_index").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agency_message_templates_agency").on(table.agencyId),
+  index("idx_external_agency_message_templates_category").on(table.category),
+]);
+
+export const insertExternalAgencyMessageTemplateSchema = createInsertSchema(externalAgencyMessageTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyMessageTemplate = z.infer<typeof insertExternalAgencyMessageTemplateSchema>;
+export type ExternalAgencyMessageTemplate = typeof externalAgencyMessageTemplates.$inferSelect;
+
+// External Agency Documents - Enlaces a documentos importantes
+export const externalAgencyDocuments = pgTable("external_agency_documents", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  url: text("url").notNull(),
+  category: varchar("category", { length: 50 }), // checklist, contract, guide, etc.
+  description: text("description"),
+  orderIndex: integer("order_index").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agency_documents_agency").on(table.agencyId),
+]);
+
+export const insertExternalAgencyDocumentSchema = createInsertSchema(externalAgencyDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertExternalAgencyDocument = z.infer<typeof insertExternalAgencyDocumentSchema>;
+export type ExternalAgencyDocument = typeof externalAgencyDocuments.$inferSelect;
+
+// External Agency Team Invitations - Invitaciones para nuevos agentes
+export const externalAgencyInvitations = pgTable("external_agency_invitations", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").notNull().references(() => externalAgencies.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 255 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  role: varchar("role", { length: 50 }).default("external_agency_seller"), // external_agency_admin, external_agency_seller
+  token: varchar("token", { length: 100 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  invitedBy: varchar("invited_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_external_agency_invitations_agency").on(table.agencyId),
+  index("idx_external_agency_invitations_token").on(table.token),
+  index("idx_external_agency_invitations_email").on(table.email),
+]);
+
+export const insertExternalAgencyInvitationSchema = createInsertSchema(externalAgencyInvitations).omit({
+  id: true,
+  createdAt: true,
+  acceptedAt: true,
+});
+
+export type InsertExternalAgencyInvitation = z.infer<typeof insertExternalAgencyInvitationSchema>;
+export type ExternalAgencyInvitation = typeof externalAgencyInvitations.$inferSelect;
+
 // External Agency Integrations - Configuraciones de integraciones por agencia
 export const externalAgencyIntegrations = pgTable("external_agency_integrations", {
   id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
