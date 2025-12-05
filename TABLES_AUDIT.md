@@ -13,6 +13,7 @@ These tables have been enhanced with pagination, sorting, and improved UX:
 |------|------|----------------|--------|
 | Properties | Properties.tsx | Pagination (grid + table), Sortable columns, Range display, Reset on filter change | ✅ DONE |
 | Contract Management | AdminContractManagement.tsx | Pagination, Sortable columns, Range display, Reset on filter change | ✅ DONE |
+| Leads Global | AdminLeadsGlobal.tsx | Pagination, Sortable columns (5), Range display, Reset on filter change | ✅ DONE |
 
 ---
 
@@ -43,7 +44,7 @@ These pages already have consistent pagination, typically with backend support:
 
 | Page | File | Current Issues | Priority |
 |------|------|----------------|----------|
-| Leads Global | AdminLeadsGlobal.tsx | No pagination | HIGH |
+| ~~Leads Global~~ | ~~AdminLeadsGlobal.tsx~~ | ~~No pagination~~ | ~~HIGH~~ ✅ DONE |
 | Income | AdminIncome.tsx | No pagination | MEDIUM |
 | Seller Management | AdminSellerManagement.tsx | No pagination | MEDIUM |
 | External Agencies | AdminExternalAgencies.tsx | No pagination | MEDIUM |
@@ -119,7 +120,7 @@ These pages already have consistent pagination, typically with backend support:
 
 ### Priority 1 (High Impact)
 1. ~~Add pagination to AdminContractManagement.tsx~~ ✅ DONE
-2. Add pagination to AdminLeadsGlobal.tsx
+2. ~~Add pagination to AdminLeadsGlobal.tsx~~ ✅ DONE
 3. ~~Add pagination to Properties.tsx table view~~ ✅ DONE (both grid AND table)
 4. Standardize empty states across all tables
 

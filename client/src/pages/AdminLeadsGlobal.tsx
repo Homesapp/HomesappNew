@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,11 @@ import {
   RefreshCw,
   AlertCircle,
   UserCheck,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -277,6 +282,9 @@ function AssignLeadDialog({
   );
 }
 
+type SortField = "name" | "status" | "seller" | "budget" | "createdAt";
+type SortOrder = "asc" | "desc";
+
 export default function AdminLeadsGlobal() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -286,6 +294,32 @@ export default function AdminLeadsGlobal() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState("inbox");
   const [assignDialogLead, setAssignDialogLead] = useState<ExternalLeadWithActiveCard | null>(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState<SortField>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    }
+    return sortOrder === "asc" ? (
+      <ChevronUp className="h-3 w-3 ml-1" />
+    ) : (
+      <ChevronDown className="h-3 w-3 ml-1" />
+    );
+  };
 
   const { data: leads = [], isLoading } = useQuery<ExternalLeadWithActiveCard[]>({
     queryKey: ["/api/external-leads"],
@@ -316,10 +350,10 @@ export default function AdminLeadsGlobal() {
     },
   });
 
-  const filteredLeads = useMemo(() => {
+  const filteredAndSortedLeads = useMemo(() => {
     const now = new Date();
     
-    return leads.filter((lead) => {
+    const filtered = leads.filter((lead) => {
       const matchesSearch = !searchQuery || 
         `${lead.firstName} ${lead.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
         lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -347,7 +381,60 @@ export default function AdminLeadsGlobal() {
       
       return matchesSearch && matchesStatus && matchesSeller && matchesDate;
     });
-  }, [leads, searchQuery, statusFilter, sellerFilter, dateFilter]);
+
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "name":
+          comparison = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+          break;
+        case "status":
+          comparison = (a.status || "").localeCompare(b.status || "");
+          break;
+        case "seller":
+          const sellerA = sellers.find(s => s.id === a.sellerId);
+          const sellerB = sellers.find(s => s.id === b.sellerId);
+          const nameA = sellerA?.firstName || "";
+          const nameB = sellerB?.firstName || "";
+          if (!nameA && !nameB) comparison = 0;
+          else if (!nameA) comparison = 1;
+          else if (!nameB) comparison = -1;
+          else comparison = nameA.localeCompare(nameB);
+          break;
+        case "budget":
+          const budgetA = Number(a.activeCard?.budget || a.budget || 0);
+          const budgetB = Number(b.activeCard?.budget || b.budget || 0);
+          comparison = budgetA - budgetB;
+          break;
+        case "createdAt":
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return sorted;
+  }, [leads, searchQuery, statusFilter, sellerFilter, dateFilter, sortField, sortOrder, sellers]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedLeads.length / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  
+  const paginatedLeads = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredAndSortedLeads.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedLeads, safeCurrentPage, itemsPerPage]);
+
+  const totalLeadsCount = filteredAndSortedLeads.length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, sellerFilter, dateFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   const unassignedLeads = useMemo(() => 
     leads.filter(l => !l.sellerId && l.status === "nuevo_lead"),
@@ -606,7 +693,7 @@ export default function AdminLeadsGlobal() {
                   <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                   </div>
-                ) : filteredLeads.length === 0 ? (
+                ) : filteredAndSortedLeads.length === 0 ? (
                   <Card className="p-8 text-center">
                     <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="font-medium">No hay leads</h3>
@@ -615,20 +702,66 @@ export default function AdminLeadsGlobal() {
                     </p>
                   </Card>
                 ) : (
-                  <div className="rounded-lg border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Lead</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead>Vendedor</TableHead>
-                          <TableHead>Presupuesto</TableHead>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead className="w-[100px]">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredLeads.map(lead => {
+                  <div className="space-y-4">
+                    <div className="rounded-lg border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort("name")}
+                              data-testid="th-lead"
+                            >
+                              <div className="flex items-center">
+                                Lead
+                                <SortIcon field="name" />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort("status")}
+                              data-testid="th-status"
+                            >
+                              <div className="flex items-center">
+                                Estado
+                                <SortIcon field="status" />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort("seller")}
+                              data-testid="th-seller"
+                            >
+                              <div className="flex items-center">
+                                Vendedor
+                                <SortIcon field="seller" />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort("budget")}
+                              data-testid="th-budget"
+                            >
+                              <div className="flex items-center">
+                                Presupuesto
+                                <SortIcon field="budget" />
+                              </div>
+                            </TableHead>
+                            <TableHead 
+                              className="cursor-pointer select-none"
+                              onClick={() => handleSort("createdAt")}
+                              data-testid="th-date"
+                            >
+                              <div className="flex items-center">
+                                Fecha
+                                <SortIcon field="createdAt" />
+                              </div>
+                            </TableHead>
+                            <TableHead className="w-[100px]">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedLeads.map(lead => {
                           const status = STATUS_CONFIG[lead.status as LeadStatus] || STATUS_CONFIG.nuevo_lead;
                           const budget = lead.activeCard?.budget || lead.budget;
                           const seller = sellers.find(s => s.id === lead.sellerId);
@@ -736,6 +869,57 @@ export default function AdminLeadsGlobal() {
                       </TableBody>
                     </Table>
                   </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground" data-testid="text-leads-pagination-info">
+                        Mostrando {Math.min((safeCurrentPage - 1) * itemsPerPage + 1, totalLeadsCount)}-{Math.min(safeCurrentPage * itemsPerPage, totalLeadsCount)} de {totalLeadsCount} leads
+                      </span>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(val) => {
+                          setItemsPerPage(Number(val));
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-[80px]" data-testid="select-leads-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">por página</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={safeCurrentPage <= 1}
+                        data-testid="button-leads-prev-page"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        Anterior
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Página {safeCurrentPage} de {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={safeCurrentPage >= totalPages}
+                        data-testid="button-leads-next-page"
+                      >
+                        Siguiente
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
                 )}
               </div>
             </ScrollArea>
