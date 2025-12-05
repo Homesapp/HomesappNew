@@ -100,7 +100,7 @@ export function UserProfileMenu({ user, isAdmin = false, onLogout }: UserProfile
             <span>{t("userMenu.myProfile")}</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => window.open("/", "_blank")}
+            onClick={() => window.open("/public", "_blank")}
             data-testid="menu-item-public-home"
           >
             <ExternalLink className="mr-2 h-4 w-4" />

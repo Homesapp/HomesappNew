@@ -214,7 +214,7 @@ export function PublicHeader({ showPlatformButton = true }: PublicHeaderProps) {
 
     if (isInternalPage()) {
       items.push({ separator: true, label: "", icon: null, href: "" });
-      items.push({ label: t("userMenu.viewPublicSite") || "Ver sitio público", icon: Globe, href: "/" });
+      items.push({ label: t("userMenu.viewPublicSite") || "Ver sitio público", icon: Globe, href: "/public" });
     }
 
     return items;

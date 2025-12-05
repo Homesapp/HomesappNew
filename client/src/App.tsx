@@ -429,6 +429,9 @@ function AuthenticatedApp() {
         <Route path="/brokers/register" component={PublicBrokerRegistration} />
         <Route path="/leads/client" component={LeadRegistrationClient} />
               
+              {/* Public site view - always shows public dashboard even when logged in */}
+              <Route path="/public" component={PublicDashboard} />
+              
               <Route path="/" component={getHomeDashboard()} />
               <Route path="/mis-citas" component={Appointments} />
               <Route path="/buscar-propiedades" component={PropertySearch} />
