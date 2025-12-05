@@ -57,6 +57,9 @@ export default function ExternalCondominiums() {
   const [deletingCondo, setDeletingCondo] = useState<ExternalCondominium | null>(null);
   const [selectedCondoId, setSelectedCondoId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"condominiums" | "units" | "recruitment">("condominiums");
+  
+  // Agency selector state for admin/master users
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string>("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [manualViewModeOverride, setManualViewModeOverride] = useState(false);
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
@@ -146,6 +149,27 @@ export default function ExternalCondominiums() {
     }
   }, [unitSearchText, selectedCondoFilter, rentalStatusFilter, unitStatusFilter]);
 
+  // Fetch current user to check role
+  const { data: currentUser } = useQuery<{ role?: string }>({
+    queryKey: ['/api/auth/user'],
+  });
+  
+  // Check if user is admin/master (can switch agencies)
+  const isAdminOrMaster = currentUser?.role && ["master", "admin"].includes(currentUser.role);
+  
+  // Fetch all agencies for admin/master users
+  const { data: agencies, isLoading: agenciesLoading } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/external-agencies'],
+    enabled: !!isAdminOrMaster,
+  });
+  
+  // Auto-select first agency when agencies load
+  useEffect(() => {
+    if (isAdminOrMaster && agencies && agencies.length > 0 && !selectedAgencyId) {
+      setSelectedAgencyId(agencies[0].id);
+    }
+  }, [agencies, isAdminOrMaster, selectedAgencyId]);
+
   // Backend-paginated condominiums data
   const { data: condominiumsResponse, isLoading: condosLoading, isFetching: condosFetching, isError: condosError, error: condosErrorMsg } = useQuery<{
     data: ExternalCondominium[];
@@ -154,7 +178,7 @@ export default function ExternalCondominiums() {
     offset: number;
     hasMore: boolean;
   }>({
-    queryKey: ['/api/external-condominiums', debouncedCondoSearchText, condosSortColumn, condosSortDirection, condoItemsPerPage, condoCurrentPage],
+    queryKey: ['/api/external-condominiums', debouncedCondoSearchText, condosSortColumn, condosSortDirection, condoItemsPerPage, condoCurrentPage, selectedAgencyId],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedCondoSearchText) params.append('search', debouncedCondoSearchText);
@@ -162,6 +186,8 @@ export default function ExternalCondominiums() {
       if (condosSortDirection) params.append('sortOrder', condosSortDirection);
       params.append('limit', condoItemsPerPage.toString());
       params.append('offset', ((condoCurrentPage - 1) * condoItemsPerPage).toString());
+      // Include agencyId for admin/master users
+      if (selectedAgencyId) params.append('agencyId', selectedAgencyId);
       
       const response = await fetch(`/api/external-condominiums?${params.toString()}`, {
         credentials: 'include',
@@ -173,6 +199,8 @@ export default function ExternalCondominiums() {
       
       return response.json();
     },
+    // Only enable when we have an agencyId if user is admin/master, otherwise always enabled
+    enabled: !isAdminOrMaster || !!selectedAgencyId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 30 * 60 * 1000, // 30 minutes in cache
     keepPreviousData: true, // Keep previous data while fetching new data for smooth UX
@@ -183,7 +211,15 @@ export default function ExternalCondominiums() {
 
   // Lightweight condominiums lookup (only id+name for units table and filters)
   const { data: allCondominiums, isLoading: allCondominiumsLoading } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ['/api/external-condominiums-for-filters'],
+    queryKey: ['/api/external-condominiums-for-filters', selectedAgencyId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedAgencyId) params.append('agencyId', selectedAgencyId);
+      const response = await fetch(`/api/external-condominiums-for-filters?${params.toString()}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch condominiums for filters');
+      return response.json();
+    },
+    enabled: !isAdminOrMaster || !!selectedAgencyId,
     staleTime: 30 * 60 * 1000, // 30 minutes
     cacheTime: 60 * 60 * 1000, // 1 hour
   });
@@ -202,7 +238,7 @@ export default function ExternalCondominiums() {
 
   // Units with full backend pagination - data, filtering, sorting all handled by server
   const { data: unitsResponse, isLoading: unitsLoading, isFetching: unitsFetching } = useQuery<{ data: ExternalUnit[], total: number }>({
-    queryKey: ['/api/external-units', unitsPage, unitsPerPage, debouncedUnitSearchText, selectedCondoFilter, unitStatusFilter, unitZoneFilter, unitPropertyTypeFilter, unitsSortColumn, unitsSortDirection],
+    queryKey: ['/api/external-units', unitsPage, unitsPerPage, debouncedUnitSearchText, selectedCondoFilter, unitStatusFilter, unitZoneFilter, unitPropertyTypeFilter, unitsSortColumn, unitsSortDirection, selectedAgencyId],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.append('limit', unitsPerPage.toString());
@@ -216,10 +252,14 @@ export default function ExternalCondominiums() {
         params.append('sortField', unitsSortColumn);
         params.append('sortOrder', unitsSortDirection);
       }
+      // Include agencyId for admin/master users
+      if (selectedAgencyId) params.append('agencyId', selectedAgencyId);
       const response = await fetch(`/api/external-units?${params.toString()}`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch units');
       return response.json();
     },
+    // Only enable when we have an agencyId if user is admin/master, otherwise always enabled
+    enabled: !isAdminOrMaster || !!selectedAgencyId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
     keepPreviousData: true,
@@ -929,6 +969,24 @@ export default function ExternalCondominiums() {
           </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+          {/* Agency Selector for admin/master users */}
+          {isAdminOrMaster && agencies && agencies.length > 0 && (
+            <Select
+              value={selectedAgencyId}
+              onValueChange={setSelectedAgencyId}
+            >
+              <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-agency">
+                <SelectValue placeholder={language === "es" ? "Seleccionar agencia" : "Select agency"} />
+              </SelectTrigger>
+              <SelectContent>
+                {agencies.map((agency) => (
+                  <SelectItem key={agency.id} value={agency.id} data-testid={`option-agency-${agency.id}`}>
+                    {agency.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button 
             variant="outline" 
             onClick={() => setShowImportDialog(true)} 

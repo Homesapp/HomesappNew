@@ -321,9 +321,10 @@ export default function AdminLeadsGlobal() {
     );
   };
 
-  const { data: leads = [], isLoading } = useQuery<ExternalLeadWithActiveCard[]>({
+  const { data: leadsResponse, isLoading } = useQuery<{ data: ExternalLeadWithActiveCard[], total: number }>({
     queryKey: ["/api/external-leads"],
   });
+  const leads = leadsResponse?.data || [];
 
   const { data: sellers = [] } = useQuery<UserType[]>({
     queryKey: ["/api/external/sellers"],
