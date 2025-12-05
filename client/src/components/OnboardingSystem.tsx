@@ -979,22 +979,60 @@ interface FirstStepsChecklistProps {
   className?: string;
 }
 
+const CHECKLIST_STORAGE_KEY = "homesapp_checklist_completed";
+
+function getStoredCompletedSteps(userRole: string): string[] {
+  try {
+    const stored = localStorage.getItem(`${CHECKLIST_STORAGE_KEY}_${userRole}`);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCompletedStep(userRole: string, stepId: string): void {
+  try {
+    const current = getStoredCompletedSteps(userRole);
+    if (!current.includes(stepId)) {
+      const updated = [...current, stepId];
+      localStorage.setItem(`${CHECKLIST_STORAGE_KEY}_${userRole}`, JSON.stringify(updated));
+    }
+  } catch {
+  }
+}
+
 export function FirstStepsChecklist({ 
   userRole, 
-  completedSteps = [], 
+  completedSteps: externalCompletedSteps = [], 
   onStepClick,
   className 
 }: FirstStepsChecklistProps) {
   const { language } = useLanguage();
   const isEn = language === "en";
   
+  const [localCompletedSteps, setLocalCompletedSteps] = useState<string[]>([]);
+  
+  useEffect(() => {
+    const stored = getStoredCompletedSteps(userRole);
+    setLocalCompletedSteps(stored);
+  }, [userRole]);
+  
   const roleConfig = roleOnboardingConfig[userRole] || roleOnboardingConfig.cliente;
   const checklist = roleConfig.checklist;
 
   if (checklist.length === 0) return null;
 
+  const allCompletedSteps = [...new Set([...externalCompletedSteps, ...localCompletedSteps])];
+
+  const handleStepClick = (stepId: string, path?: string) => {
+    saveCompletedStep(userRole, stepId);
+    setLocalCompletedSteps(prev => prev.includes(stepId) ? prev : [...prev, stepId]);
+    
+    onStepClick?.(stepId, path);
+  };
+
   const completedCount = checklist.filter(item => 
-    completedSteps.includes(item.id) || item.isCompleted
+    allCompletedSteps.includes(item.id) || item.isCompleted
   ).length;
   const progress = (completedCount / checklist.length) * 100;
 
@@ -1016,7 +1054,7 @@ export function FirstStepsChecklist({
       </CardHeader>
       <CardContent className="space-y-2">
         {checklist.map((item) => {
-          const isCompleted = completedSteps.includes(item.id) || item.isCompleted;
+          const isCompleted = allCompletedSteps.includes(item.id) || item.isCompleted;
           
           return (
             <div
@@ -1027,7 +1065,7 @@ export function FirstStepsChecklist({
                   ? "bg-muted/50 border-muted" 
                   : "bg-background hover-elevate cursor-pointer border-border"
               )}
-              onClick={() => !isCompleted && onStepClick?.(item.id, item.actionPath)}
+              onClick={() => !isCompleted && handleStepClick(item.id, item.actionPath)}
               data-testid={`checklist-item-${item.id}`}
             >
               <div className={cn(
