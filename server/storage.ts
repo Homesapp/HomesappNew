@@ -7200,37 +7200,28 @@ export class DatabaseStorage implements IStorage {
     let communicationScore = 100;
 
     // Check for payment delays using rentalPayments table
-    const now = new Date();
     const payments = await db.select().from(rentalPayments)
       .where(eq(rentalPayments.rentalContractId, contractId));
     
-    // Only consider payments with relevant statuses (not cancelled/refunded)
-    const relevantStatuses = ['pending', 'approved', 'paid', 'verified'];
-    const relevantPayments = payments.filter(p => relevantStatuses.includes(p.status));
-    
-    // Count overdue payments (pending status and past due date)
-    const overduePayments = relevantPayments.filter(p => 
-      p.status === 'pending' && p.dueDate && new Date(p.dueDate) < now
-    );
+    // Only count COMPLETED payments (not pending, cancelled, or refunded)
+    // hasPaymentDelay should only be true for completed payments that were paid late
+    const completedStatuses = ['approved', 'paid', 'verified', 'posted'];
+    const completedPayments = payments.filter(p => completedStatuses.includes(p.status));
     
     // Count late payments (completed payments that were paid after due date)
-    const completedStatuses = ['approved', 'paid', 'verified'];
-    const latePayments = relevantPayments.filter(p => 
-      completedStatuses.includes(p.status) &&
+    const latePayments = completedPayments.filter(p => 
       p.paymentDate && p.dueDate && new Date(p.paymentDate) > new Date(p.dueDate)
     );
     
-    const hasPaymentDelay = overduePayments.length > 0 || latePayments.length > 0;
+    // hasPaymentDelay is only true if there are completed payments that were paid late
+    // Pending payments are NOT delays - they are outstanding items
+    const hasPaymentDelay = latePayments.length > 0;
     
-    // Calculate payment score based on payment history
-    const completedPayments = relevantPayments.filter(p => completedStatuses.includes(p.status));
+    // Calculate payment score based on completed payment history
     const totalCompleted = completedPayments.length;
     if (totalCompleted > 0) {
+      // Deduct 50 points max for late payments proportionally
       paymentScore = Math.max(0, 100 - (latePayments.length / totalCompleted) * 50);
-    }
-    // Deduct for overdue payments
-    if (overduePayments.length > 0) {
-      paymentScore = Math.max(0, paymentScore - (overduePayments.length * 20));
     }
 
     // Check for open incidents (chats with type="rental" and open issues)
