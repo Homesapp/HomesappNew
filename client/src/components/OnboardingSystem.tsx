@@ -980,6 +980,7 @@ interface FirstStepsChecklistProps {
 }
 
 const CHECKLIST_STORAGE_KEY = "homesapp_checklist_completed";
+const CHECKLIST_HIDDEN_KEY = "homesapp_checklist_hidden";
 
 function getStoredCompletedSteps(userRole: string): string[] {
   try {
@@ -1001,6 +1002,21 @@ function saveCompletedStep(userRole: string, stepId: string): void {
   }
 }
 
+function isChecklistHidden(userRole: string): boolean {
+  try {
+    return localStorage.getItem(`${CHECKLIST_HIDDEN_KEY}_${userRole}`) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function hideChecklist(userRole: string): void {
+  try {
+    localStorage.setItem(`${CHECKLIST_HIDDEN_KEY}_${userRole}`, "true");
+  } catch {
+  }
+}
+
 export function FirstStepsChecklist({ 
   userRole, 
   completedSteps: externalCompletedSteps = [], 
@@ -1011,18 +1027,37 @@ export function FirstStepsChecklist({
   const isEn = language === "en";
   
   const [localCompletedSteps, setLocalCompletedSteps] = useState<string[]>([]);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   
   useEffect(() => {
     const stored = getStoredCompletedSteps(userRole);
     setLocalCompletedSteps(stored);
+    setIsHidden(isChecklistHidden(userRole));
   }, [userRole]);
   
   const roleConfig = roleOnboardingConfig[userRole] || roleOnboardingConfig.cliente;
   const checklist = roleConfig.checklist;
 
-  if (checklist.length === 0) return null;
-
   const allCompletedSteps = [...new Set([...externalCompletedSteps, ...localCompletedSteps])];
+
+  const completedCount = checklist.filter(item => 
+    allCompletedSteps.includes(item.id) || item.isCompleted
+  ).length;
+  const isAllCompleted = completedCount === checklist.length && checklist.length > 0;
+
+  useEffect(() => {
+    if (isAllCompleted && !isHidden && !showCelebration) {
+      setShowCelebration(true);
+      const timer = setTimeout(() => {
+        hideChecklist(userRole);
+        setIsHidden(true);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAllCompleted, isHidden, userRole, showCelebration]);
+
+  if (checklist.length === 0 || isHidden) return null;
 
   const handleStepClick = (stepId: string, path?: string) => {
     saveCompletedStep(userRole, stepId);
@@ -1031,10 +1066,29 @@ export function FirstStepsChecklist({
     onStepClick?.(stepId, path);
   };
 
-  const completedCount = checklist.filter(item => 
-    allCompletedSteps.includes(item.id) || item.isCompleted
-  ).length;
   const progress = (completedCount / checklist.length) * 100;
+
+  if (showCelebration) {
+    return (
+      <Card className={cn("border-green-500/50 bg-green-50 dark:bg-green-950/20", className)} data-testid="card-first-steps-complete">
+        <CardContent className="py-8 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-green-600" />
+            </div>
+          </div>
+          <h3 className="text-xl font-bold text-green-700 dark:text-green-400 mb-2" data-testid="text-celebration-title">
+            {isEn ? "Excellent! All done!" : "¡Excelente! ¡Todo listo!"}
+          </h3>
+          <p className="text-green-600 dark:text-green-500" data-testid="text-celebration-message">
+            {isEn 
+              ? "You've completed all the initial steps. You're ready to go!" 
+              : "Has completado todos los pasos iniciales. ¡Estás listo para comenzar!"}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={cn("border-primary/20", className)} data-testid="card-first-steps">
