@@ -1,0 +1,51 @@
+1. Error en Propiedades → Condominios (admin de agencia externa)
+
+En el código del front, la página ExternalCondominiums.tsx hace esta llamada:
+
+GET /api/external-condominiums?isActive=...&search=...&limit=...&offset=...
+// si la respuesta NO es 200:
+throw new Error("Failed to fetch condominiums");
+
+
+Por eso ves exactamente el mensaje rojo “Failed to fetch condominiums”.
+
+En el backend existe este endpoint:
+
+app.get("/api/external-condominiums", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req, res) => {
+  // 1) Saca agencyId de query ?agencyId=...
+  // 2) Si no viene, intenta obtener agencyId del usuario logueado
+  //    usando getUserAgencyId(req)
+  // 3) Verifica que el usuario pertenezca a esa agencia
+  // 4) Llama a storage.getExternalCondominiumsByAgency(...)
+});
+
+
+Los fallos típicos aquí son:
+
+El usuario externo no tiene externalAgencyId en la base de datos
+→ el helper devuelve que el usuario “no pertenece a ninguna agencia” y responde 400/403.
+
+Hay un error en la consulta a DB (storage.getExternalCondominiumsByAgency)
+→ se lanza excepción y el endpoint devuelve 500 “Error fetching external condominiums”.
+
+Estás entrando con un usuario “admin/master” normal, no con un usuario externo
+
+Para roles admin/master getUserAgencyId devuelve null, y si no envías ?agencyId= en la URL, también se responde error.
+
+👉 Qué decirle al dev sobre esta pantalla:
+
+En /external/condominiums veo el mensaje rojo “Failed to fetch condominiums”.
+
+En el Network tab, la petición GET /api/external-condominiums?... está devolviendo error (400/403/500).
+
+Por favor:
+
+Revisa los logs del servidor buscando “Error fetching external condominiums”.
+
+Verifica que mi usuario externo tenga externalAgencyId asignado en DB.
+
+Confirma que storage.getExternalCondominiumsByAgency y getExternalCondominiumsCountByAgency están implementados y funcionando.
+
+En caso de entrar con rol admin/master, agrega un selector de agencia (dropdown) y que el front envíe ?agencyId=... en la URL, como ya se hace en otras secciones externas.
+
+Con eso deberían poder encontrar rápidamente por qué esa tabla no carga.
