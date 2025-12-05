@@ -51,7 +51,7 @@ import {
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
 import { useTranslation } from "@/hooks/useTranslation";
-import { FirstStepsChecklist, EmptyState, ContextualHelp } from "@/components/OnboardingSystem";
+import { FirstStepsChecklist, EmptyState, ContextualHelp, HelpPanel, EnhancedEmptyState } from "@/components/OnboardingSystem";
 
 interface ContractInfo {
   id: number;
@@ -802,11 +802,14 @@ export default function TenantPortal() {
           <TabsContent value="payments">
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold">{t("tenant.paymentHistory", "Payment History")}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {t("tenant.paymentHistoryDesc", "Upload your payment receipts for verification")}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{t("tenant.paymentHistory", "Payment History")}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {t("tenant.paymentHistoryDesc", "Upload your payment receipts for verification")}
+                    </p>
+                  </div>
+                  <HelpPanel helpKey="tenant-payments" />
                 </div>
                 <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
                   <DialogTrigger asChild>
@@ -1061,11 +1064,14 @@ export default function TenantPortal() {
           <TabsContent value="maintenance">
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold">{t("tenant.maintenanceRequests", "Maintenance Requests")}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {t("tenant.maintenanceDesc", "Report issues with your property")}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{t("tenant.maintenanceRequests", "Maintenance Requests")}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {t("tenant.maintenanceDesc", "Report issues with your property")}
+                    </p>
+                  </div>
+                  <HelpPanel helpKey="tenant-maintenance" />
                 </div>
                 <Dialog open={showMaintenanceDialog} onOpenChange={setShowMaintenanceDialog}>
                   <DialogTrigger asChild>
@@ -1270,11 +1276,14 @@ export default function TenantPortal() {
 
           <TabsContent value="documents">
             <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold">{t("tenant.contractDocuments", "Contract Documents")}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {t("tenant.contractDocumentsDesc", "Access your rental contract and related documents")}
-                </p>
+              <div className="flex items-center gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">{t("tenant.contractDocuments", "Contract Documents")}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t("tenant.contractDocumentsDesc", "Access your rental contract and related documents")}
+                  </p>
+                </div>
+                <HelpPanel helpKey="tenant-documents" />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

@@ -7,6 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +54,11 @@ import {
   Star,
   DollarSign,
   Check,
+  ExternalLink,
+  FolderOpen,
+  Package,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -1225,3 +1237,442 @@ export function ContextualHelp({ topic, className }: ContextualHelpProps) {
 }
 
 export { roleOnboardingConfig };
+
+interface HelpPanelContent {
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  bullets: Array<{ text: string; textEn: string }>;
+  detailLink?: string;
+}
+
+const helpPanelContent: Record<string, HelpPanelContent> = {
+  "tenant-payments": {
+    title: "Ayuda con Pagos",
+    titleEn: "Help with Payments",
+    description: "En esta sección puedes gestionar tus pagos de renta y servicios.",
+    descriptionEn: "In this section you can manage your rent and service payments.",
+    bullets: [
+      { text: "Ver el historial completo de tus pagos de renta", textEn: "View the complete history of your rent payments" },
+      { text: "Subir comprobantes de pago para verificación", textEn: "Upload payment receipts for verification" },
+      { text: "Estados: Pendiente (amarillo), Verificado (verde), Rechazado (rojo)", textEn: "Statuses: Pending (yellow), Verified (green), Rejected (red)" },
+      { text: "Paso 1: Selecciona un pago pendiente", textEn: "Step 1: Select a pending payment" },
+      { text: "Paso 2: Sube el comprobante de pago (imagen o PDF)", textEn: "Step 2: Upload the payment receipt (image or PDF)" },
+      { text: "Paso 3: Espera la verificación del propietario o administrador", textEn: "Step 3: Wait for verification from the owner or administrator" },
+    ],
+    detailLink: "/help/tenant/payments",
+  },
+  "tenant-maintenance": {
+    title: "Ayuda con Mantenimiento",
+    titleEn: "Help with Maintenance",
+    description: "Reporta y da seguimiento a problemas de mantenimiento en tu propiedad.",
+    descriptionEn: "Report and track maintenance issues in your property.",
+    bullets: [
+      { text: "Crear tickets de mantenimiento para reportar problemas", textEn: "Create maintenance tickets to report problems" },
+      { text: "Adjuntar fotos para describir mejor el problema", textEn: "Attach photos to better describe the issue" },
+      { text: "Estados: Abierto → En progreso → Resuelto", textEn: "Statuses: Open → In Progress → Resolved" },
+      { text: "Paso 1: Haz clic en 'Nuevo ticket'", textEn: "Step 1: Click on 'New ticket'" },
+      { text: "Paso 2: Describe el problema y adjunta fotos", textEn: "Step 2: Describe the problem and attach photos" },
+      { text: "Paso 3: Recibirás actualizaciones cuando el equipo trabaje en él", textEn: "Step 3: You will receive updates when the team works on it" },
+    ],
+    detailLink: "/help/tenant/maintenance",
+  },
+  "tenant-documents": {
+    title: "Ayuda con Documentos",
+    titleEn: "Help with Documents",
+    description: "Accede a todos los documentos relacionados con tu contrato de renta.",
+    descriptionEn: "Access all documents related to your rental contract.",
+    bullets: [
+      { text: "Ver y descargar tu contrato de arrendamiento", textEn: "View and download your lease agreement" },
+      { text: "Acceder a recibos de pago y comprobantes", textEn: "Access payment receipts and proofs" },
+      { text: "Consultar el reglamento del condominio", textEn: "Check the condominium regulations" },
+      { text: "Los documentos están organizados por categoría", textEn: "Documents are organized by category" },
+      { text: "Puedes descargar en PDF para guardar una copia", textEn: "You can download as PDF to keep a copy" },
+    ],
+    detailLink: "/help/tenant/documents",
+  },
+  "owner-payments": {
+    title: "Ayuda con Pagos",
+    titleEn: "Help with Payments",
+    description: "Revisa y verifica los pagos de tus inquilinos.",
+    descriptionEn: "Review and verify your tenants' payments.",
+    bullets: [
+      { text: "Ver todos los pagos registrados por tus inquilinos", textEn: "View all payments registered by your tenants" },
+      { text: "Verificar o rechazar comprobantes de pago", textEn: "Verify or reject payment receipts" },
+      { text: "Estados: Pendiente (esperando verificación), Verificado, Rechazado", textEn: "Statuses: Pending (awaiting verification), Verified, Rejected" },
+      { text: "Paso 1: Revisa el comprobante adjunto", textEn: "Step 1: Review the attached receipt" },
+      { text: "Paso 2: Confirma que el monto y fecha son correctos", textEn: "Step 2: Confirm amount and date are correct" },
+      { text: "Paso 3: Marca como verificado o rechazado con motivo", textEn: "Step 3: Mark as verified or rejected with reason" },
+    ],
+    detailLink: "/help/owner/payments",
+  },
+  "owner-maintenance": {
+    title: "Ayuda con Mantenimiento",
+    titleEn: "Help with Maintenance",
+    description: "Gestiona los tickets de mantenimiento de tus propiedades.",
+    descriptionEn: "Manage maintenance tickets for your properties.",
+    bullets: [
+      { text: "Ver tickets abiertos por tus inquilinos", textEn: "View tickets opened by your tenants" },
+      { text: "Asignar proveedores de servicio a los tickets", textEn: "Assign service providers to tickets" },
+      { text: "Aprobar o rechazar solicitudes de mantenimiento", textEn: "Approve or reject maintenance requests" },
+      { text: "Estados: Abierto → Asignado → En progreso → Resuelto", textEn: "Statuses: Open → Assigned → In Progress → Resolved" },
+      { text: "Puedes agregar comentarios y actualizaciones", textEn: "You can add comments and updates" },
+    ],
+    detailLink: "/help/owner/maintenance",
+  },
+  "owner-documents": {
+    title: "Ayuda con Documentos",
+    titleEn: "Help with Documents",
+    description: "Gestiona los documentos de tus contratos y propiedades.",
+    descriptionEn: "Manage documents for your contracts and properties.",
+    bullets: [
+      { text: "Ver contratos activos con tus inquilinos", textEn: "View active contracts with your tenants" },
+      { text: "Descargar reportes financieros", textEn: "Download financial reports" },
+      { text: "Acceder a documentos legales de la propiedad", textEn: "Access legal documents for the property" },
+      { text: "Subir documentos adicionales si es necesario", textEn: "Upload additional documents if needed" },
+      { text: "Los documentos se organizan por propiedad y contrato", textEn: "Documents are organized by property and contract" },
+    ],
+    detailLink: "/help/owner/documents",
+  },
+  "seller-leads": {
+    title: "Ayuda con Leads",
+    titleEn: "Help with Leads",
+    description: "Gestiona tus prospectos y avanza en el proceso de venta o renta.",
+    descriptionEn: "Manage your prospects and advance in the sales or rental process.",
+    bullets: [
+      { text: "Ver todos tus leads organizados por estado", textEn: "View all your leads organized by status" },
+      { text: "Arrastrar leads entre columnas para cambiar su estado", textEn: "Drag leads between columns to change their status" },
+      { text: "Estados: Nuevo → Contactado → Calificado → En negociación → Cerrado", textEn: "Statuses: New → Contacted → Qualified → Negotiating → Closed" },
+      { text: "Haz clic en un lead para ver detalles y agregar notas", textEn: "Click on a lead to view details and add notes" },
+      { text: "Usa filtros para encontrar leads específicos", textEn: "Use filters to find specific leads" },
+      { text: "Comparte tu catálogo para generar nuevos leads", textEn: "Share your catalog to generate new leads" },
+    ],
+    detailLink: "/help/seller/leads",
+  },
+  "agency-settings": {
+    title: "Ayuda con Configuración de Agencia",
+    titleEn: "Help with Agency Settings",
+    description: "Configura tu agencia y gestiona los accesos de tu equipo.",
+    descriptionEn: "Configure your agency and manage team access.",
+    bullets: [
+      { text: "Personaliza el logo y nombre de tu agencia", textEn: "Customize your agency logo and name" },
+      { text: "Invita a nuevos miembros del equipo", textEn: "Invite new team members" },
+      { text: "Asigna roles y permisos a cada usuario", textEn: "Assign roles and permissions to each user" },
+      { text: "Configura las notificaciones de la agencia", textEn: "Configure agency notifications" },
+      { text: "Gestiona las integraciones y conexiones", textEn: "Manage integrations and connections" },
+    ],
+    detailLink: "/help/agency/settings",
+  },
+};
+
+interface HelpPanelProps {
+  helpKey: string;
+  className?: string;
+  iconSize?: "sm" | "md" | "lg";
+}
+
+export function HelpPanel({ helpKey, className = "", iconSize = "md" }: HelpPanelProps) {
+  const [open, setOpen] = useState(false);
+  const { language } = useLanguage();
+  const [, setLocation] = useLocation();
+  const isEn = language === "en";
+
+  const content = helpPanelContent[helpKey];
+
+  if (!content) {
+    return null;
+  }
+
+  const iconSizeClass = {
+    sm: "h-4 w-4",
+    md: "h-5 w-5",
+    lg: "h-6 w-6",
+  }[iconSize];
+
+  const buttonSizeClass = {
+    sm: "h-7 w-7",
+    md: "h-8 w-8",
+    lg: "h-9 w-9",
+  }[iconSize];
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`${buttonSizeClass} rounded-full hover:bg-primary/10 ${className}`}
+          data-testid={`button-help-${helpKey}`}
+        >
+          <HelpCircle className={`${iconSizeClass} text-muted-foreground hover:text-primary`} />
+        </Button>
+      </SheetTrigger>
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-md"
+        data-testid={`sheet-help-${helpKey}`}
+      >
+        <SheetHeader className="text-left">
+          <SheetTitle className="flex items-center gap-2" data-testid={`title-help-${helpKey}`}>
+            <HelpCircle className="h-5 w-5 text-primary" />
+            {isEn ? content.titleEn : content.title}
+          </SheetTitle>
+          <SheetDescription data-testid={`desc-help-${helpKey}`}>
+            {isEn ? content.descriptionEn : content.description}
+          </SheetDescription>
+        </SheetHeader>
+
+        <ScrollArea className="h-[calc(100vh-200px)] mt-6 pr-4">
+          <div className="space-y-4">
+            <ul className="space-y-3">
+              {content.bullets.map((bullet, index) => (
+                <li 
+                  key={index} 
+                  className="flex items-start gap-3"
+                  data-testid={`bullet-help-${helpKey}-${index}`}
+                >
+                  <ChevronRight className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground">
+                    {isEn ? bullet.textEn : bullet.text}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {content.detailLink && (
+              <div className="pt-4 border-t">
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => {
+                    setOpen(false);
+                    setLocation(content.detailLink!);
+                  }}
+                  data-testid={`button-help-detail-${helpKey}`}
+                >
+                  <span>
+                    {isEn ? "View complete guide" : "Ver guía completa"}
+                  </span>
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export function SectionHeader({ 
+  title, 
+  helpKey, 
+  children 
+}: { 
+  title: string; 
+  helpKey: string; 
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+      <h2 className="text-xl font-semibold" data-testid={`heading-${helpKey}`}>{title}</h2>
+      <div className="flex items-center gap-2">
+        {children}
+        <HelpPanel helpKey={helpKey} />
+      </div>
+    </div>
+  );
+}
+
+interface EmptyStateContent {
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  defaultActions: Array<{
+    label: string;
+    labelEn: string;
+    href?: string;
+    variant?: "default" | "outline" | "secondary";
+  }>;
+}
+
+const emptyStateContent: Record<string, EmptyStateContent> = {
+  "tenant-payments": {
+    title: "Sin pagos registrados",
+    titleEn: "No payments registered",
+    description: "Aquí verás tu historial de pagos de renta y servicios. En cuanto registremos tu primer pago, aparecerá en esta lista.",
+    descriptionEn: "Here you will see your rent and service payment history. As soon as we register your first payment, it will appear in this list.",
+    defaultActions: [
+      { label: "Ver mi contrato", labelEn: "View my contract", href: "/portal/tenant?tab=contract", variant: "outline" },
+    ],
+  },
+  "tenant-maintenance": {
+    title: "Sin tickets de mantenimiento",
+    titleEn: "No maintenance tickets",
+    description: "¡Todo en orden! No tienes tickets de mantenimiento abiertos. Si algo necesita atención, puedes crear un nuevo ticket.",
+    descriptionEn: "All good! You don't have any open maintenance tickets. If something needs attention, you can create a new ticket.",
+    defaultActions: [
+      { label: "Crear primer ticket", labelEn: "Create first ticket", variant: "default" },
+    ],
+  },
+  "tenant-documents": {
+    title: "Sin documentos disponibles",
+    titleEn: "No documents available",
+    description: "Los documentos de tu contrato aparecerán aquí cuando estén disponibles. Esto incluye tu contrato, recibos y reglamentos.",
+    descriptionEn: "Your contract documents will appear here when available. This includes your lease, receipts, and regulations.",
+    defaultActions: [],
+  },
+  "owner-payments": {
+    title: "Sin movimientos registrados",
+    titleEn: "No movements registered",
+    description: "Aquí podrás revisar pagos marcados por tu inquilino y verificarlos. Por ahora no hay movimientos registrados para este contrato.",
+    descriptionEn: "Here you can review payments marked by your tenant and verify them. Currently there are no movements registered for this contract.",
+    defaultActions: [
+      { label: "Ver propiedades", labelEn: "View properties", href: "/mis-propiedades", variant: "outline" },
+    ],
+  },
+  "owner-maintenance": {
+    title: "Sin tickets de mantenimiento",
+    titleEn: "No maintenance tickets",
+    description: "¡Excelente! No hay tickets de mantenimiento pendientes en tus propiedades. Los inquilinos pueden reportar problemas desde su portal.",
+    descriptionEn: "Excellent! There are no pending maintenance tickets on your properties. Tenants can report issues from their portal.",
+    defaultActions: [
+      { label: "Ver propiedades", labelEn: "View properties", href: "/mis-propiedades", variant: "outline" },
+    ],
+  },
+  "owner-documents": {
+    title: "Sin documentos disponibles",
+    titleEn: "No documents available",
+    description: "Los documentos de tus contratos y propiedades aparecerán aquí. Esto incluye contratos, reportes financieros y documentos legales.",
+    descriptionEn: "Documents for your contracts and properties will appear here. This includes contracts, financial reports, and legal documents.",
+    defaultActions: [],
+  },
+  "seller-leads": {
+    title: "Todavía no tienes leads",
+    titleEn: "No leads yet",
+    description: "Empieza compartiendo tu catálogo o tu link de captación para recibir interesados. Los leads que generes aparecerán aquí.",
+    descriptionEn: "Start sharing your catalog or capture link to receive interested prospects. The leads you generate will appear here.",
+    defaultActions: [
+      { label: "Ver catálogo de propiedades", labelEn: "View property catalog", href: "/seller-catalog", variant: "default" },
+      { label: "Copiar mi link de captación", labelEn: "Copy my capture link", variant: "outline" },
+    ],
+  },
+  "external-leads": {
+    title: "Sin leads asignados",
+    titleEn: "No assigned leads",
+    description: "Todavía no tienes leads asignados. Los leads que captures o te asignen aparecerán aquí para que les des seguimiento.",
+    descriptionEn: "You don't have any assigned leads yet. Leads you capture or are assigned will appear here for follow-up.",
+    defaultActions: [
+      { label: "Ver catálogo", labelEn: "View catalog", href: "/seller-catalog", variant: "default" },
+      { label: "Invitar agente", labelEn: "Invite agent", href: "/external/agency/team", variant: "outline" },
+    ],
+  },
+  "agency-team": {
+    title: "Sin miembros en el equipo",
+    titleEn: "No team members",
+    description: "Invita a los miembros de tu agencia para que puedan gestionar propiedades y leads junto contigo.",
+    descriptionEn: "Invite your agency members so they can manage properties and leads with you.",
+    defaultActions: [
+      { label: "Invitar primer miembro", labelEn: "Invite first member", variant: "default" },
+    ],
+  },
+};
+
+interface EnhancedEmptyStateProps {
+  stateKey: string;
+  icon?: ReactNode;
+  className?: string;
+  onAction?: (href?: string) => void;
+  customActions?: Array<{
+    label: string;
+    labelEn?: string;
+    href?: string;
+    onClick?: () => void;
+    variant?: "default" | "outline" | "secondary";
+  }>;
+}
+
+export function EnhancedEmptyState({ 
+  stateKey, 
+  icon, 
+  className = "",
+  onAction,
+  customActions,
+}: EnhancedEmptyStateProps) {
+  const { language } = useLanguage();
+  const [, setLocation] = useLocation();
+  const isEn = language === "en";
+
+  const content = emptyStateContent[stateKey];
+
+  const defaultIcon = (
+    <div className="rounded-full bg-muted p-4">
+      <FolderOpen className="h-8 w-8 md:h-10 md:w-10 text-muted-foreground" />
+    </div>
+  );
+
+  if (!content) {
+    return (
+      <Card className={cn("border-dashed", className)}>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          {defaultIcon}
+          <p className="text-muted-foreground mt-4">
+            {isEn ? "No data available" : "No hay datos disponibles"}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const actions = customActions || content.defaultActions;
+
+  return (
+    <Card className={cn("border-dashed", className)} data-testid={`empty-state-${stateKey}`}>
+      <CardContent className="flex flex-col items-center justify-center py-10 md:py-12 px-4 text-center">
+        {icon || defaultIcon}
+        
+        <h3 
+          className="text-lg font-semibold mb-2 mt-4"
+          data-testid={`empty-state-title-${stateKey}`}
+        >
+          {isEn ? content.titleEn : content.title}
+        </h3>
+        
+        <p 
+          className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed"
+          data-testid={`empty-state-desc-${stateKey}`}
+        >
+          {isEn ? content.descriptionEn : content.description}
+        </p>
+
+        {actions.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {actions.map((action, index) => (
+              <Button
+                key={index}
+                variant={action.variant || "default"}
+                onClick={() => {
+                  if ('onClick' in action && action.onClick) {
+                    action.onClick();
+                  } else if (action.href) {
+                    if (onAction) {
+                      onAction(action.href);
+                    } else {
+                      setLocation(action.href);
+                    }
+                  }
+                }}
+                className="w-full sm:w-auto"
+                data-testid={`empty-state-action-${stateKey}-${index}`}
+              >
+                {isEn ? (action.labelEn || action.label) : action.label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
