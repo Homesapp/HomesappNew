@@ -433,7 +433,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <Users className="h-5 w-5" />,
         actionLabel: "Editar perfil",
         actionLabelEn: "Edit profile",
-        actionPath: "/external/profile",
+        actionPath: "/cuenta",
       },
       {
         id: "explore-catalog",
@@ -444,7 +444,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <Building className="h-5 w-5" />,
         actionLabel: "Ver catálogo",
         actionLabelEn: "View catalog",
-        actionPath: "/external/properties",
+        actionPath: "/external/seller-catalog",
       },
       {
         id: "share-link",
@@ -455,7 +455,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <Link2 className="h-5 w-5" />,
         actionLabel: "Copiar link",
         actionLabelEn: "Copy link",
-        actionPath: "/external/leads",
+        actionPath: "/external/clients",
       },
       {
         id: "check-leads",
@@ -466,7 +466,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <ClipboardList className="h-5 w-5" />,
         actionLabel: "Ver leads",
         actionLabelEn: "View leads",
-        actionPath: "/external/leads",
+        actionPath: "/external/clients",
       },
     ],
     quickActions: [
@@ -477,7 +477,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         description: "Propiedades disponibles",
         descriptionEn: "Available properties",
         icon: <Building className="h-5 w-5" />,
-        path: "/external/properties",
+        path: "/external/seller-catalog",
         variant: "default",
       },
       {
@@ -487,7 +487,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         description: "Gestionar prospectos",
         descriptionEn: "Manage prospects",
         icon: <Target className="h-5 w-5" />,
-        path: "/external/leads",
+        path: "/external/clients",
         variant: "outline",
       },
       {
@@ -497,7 +497,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         description: "Plantillas y editor",
         descriptionEn: "Templates and editor",
         icon: <Image className="h-5 w-5" />,
-        path: "/external/social",
+        path: "/external/seller-social-media",
         variant: "outline",
       },
     ],
@@ -551,7 +551,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <Image className="h-5 w-5" />,
         actionLabel: "Subir logo",
         actionLabelEn: "Upload logo",
-        actionPath: "/external/settings",
+        actionPath: "/external/agency",
       },
       {
         id: "invite-agent",
@@ -562,7 +562,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <UserPlus className="h-5 w-5" />,
         actionLabel: "Invitar agente",
         actionLabelEn: "Invite agent",
-        actionPath: "/external/team",
+        actionPath: "/external/sellers-management",
       },
       {
         id: "review-catalog",
@@ -584,7 +584,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         icon: <PieChart className="h-5 w-5" />,
         actionLabel: "Configurar",
         actionLabelEn: "Configure",
-        actionPath: "/external/settings",
+        actionPath: "/external/agency",
       },
     ],
     quickActions: [
@@ -595,7 +595,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         description: "Gestionar agentes",
         descriptionEn: "Manage agents",
         icon: <Users className="h-5 w-5" />,
-        path: "/external/team",
+        path: "/external/sellers-management",
         variant: "default",
       },
       {
@@ -605,7 +605,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         description: "Métricas y desempeño",
         descriptionEn: "Metrics and performance",
         icon: <BarChart3 className="h-5 w-5" />,
-        path: "/external/reports",
+        path: "/external/accounting",
         variant: "outline",
       },
       {
@@ -615,7 +615,7 @@ const roleOnboardingConfig: Record<string, RoleOnboarding> = {
         description: "Ajustes de agencia",
         descriptionEn: "Agency settings",
         icon: <Settings className="h-5 w-5" />,
-        path: "/external/settings",
+        path: "/external/agency",
         variant: "outline",
       },
     ],
