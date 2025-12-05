@@ -193,6 +193,13 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     ownerActivity: false,
     ownerFinance: false,
     sellerFinance: false,
+    // New admin sections
+    adminInicio: false,
+    adminRentas: false,
+    adminPropiedades: false,
+    adminPersonas: false,
+    adminFinanzas: false,
+    adminConfig: false,
   });
 
   const mainItems = [
@@ -263,54 +270,108 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     { titleKey: "sidebar.myIncome", url: "/mis-ingresos", icon: DollarSign, roles: ["seller"] },
   ];
 
-  const adminSingleItems = [
+  // ===== NEW ADMIN/MASTER SIDEBAR STRUCTURE =====
+  // Section 1: Inicio (Home)
+  const adminInicioGroup = [
     { titleKey: "sidebar.adminDashboard", url: "/admin/dashboard", icon: Home, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.incomeDashboard", url: "/admin/income", icon: DollarSign, roles: ["master", "admin"] },
-    { titleKey: "sidebar.backoffice", url: "/backoffice", icon: FolderKanban, roles: ["master", "admin", "admin_jr", "management", "concierge", "provider"] },
   ];
 
-  const processManagementGroup = [
+  // Section 2: Operación de Rentas (Rental Operations)
+  const adminRentasGroup = [
+    { titleKey: "sidebar.leads", url: "/leads", icon: Users, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.kanbanRentals", url: "/rentas", icon: FolderKanban, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.adminAppointments", url: "/admin/appointments", icon: CalendarCheck, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.adminSellers", url: "/admin/sellers", icon: Users, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.adminTasks", url: "/admin/tasks", icon: ClipboardCheck, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.adminCalendar", url: "/admin/calendario", icon: Calendar, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.adminContracts", url: "/admin/contracts", icon: FileText, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.adminOffers", url: "/admin/offers", icon: FileText, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.adminCalendar", url: "/admin/calendario", icon: Calendar, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.businessHours", url: "/admin/horarios", icon: Clock, roles: ["master", "admin"] },
-    { titleKey: "sidebar.assignProperties", url: "/admin/asignar-propiedades", icon: Building2, roles: ["master", "admin"] },
+    { titleKey: "sidebar.adminTasks", url: "/admin/tasks", icon: ClipboardCheck, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.backoffice", url: "/backoffice", icon: ListTodo, roles: ["master", "admin", "admin_jr"] },
   ];
 
-  const usersAndRolesGroup = [
-    { titleKey: "sidebar.userManagement", url: "/admin/users", icon: UserCog, roles: ["master", "admin"] },
-    { titleKey: "sidebar.externalAgenciesAdmin", url: "/admin/external-agencies", icon: Building, roles: ["master", "admin"] },
-    { titleKey: "sidebar.externalPublicationRequests", url: "/admin/external-publication-requests", icon: FileCheck, roles: ["master", "admin"] },
-    { titleKey: "sidebar.featuredProperties", url: "/admin/featured-properties", icon: Star, roles: ["master", "admin"] },
-    { titleKey: "sidebar.permissions", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
-  ];
-
-  const propertiesGroup = [
+  // Section 3: Propiedades (Properties)
+  const adminPropertiesGroup = [
     { titleKey: "sidebar.adminProperties", url: "/admin/properties", icon: Building2, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.condominiums", url: "/admin/condominiums", icon: Building2, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.hoaManagement", url: "/admin/hoa", icon: Building, roles: ["master", "admin"] },
     { titleKey: "sidebar.propertyInvitations", url: "/admin/property-invitations", icon: Link2, roles: ["master", "admin"] },
     { titleKey: "sidebar.importContacts", url: "/admin/import-contacts", icon: Upload, roles: ["master", "admin"] },
     { titleKey: "sidebar.changeRequests", url: "/admin/change-requests", icon: FileEdit, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.propertyLimitRequests", url: "/admin/property-limit-requests", icon: TrendingUp, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.inspectionReports", url: "/admin/inspection-reports", icon: ClipboardCheck, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.condominiums", url: "/admin/condominiums", icon: Building2, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.hoaManagement", url: "/admin/hoa", icon: Building, roles: ["master", "admin", "management"] },
+    { titleKey: "sidebar.featuredProperties", url: "/admin/featured-properties", icon: Star, roles: ["master", "admin"] },
   ];
 
-  const configGroup = [
-    { titleKey: "sidebar.agreementTemplates", url: "/admin/agreement-templates", icon: FileText, roles: ["master", "admin"] },
-    { titleKey: "sidebar.propertyOwnerTerms", url: "/admin/property-owner-terms", icon: FileText, roles: ["master", "admin"] },
-    { titleKey: "sidebar.chatbotConfig", url: "/admin/chatbot-config", icon: Bot, roles: ["master", "admin"] },
-    { titleKey: "sidebar.sidebarConfig", url: "/admin/sidebar-config", icon: Settings2, roles: ["master", "admin"] },
+  // Section 4: Personas & Agencias (People & Agencies)
+  const adminPersonasGroup = [
+    { titleKey: "sidebar.adminSellers", url: "/admin/sellers", icon: Users, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.clients", url: "/clientes", icon: UserCircle2, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.externalAgenciesAdmin", url: "/admin/external-agencies", icon: Building, roles: ["master", "admin"] },
+    { titleKey: "sidebar.userManagement", url: "/admin/users", icon: UserCog, roles: ["master", "admin"] },
+  ];
+
+  // Section 5: Finanzas (Finance)
+  const adminFinanzasGroup = [
+    { titleKey: "sidebar.incomeDashboard", url: "/admin/income", icon: DollarSign, roles: ["master", "admin"] },
+    { titleKey: "sidebar.adminReferrals", url: "/admin/referidos", icon: Share2, roles: ["master", "admin", "admin_jr"] },
+  ];
+
+  // Section 6: Configuración & Sistema (Configuration & System)
+  const adminConfigGroup = [
+    { titleKey: "sidebar.businessHours", url: "/admin/horarios", icon: Clock, roles: ["master", "admin"] },
     { titleKey: "sidebar.integrations", url: "/admin/integrations", icon: Plug, roles: ["master", "admin"] },
+    { titleKey: "sidebar.permissions", url: "/permissions", icon: Settings, roles: ["master", "admin"] },
+    { titleKey: "sidebar.sidebarConfig", url: "/admin/sidebar-config", icon: Settings2, roles: ["master", "admin"] },
+    { titleKey: "sidebar.agreementTemplates", url: "/admin/agreement-templates", icon: FileText, roles: ["master", "admin"] },
+    { titleKey: "sidebar.feedbackManagement", url: "/admin/feedback", icon: MessageSquare, roles: ["master", "admin", "admin_jr"] },
     { titleKey: "sidebar.changelog", url: "/admin/changelog", icon: BookOpen, roles: ["master", "admin"] },
   ];
 
+  // Legacy items for backward compatibility and other roles
+  const adminSingleItems = [
+    { titleKey: "sidebar.backoffice", url: "/backoffice", icon: FolderKanban, roles: ["management", "concierge", "provider"] },
+  ];
+
+  const processManagementGroup = [
+    { titleKey: "sidebar.adminAppointments", url: "/admin/appointments", icon: CalendarCheck, roles: [] },
+    { titleKey: "sidebar.adminSellers", url: "/admin/sellers", icon: Users, roles: [] },
+    { titleKey: "sidebar.adminTasks", url: "/admin/tasks", icon: ClipboardCheck, roles: [] },
+    { titleKey: "sidebar.adminContracts", url: "/admin/contracts", icon: FileText, roles: [] },
+    { titleKey: "sidebar.adminOffers", url: "/admin/offers", icon: FileText, roles: [] },
+    { titleKey: "sidebar.adminCalendar", url: "/admin/calendario", icon: Calendar, roles: [] },
+    { titleKey: "sidebar.businessHours", url: "/admin/horarios", icon: Clock, roles: [] },
+    { titleKey: "sidebar.assignProperties", url: "/admin/asignar-propiedades", icon: Building2, roles: [] },
+  ];
+
+  const usersAndRolesGroup = [
+    { titleKey: "sidebar.userManagement", url: "/admin/users", icon: UserCog, roles: [] },
+    { titleKey: "sidebar.externalAgenciesAdmin", url: "/admin/external-agencies", icon: Building, roles: [] },
+    { titleKey: "sidebar.externalPublicationRequests", url: "/admin/external-publication-requests", icon: FileCheck, roles: [] },
+    { titleKey: "sidebar.featuredProperties", url: "/admin/featured-properties", icon: Star, roles: [] },
+    { titleKey: "sidebar.permissions", url: "/permissions", icon: Settings, roles: [] },
+  ];
+
+  const propertiesGroup = [
+    { titleKey: "sidebar.adminProperties", url: "/admin/properties", icon: Building2, roles: [] },
+    { titleKey: "sidebar.propertyInvitations", url: "/admin/property-invitations", icon: Link2, roles: [] },
+    { titleKey: "sidebar.importContacts", url: "/admin/import-contacts", icon: Upload, roles: [] },
+    { titleKey: "sidebar.changeRequests", url: "/admin/change-requests", icon: FileEdit, roles: [] },
+    { titleKey: "sidebar.propertyLimitRequests", url: "/admin/property-limit-requests", icon: TrendingUp, roles: [] },
+    { titleKey: "sidebar.inspectionReports", url: "/admin/inspection-reports", icon: ClipboardCheck, roles: [] },
+    { titleKey: "sidebar.condominiums", url: "/admin/condominiums", icon: Building2, roles: [] },
+    { titleKey: "sidebar.hoaManagement", url: "/admin/hoa", icon: Building, roles: ["management"] },
+  ];
+
+  const configGroup = [
+    { titleKey: "sidebar.agreementTemplates", url: "/admin/agreement-templates", icon: FileText, roles: [] },
+    { titleKey: "sidebar.propertyOwnerTerms", url: "/admin/property-owner-terms", icon: FileText, roles: [] },
+    { titleKey: "sidebar.chatbotConfig", url: "/admin/chatbot-config", icon: Bot, roles: [] },
+    { titleKey: "sidebar.sidebarConfig", url: "/admin/sidebar-config", icon: Settings2, roles: [] },
+    { titleKey: "sidebar.integrations", url: "/admin/integrations", icon: Plug, roles: [] },
+    { titleKey: "sidebar.changelog", url: "/admin/changelog", icon: BookOpen, roles: [] },
+  ];
+
   const communityGroup = [
-    { titleKey: "sidebar.feedbackManagement", url: "/admin/feedback", icon: MessageSquare, roles: ["master", "admin", "admin_jr"] },
-    { titleKey: "sidebar.adminReferrals", url: "/admin/referidos", icon: Share2, roles: ["master", "admin", "admin_jr"] },
+    { titleKey: "sidebar.feedbackManagement", url: "/admin/feedback", icon: MessageSquare, roles: [] },
+    { titleKey: "sidebar.adminReferrals", url: "/admin/referidos", icon: Share2, roles: [] },
   ];
 
   const externalManagementGroup = [
@@ -432,6 +493,37 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     ? sellerFinanceGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
     : [];
 
+  // Check if user is admin/master for new sidebar structure
+  const isAdminMaster = userRole === "master" || userRole === "admin";
+  const isAdminJr = userRole === "admin_jr";
+
+  // New admin sections (for master/admin roles)
+  const filteredAdminInicio = userRole 
+    ? adminInicioGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
+    : [];
+  
+  const filteredAdminRentas = userRole 
+    ? adminRentasGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
+    : [];
+  
+  const filteredAdminPropiedades = userRole 
+    ? adminPropertiesGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
+    : [];
+  
+  const filteredAdminPersonas = userRole 
+    ? adminPersonasGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
+    : [];
+  
+  const filteredAdminFinanzas = userRole 
+    ? adminFinanzasGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
+    : [];
+  
+  const filteredAdminConfig = userRole 
+    ? adminConfigGroup.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
+    : [];
+
+  const hasNewAdminSidebar = isAdminMaster || isAdminJr;
+
   const hasAdminItems = filteredAdminSingle.length > 0 || 
                         filteredProcessManagement.length > 0 ||
                         filteredUsersAndRoles.length > 0 || 
@@ -467,6 +559,13 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
       ownerActivity: isGroupActive(ownerActivityGroup),
       ownerFinance: isGroupActive(ownerFinanceGroup),
       sellerFinance: isGroupActive(sellerFinanceGroup),
+      // New admin sections
+      adminInicio: isGroupActive(adminInicioGroup),
+      adminRentas: isGroupActive(adminRentasGroup),
+      adminPropiedades: isGroupActive(adminPropertiesGroup),
+      adminPersonas: isGroupActive(adminPersonasGroup),
+      adminFinanzas: isGroupActive(adminFinanzasGroup),
+      adminConfig: isGroupActive(adminConfigGroup),
     });
   }, [location]);
 
@@ -574,7 +673,232 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
           </SidebarGroup>
         )}
 
-        {hasAdminItems && (
+        {/* ===== NEW ADMIN/MASTER SIDEBAR STRUCTURE ===== */}
+        {hasNewAdminSidebar && (
+          <>
+            {/* Section 1: Inicio */}
+            {filteredAdminInicio.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel>{language === "es" ? "Inicio" : "Home"}</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {filteredAdminInicio.map((item) => (
+                      <SidebarMenuItem key={item.titleKey}>
+                        <SidebarMenuButton asChild isActive={location === item.url}>
+                          <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                            <item.icon />
+                            <span>{t(item.titleKey)}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
+            {/* Section 2: Operación de Rentas */}
+            {filteredAdminRentas.length > 0 && (
+              <SidebarGroup>
+                <Collapsible 
+                  open={openGroups.adminRentas}
+                  onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, adminRentas: open }))}
+                  className="group/collapsible">
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between cursor-pointer hover-elevate rounded px-2 py-1" data-testid="collapsible-admin-rentas">
+                      <span>{language === "es" ? "Operación de Rentas" : "Rental Operations"}</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {filteredAdminRentas.map((item) => (
+                          <SidebarMenuItem key={item.titleKey}>
+                            <SidebarMenuButton asChild isActive={location === item.url}>
+                              <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                <item.icon />
+                                <span>{t(item.titleKey)}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            )}
+
+            {/* Section 3: Propiedades */}
+            {filteredAdminPropiedades.length > 0 && (
+              <SidebarGroup>
+                <Collapsible 
+                  open={openGroups.adminPropiedades}
+                  onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, adminPropiedades: open }))}
+                  className="group/collapsible">
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between cursor-pointer hover-elevate rounded px-2 py-1" data-testid="collapsible-admin-propiedades">
+                      <span>{language === "es" ? "Propiedades" : "Properties"}</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {filteredAdminPropiedades.map((item) => (
+                          <SidebarMenuItem key={item.titleKey}>
+                            <SidebarMenuButton asChild isActive={location === item.url}>
+                              <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                <item.icon />
+                                <span>{t(item.titleKey)}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            )}
+
+            {/* Section 4: Personas & Agencias */}
+            {filteredAdminPersonas.length > 0 && (
+              <SidebarGroup>
+                <Collapsible 
+                  open={openGroups.adminPersonas}
+                  onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, adminPersonas: open }))}
+                  className="group/collapsible">
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between cursor-pointer hover-elevate rounded px-2 py-1" data-testid="collapsible-admin-personas">
+                      <span>{language === "es" ? "Personas & Agencias" : "People & Agencies"}</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {filteredAdminPersonas.map((item) => (
+                          <SidebarMenuItem key={item.titleKey}>
+                            <SidebarMenuButton asChild isActive={location === item.url}>
+                              <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                <item.icon />
+                                <span>{t(item.titleKey)}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            )}
+
+            {/* Section 5: Finanzas */}
+            {filteredAdminFinanzas.length > 0 && (
+              <SidebarGroup>
+                <Collapsible 
+                  open={openGroups.adminFinanzas}
+                  onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, adminFinanzas: open }))}
+                  className="group/collapsible">
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between cursor-pointer hover-elevate rounded px-2 py-1" data-testid="collapsible-admin-finanzas">
+                      <span>{language === "es" ? "Finanzas" : "Finance"}</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {filteredAdminFinanzas.map((item) => (
+                          <SidebarMenuItem key={item.titleKey}>
+                            <SidebarMenuButton asChild isActive={location === item.url}>
+                              <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                <item.icon />
+                                <span>{t(item.titleKey)}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            )}
+
+            {/* Section 6: Configuración & Sistema */}
+            {filteredAdminConfig.length > 0 && (
+              <SidebarGroup>
+                <Collapsible 
+                  open={openGroups.adminConfig}
+                  onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, adminConfig: open }))}
+                  className="group/collapsible">
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between cursor-pointer hover-elevate rounded px-2 py-1" data-testid="collapsible-admin-config">
+                      <span>{language === "es" ? "Configuración & Sistema" : "Settings & System"}</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {filteredAdminConfig.map((item) => (
+                          <SidebarMenuItem key={item.titleKey}>
+                            <SidebarMenuButton asChild isActive={location === item.url}>
+                              <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                <item.icon />
+                                <span>{t(item.titleKey)}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            )}
+
+            {/* External Management for admin/master only */}
+            {filteredExternalManagement.length > 0 && (
+              <SidebarGroup>
+                <Collapsible 
+                  open={openGroups.externalManagement}
+                  onOpenChange={(open) => setOpenGroups(prev => ({ ...prev, externalManagement: open }))}
+                  className="group/collapsible">
+                  <SidebarGroupLabel asChild>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between cursor-pointer hover-elevate rounded px-2 py-1" data-testid="collapsible-external-management-new">
+                      <span>{language === "es" ? "Gestión Externa (TRH)" : "External Management (TRH)"}</span>
+                      <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                    </CollapsibleTrigger>
+                  </SidebarGroupLabel>
+                  <CollapsibleContent>
+                    <SidebarGroupContent>
+                      <SidebarMenu>
+                        {filteredExternalManagement.map((item) => (
+                          <SidebarMenuItem key={item.titleKey}>
+                            <SidebarMenuButton asChild isActive={location === item.url}>
+                              <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                                <item.icon />
+                                <span>{t(item.titleKey)}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarGroup>
+            )}
+          </>
+        )}
+
+        {/* Legacy Admin Section - only for non-admin/master roles with admin access */}
+        {hasAdminItems && !hasNewAdminSidebar && (
           <SidebarGroup>
             <SidebarGroupLabel>{t("sidebar.administration")}</SidebarGroupLabel>
             <SidebarGroupContent>
