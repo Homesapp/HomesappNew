@@ -1,0 +1,124 @@
+Acabo de subir la última versión del proyecto y quiero pedir dos mejoras globales:
+
+Enlaces amigables (friendly URLs) en todo lo público / compartible
+
+Revisión y mejora de todos los formularios de creación / edición importantes
+
+1) Enlaces amigables (friendly URLs)
+
+Ya vi que tenemos:
+
+helper generateSlug / generatePropertySlug,
+
+rutas como /:agencySlug/:unitSlug para propiedades,
+
+páginas de oferta y formularios con slug (PublicUnitDetail, PublicOfferBySlug, PublicRentalFormBySlug, etc.).
+
+Pero en la práctica todavía aparecen links con IDs/tokens poco amigables.
+
+Lo que necesito es:
+
+Propiedades públicas
+
+Que los links que se comparten al público (desde mapa, catálogo, cards de propiedad, botones de “Copiar link”) usen SIEMPRE:
+
+https://homesapp.../:agencySlug/:unitSlug
+
+Internamente pueden resolver a unitId, pero el usuario solo ve el slug.
+
+Ofertas públicas
+
+Un patrón limpio tipo:
+
+/oferta/:agencySlug/:unitSlug
+
+Los tokens de seguridad, si son necesarios, que vayan por query/headers, no como parte fea del path visible.
+
+Formularios públicos (owner, rental, lead)
+
+Enlaces que compartimos a propietarios/clientes:
+
+/trh/enlistar-propiedad
+
+/trh/aplicar-renta/:agencySlug/:unitSlug
+
+Evitar URLs con IDs o UUIDs visibles en el texto que se copia/ve en la interfaz.
+
+Links internos para vendedores y brokers
+
+Donde haya botones de “Copiar link”, “Compartir”, etc.:
+
+mostrar siempre URLs limpias con slug,
+
+no mostrar parámetros técnicos, a menos que sean estrictamente necesarios.
+
+Excepciones (tokens de invitación / portal)
+
+Para accesos especiales, se pueden usar rutas tipo:
+
+/portal/invitacion/:shortToken
+
+Pero igualmente que el UX del link sea entendible para el usuario.
+
+2) Revisión de formularios de creación / edición
+
+Quiero que revisen y dejen con una UX consistente y profesional los formularios más importantes, por ejemplo:
+
+PublicOwnerForm, PublicRentalForm, PublicRentalFormBySlug, PublicOfferForm, RentalOfferForm,
+
+ExternalClientEdit, EditOwnerProperty, CreateUser,
+
+formularios de contratos (ContractOwnerForm, ContractTenantForm),
+
+y otros formularios principales que detecten (clientes, propiedades, contratos, leads).
+
+Para todos ellos, por favor:
+
+Estructura y diseño
+
+Usar Card con título y descripción en CardHeader, campos en CardContent.
+
+Agrupar campos por secciones (cliente, propiedad, datos económicos, etc.).
+- Etiquetas claras y placeholders útiles.
+
+Validaciones y feedback
+
+Validar campos requeridos en frontend (con mensajes claros debajo del input).
+
+Mostrar mensajes de error amigables si falla el backend.
+
+Mostrar toasts/banners de éxito al guardar o enviar.
+
+Consistencia de componentes
+
+Usar los componentes de UI ya creados (Input, Select, Textarea, Button, Dialog, etc.) para mantener el look & feel uniforme.
+
+Evitar formularios “crudos” sin estilos.
+
+Conexión con el flujo de negocio
+
+Formularios públicos:
+
+deben crear un lead asociado correctamente a agencia/agente,
+
+crear cliente/owner si no existe,
+
+y aparecer en el nuevo Kanban / “Mis Leads”.
+
+Formularios internos:
+
+al crear clientes/propietarios/unidades, deben quedar disponibles para seleccionarse en los módulos de contratos, ofertas, portal, etc.
+
+Al terminar, por favor explíquenme:
+
+qué rutas quedaron usando slugs amigables,
+
+qué formularios principales revisaron,
+
+y si hubo cambios en validaciones / mensajes / toasts, para que yo pueda probarlos desde el punto de vista del usuario final.
+
+El objetivo es que:
+
+ningún usuario vea links feos con IDs o tokens raros,
+
+y que todos los formularios importantes se vean y se sientan profesionales, coherentes y fáciles de usar.

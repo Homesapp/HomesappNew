@@ -16,6 +16,8 @@ type UserRole =
   | "provider"
   | "accountant"
   | "lawyer"
+  | "sales_agent"
+  | "tenant"
   | "external_agency_admin"
   | "external_agency_accounting"
   | "external_agency_maintenance"
@@ -83,10 +85,13 @@ function getFallbackRoute(role: UserRole): string {
     case "external_agency_seller":
     case "external_agency_seller_assistant":
       return "/seller/dashboard";
+    case "sales_agent":
+      return "/sales/dashboard";
     case "owner":
       return "/owner/dashboard";
     case "seller":
       return "/seller/dashboard";
+    case "tenant":
     case "cliente":
       return "/";
     default:
@@ -117,8 +122,10 @@ export const ROLE_GROUPS = {
     "external_agency_concierge",
     "external_agency_lawyer"
   ] as UserRole[],
+  salesAgents: ["sales_agent"] as UserRole[],
   owners: ["owner"] as UserRole[],
   sellers: ["seller"] as UserRole[],
+  tenants: ["tenant", "cliente"] as UserRole[],
   accountants: ["accountant"] as UserRole[],
   lawyers: ["lawyer", "external_agency_lawyer"] as UserRole[],
 };

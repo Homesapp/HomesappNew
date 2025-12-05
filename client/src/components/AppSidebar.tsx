@@ -80,7 +80,7 @@ import {
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales" | "hoa_manager" | "external_agency_admin" | "external_agency_accounting" | "external_agency_maintenance" | "external_agency_staff" | "external_agency_concierge" | "external_agency_lawyer" | "external_agency_seller";
+export type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales" | "hoa_manager" | "external_agency_admin" | "external_agency_accounting" | "external_agency_maintenance" | "external_agency_staff" | "external_agency_concierge" | "external_agency_lawyer" | "external_agency_seller" | "sales_agent" | "tenant";
 
 export type AppSidebarProps = {
   userRole: UserRole | undefined;
@@ -108,6 +108,8 @@ const roleLabels: Record<UserRole, string> = {
   external_agency_concierge: "Conserje Externo",
   external_agency_lawyer: "Abogado Externo",
   external_agency_seller: "Vendedor Externo",
+  sales_agent: "Agente de Ventas",
+  tenant: "Inquilino",
 };
 
 export function AppSidebar({ userRole, userId }: AppSidebarProps) {
@@ -245,6 +247,16 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     { titleKey: "sidebar.myIncome", url: "/mis-ingresos", icon: DollarSign, roles: ["owner"] },
   ];
 
+  // Sales Agent items (Homesapp sales)
+  const salesAgentItems = [
+    { titleKey: "sidebar.salesDashboard", url: "/sales/dashboard", icon: Home, roles: ["sales_agent", "master", "admin"] },
+    { titleKey: "sidebar.salesBuyers", url: "/sales/buyers", icon: Users, roles: ["sales_agent", "master", "admin"] },
+    { titleKey: "sidebar.salesProperties", url: "/sales/properties", icon: Building2, roles: ["sales_agent", "master", "admin"] },
+    { titleKey: "sidebar.salesValuations", url: "/sales/valuations", icon: BarChart3, roles: ["sales_agent", "master", "admin"] },
+    { titleKey: "sidebar.salesOffers", url: "/sales/offers", icon: FileText, roles: ["sales_agent", "master", "admin"] },
+    { titleKey: "sidebar.salesContracts", url: "/sales/contracts", icon: ScrollText, roles: ["sales_agent", "master", "admin"] },
+  ];
+
   // Seller finance group
   const sellerFinanceGroup = [
     { titleKey: "sidebar.referrals", url: "/referidos", icon: Share2, roles: ["seller", "master", "admin", "admin_jr"] },
@@ -344,13 +356,21 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
   // Check if user is ONLY an external agency user (not admin/master)
   const isExternalAgencyUser = userRole && 
     ["external_agency_admin", "external_agency_accounting", "external_agency_maintenance", "external_agency_staff", "external_agency_concierge", "external_agency_lawyer", "external_agency_seller"].includes(userRole);
+  
+  // Check if user is a sales agent
+  const isSalesAgent = userRole === "sales_agent";
 
   const filteredMain = userRole 
-    ? (isExternalAgencyUser 
-        ? [] // External agency users don't see main items - they have their own section
+    ? (isExternalAgencyUser || isSalesAgent
+        ? [] // External agency users and sales agents don't see main items - they have their own section
         : mainItems.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
       )
     : basicItems;
+  
+  // Sales agent items
+  const filteredSalesAgent = userRole 
+    ? salesAgentItems.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
+    : [];
   
   const filteredAdminSingle = userRole 
     ? adminSingleItems.filter((item) => item.roles.includes(userRole) && isMenuItemVisible(item.titleKey))
@@ -439,6 +459,7 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
       properties: isGroupActive(propertiesGroup),
       config: isGroupActive(configGroup),
       community: isGroupActive(communityGroup),
+      externalManagement: isGroupActive(externalManagementGroup),
       clientProperties: isGroupActive(clientPropertiesGroup),
       clientActivity: isGroupActive(clientActivityGroup),
       clientFinance: isGroupActive(clientFinanceGroup),
@@ -492,6 +513,27 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
                 
                 {/* Client items - flat structure without collapsibles */}
                 {[...filteredClientProperties, ...filteredClientActivity, ...filteredClientFinance].map((item) => (
+                  <SidebarMenuItem key={item.titleKey}>
+                    <SidebarMenuButton asChild isActive={location === item.url}>
+                      <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>
+                        <item.icon />
+                        <span>{t(item.titleKey)}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Sales Agent Users - Homesapp Sales */}
+        {isSalesAgent && filteredSalesAgent.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>{language === "es" ? "Ventas Homesapp" : "Homesapp Sales"}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredSalesAgent.map((item) => (
                   <SidebarMenuItem key={item.titleKey}>
                     <SidebarMenuButton asChild isActive={location === item.url}>
                       <Link href={item.url} data-testid={`link-${item.titleKey.toLowerCase()}`}>

@@ -772,6 +772,14 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.sellerHelp": "Ayuda",
     "sidebar.configuration": "Configuración",
     
+    // Sales Agent Sidebar
+    "sidebar.salesDashboard": "Dashboard de Ventas",
+    "sidebar.salesBuyers": "Mis Compradores",
+    "sidebar.salesProperties": "Mis Propiedades",
+    "sidebar.salesValuations": "Avalúos",
+    "sidebar.salesOffers": "Ofertas de Compra",
+    "sidebar.salesContracts": "Contratos de Venta",
+    
     // Configuration Page
     "configuration.title": "Configuración",
     "configuration.subtitle": "Gestiona la configuración del sistema externo",
@@ -2153,6 +2161,14 @@ const translations: Record<Language, Record<string, string>> = {
     "sidebar.sellerSocialMedia": "Social Media",
     "sidebar.sellerHelp": "Help",
     "sidebar.configuration": "Configuration",
+    
+    // Sales Agent Sidebar
+    "sidebar.salesDashboard": "Sales Dashboard",
+    "sidebar.salesBuyers": "My Buyers",
+    "sidebar.salesProperties": "My Properties",
+    "sidebar.salesValuations": "Valuations",
+    "sidebar.salesOffers": "Purchase Offers",
+    "sidebar.salesContracts": "Sales Contracts",
     
     // Configuration Page
     "configuration.title": "Configuration",
