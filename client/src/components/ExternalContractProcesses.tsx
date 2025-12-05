@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Eye } from "lucide-react";
+import { FileText, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -10,6 +10,7 @@ import { es, enUS } from "date-fns/locale";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import ContractDetailDialog from "./ContractDetailDialog";
+import { ExternalPaginationControls } from "@/components/external/ExternalPaginationControls";
 
 interface ExternalContractProcessesProps {
   searchTerm: string;
@@ -20,6 +21,12 @@ interface ExternalContractProcessesProps {
 export default function ExternalContractProcesses({ searchTerm, statusFilter, viewMode }: ExternalContractProcessesProps) {
   const { language } = useLanguage();
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  const [sortColumn, setSortColumn] = useState<string>("createdAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   // Fetch contracts from API
   const { data: contractsData, isLoading, refetch } = useQuery({
@@ -28,27 +35,103 @@ export default function ExternalContractProcesses({ searchTerm, statusFilter, vi
     refetchOnWindowFocus: true, // Refetch when user returns to the tab
   });
 
-  const contractProcesses = contractsData || [];
+  const contractProcesses: any[] = Array.isArray(contractsData) ? contractsData : [];
 
-  const filteredProcesses = contractProcesses.filter((item: any) => {
-    const contract = item.contract;
-    const unit = item.unit;
-    const condominium = item.condominium;
+  const filteredProcesses = useMemo(() => {
+    return contractProcesses.filter((item: any) => {
+      const contract = item.contract;
+      const unit = item.unit;
+      const condominium = item.condominium;
+      
+      // Apply search filter
+      const matchesSearch = !searchTerm || 
+        contract.tenantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(unit?.unit_number || unit?.unitNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        condominium?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Apply status filter
+      let matchesStatus = true;
+      if (statusFilter && statusFilter !== "all") {
+        matchesStatus = contract.status === statusFilter;
+      }
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [contractProcesses, searchTerm, statusFilter]);
+
+  const sortedProcesses = useMemo(() => {
+    if (!filteredProcesses || !sortColumn) return filteredProcesses;
     
-    // Apply search filter
-    const matchesSearch = !searchTerm || 
-      contract.tenantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(unit?.unit_number || unit?.unitNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      condominium?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Apply status filter
-    let matchesStatus = true;
-    if (statusFilter && statusFilter !== "all") {
-      matchesStatus = contract.status === statusFilter;
+    return [...filteredProcesses].sort((a: any, b: any) => {
+      const contractA = a.contract;
+      const contractB = b.contract;
+      
+      let aVal: any;
+      let bVal: any;
+      
+      switch (sortColumn) {
+        case "tenant":
+          aVal = contractA.tenantName || "";
+          bVal = contractB.tenantName || "";
+          break;
+        case "rent":
+          aVal = contractA.monthlyRent || 0;
+          bVal = contractB.monthlyRent || 0;
+          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        case "createdAt":
+          aVal = new Date(contractA.createdAt).getTime();
+          bVal = new Date(contractB.createdAt).getTime();
+          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        case "status":
+          aVal = contractA.status || "";
+          bVal = contractB.status || "";
+          break;
+        default:
+          return 0;
+      }
+      
+      if (typeof aVal === "string") {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredProcesses, sortColumn, sortDirection]);
+
+  const paginatedProcesses = useMemo(() => {
+    if (!sortedProcesses) return [];
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedProcesses.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedProcesses, currentPage, itemsPerPage]);
+
+  const totalPages = Math.max(1, Math.ceil((sortedProcesses?.length || 0) / itemsPerPage));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, viewMode]);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
     }
-    
-    return matchesSearch && matchesStatus;
-  });
+  }, [totalPages, currentPage]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortColumn !== column) return <ArrowUpDown className="h-4 w-4" />;
+    return sortDirection === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+  };
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, Record<string, string>> = {
@@ -123,8 +206,21 @@ export default function ExternalContractProcesses({ searchTerm, statusFilter, vi
           </p>
         </div>
       ) : viewMode === "cards" ? (
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-          {filteredProcesses.map((item: any) => {
+        <>
+          <ExternalPaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={(value) => {
+              setItemsPerPage(value);
+              setCurrentPage(1);
+            }}
+            totalItems={sortedProcesses?.length || 0}
+            language={language as 'en' | 'es'}
+          />
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+            {paginatedProcesses.map((item: any) => {
             const contract = item.contract;
             const unit = item.unit;
             const condominium = item.condominium;
@@ -186,22 +282,72 @@ export default function ExternalContractProcesses({ searchTerm, statusFilter, vi
               </Card>
             );
           })}
-        </div>
+          </div>
+        </>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{language === "es" ? "Inquilino" : "Tenant"}</TableHead>
-                <TableHead>{language === "es" ? "Propiedad" : "Property"}</TableHead>
-                <TableHead>{language === "es" ? "Renta" : "Rent"}</TableHead>
-                <TableHead>{language === "es" ? "Creado" : "Created"}</TableHead>
-                <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
-                <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProcesses.map((item: any) => {
+        <div className="space-y-4">
+          <ExternalPaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={(value) => {
+              setItemsPerPage(value);
+              setCurrentPage(1);
+            }}
+            totalItems={sortedProcesses?.length || 0}
+            language={language as 'en' | 'es'}
+          />
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("tenant")}
+                    data-testid="sort-tenant"
+                  >
+                    <div className="flex items-center gap-2">
+                      {language === "es" ? "Inquilino" : "Tenant"}
+                      {getSortIcon("tenant")}
+                    </div>
+                  </TableHead>
+                  <TableHead>{language === "es" ? "Propiedad" : "Property"}</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("rent")}
+                    data-testid="sort-rent"
+                  >
+                    <div className="flex items-center gap-2">
+                      {language === "es" ? "Renta" : "Rent"}
+                      {getSortIcon("rent")}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("createdAt")}
+                    data-testid="sort-createdAt"
+                  >
+                    <div className="flex items-center gap-2">
+                      {language === "es" ? "Creado" : "Created"}
+                      {getSortIcon("createdAt")}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("status")}
+                    data-testid="sort-status"
+                  >
+                    <div className="flex items-center gap-2">
+                      {language === "es" ? "Estado" : "Status"}
+                      {getSortIcon("status")}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">{language === "es" ? "Acciones" : "Actions"}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedProcesses.map((item: any) => {
                 const contract = item.contract;
                 const unit = item.unit;
                 const condominium = item.condominium;
@@ -248,7 +394,8 @@ export default function ExternalContractProcesses({ searchTerm, statusFilter, vi
                 );
               })}
             </TableBody>
-          </Table>
+            </Table>
+          </div>
         </div>
       )}
 

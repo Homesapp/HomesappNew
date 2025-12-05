@@ -1,0 +1,115 @@
+Ahora que tenemos las secciones nuevas del home (“Quiénes somos”, “Cómo funciona HomesApp”, “Confían en nosotros”, “Preguntas frecuentes”), quiero ajustar el orden y la estructura del home y también el footer.
+
+1) Orden del Home
+
+El home debería quedar más o menos en este orden:
+
+Hero + buscador
+
+Título principal
+
+Buscador con filtros rápidos (Renta / Venta / Pet-friendly).
+
+Propiedades destacadas
+
+Grid/carrusel de propiedades destacadas.
+
+Botón Ver todas las propiedades → /buscar-propiedades.
+
+Sección para tipos de usuario
+
+Tres tarjetas opcionales: “Quiero rentar”, “Soy propietario”, “Soy agente”.
+
+Cada card con un CTA:
+
+Renter: Buscar propiedades
+
+Propietario: Enlistar mi propiedad
+
+Agente: Trabajar con HomesApp o similar.
+
+¿Cómo funciona HomesApp?
+
+Bloque de 3 pasos (descubrir propiedades, contactar asesor, gestionar todo en el portal).
+
+Botones:
+
+Ver propiedades → /buscar-propiedades
+
+Entrar al portal → /portal o login de portal.
+
+Explorar en el mapa
+
+Banner con texto corto + botón Ver mapa → /mapa-interactivo.
+
+Quiénes somos + Confían en nosotros
+
+Sección “Quiénes somos” con el texto actual.
+
+Debajo (o enseguida) los testimonios “Confían en nosotros”.
+
+Preguntas frecuentes
+
+Mantener el acordeón tal como está, pero como sección final antes del footer.
+
+Footer / mapa de sitio
+
+Ver detalles en el siguiente punto.
+
+La idea es que las secciones nuevas no queden todas juntas al final, sino que estén integradas en medio del home, sin interrumpir la experiencia de búsqueda de propiedades.
+
+2) Footer / mapa de sitio
+
+Quiero que el footer sea más útil, con links organizados por secciones. Por ejemplo, 4 columnas:
+
+Logo + frase corta
+
+Logo HomesApp
+
+“Tu socio inmobiliario en Tulum”.
+
+Propiedades
+
+Buscar propiedades → /buscar-propiedades
+
+Mapa interactivo → /mapa-interactivo
+
+En renta → /buscar-propiedades?operation=rent
+
+En venta → /buscar-propiedades?operation=sale
+
+Portales / usuarios
+
+Portal Inquilinos → /portal/tenant (si no está logueado, que lleve al login del portal).
+
+Portal Propietarios → /portal/owner
+
+Soy propietario (enlistar mi propiedad) → link del formulario público.
+
+Trabaja con nosotros → página o formulario para agentes.
+
+Empresa / información
+
+Quiénes somos → ancla #quienes-somos en el home o página /quienes-somos.
+
+Cómo funciona HomesApp → ancla #como-funciona o /como-funciona.
+
+Preguntas frecuentes → ancla #faq o /faq.
+
+Redes: Facebook, Instagram.
+
+Y debajo del footer principal, una línea pequeña con:
+
+Términos
+
+Privacidad
+
+Copyright con el año actual.
+
+Al final, por favor confirmen:
+
+el orden final de las secciones en el home (con IDs o anchors para “Quiénes somos”, “Cómo funciona”, “FAQ”),
+
+y qué links quedaron configurados en el footer, con sus URLs.
+
+Así puedo revisar la experiencia completa desde la vista de cliente, propietario y agente.

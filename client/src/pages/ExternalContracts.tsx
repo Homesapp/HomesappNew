@@ -209,11 +209,11 @@ export default function ExternalContracts() {
         </TabsContent>
 
         <TabsContent value="forms" className="flex-1 m-0">
-          <ExternalRentalFormLinks searchTerm={searchTerm} statusFilter={statusFilter} viewMode={viewMode} />
+          <ExternalRentalFormLinks searchTerm={searchTerm} statusFilter={statusFilter || ""} viewMode={viewMode} />
         </TabsContent>
 
         <TabsContent value="processes" className="flex-1 m-0">
-          <ExternalContractProcesses searchTerm={searchTerm} statusFilter={statusFilter} viewMode={viewMode} />
+          <ExternalContractProcesses searchTerm={searchTerm} statusFilter={statusFilter || ""} viewMode={viewMode} />
         </TabsContent>
       </Tabs>
     </div>

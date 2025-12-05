@@ -1,9 +1,10 @@
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, Users, Calendar, Download } from "lucide-react";
+import { DollarSign, TrendingUp, Users, Calendar, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -22,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
 
 type IncomeReport = {
   category?: string;
@@ -68,13 +68,32 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-gray-400",
 };
 
+type SortOrder = "asc" | "desc";
+
 export default function AdminIncome() {
   const { language } = useLanguage();
   const [reportGroupBy, setReportGroupBy] = useState<string>("category");
+  
+  const [reportsPage, setReportsPage] = useState(1);
+  const [reportsPerPage, setReportsPerPage] = useState(10);
+  const [reportsSortField, setReportsSortField] = useState<"group" | "count" | "amount">("amount");
+  const [reportsSortOrder, setReportsSortOrder] = useState<SortOrder>("desc");
+  
+  const [batchesPage, setBatchesPage] = useState(1);
+  const [batchesPerPage, setBatchesPerPage] = useState(10);
+  const [batchesSortField, setBatchesSortField] = useState<"number" | "date" | "amount" | "status">("date");
+  const [batchesSortOrder, setBatchesSortOrder] = useState<SortOrder>("desc");
+  
+  const [configsPage, setConfigsPage] = useState(1);
+  const [configsPerPage, setConfigsPerPage] = useState(10);
 
   const { data: reports, isLoading: reportsLoading } = useQuery<IncomeReport[]>({
     queryKey: ["/api/income/reports", { groupBy: reportGroupBy }],
   });
+
+  useEffect(() => {
+    setReportsPage(1);
+  }, [reportGroupBy]);
 
   const { data: batches, isLoading: batchesLoading } = useQuery<PayoutBatch[]>({
     queryKey: ["/api/income/batches"],
@@ -89,6 +108,120 @@ export default function AdminIncome() {
   const totalRevenue = reports?.reduce((sum, r) => sum + r.totalAmount, 0) || 0;
   const totalTransactions = reports?.reduce((sum, r) => sum + r.transactionCount, 0) || 0;
   const pendingApprovals = batches?.filter(b => b.status === "draft").length || 0;
+
+  const sortedReports = useMemo(() => {
+    if (!reports) return [];
+    return [...reports].sort((a, b) => {
+      let comparison = 0;
+      switch (reportsSortField) {
+        case "group":
+          comparison = (a.category || a.beneficiaryId || a.propertyId || a.date || "").localeCompare(
+            b.category || b.beneficiaryId || b.propertyId || b.date || ""
+          );
+          break;
+        case "count":
+          comparison = a.transactionCount - b.transactionCount;
+          break;
+        case "amount":
+          comparison = a.totalAmount - b.totalAmount;
+          break;
+      }
+      return reportsSortOrder === "asc" ? comparison : -comparison;
+    });
+  }, [reports, reportsSortField, reportsSortOrder]);
+
+  const reportsTotalPages = Math.max(1, Math.ceil(sortedReports.length / reportsPerPage));
+  const safeReportsPage = Math.min(reportsPage, reportsTotalPages);
+  const paginatedReports = useMemo(() => {
+    const start = (safeReportsPage - 1) * reportsPerPage;
+    return sortedReports.slice(start, start + reportsPerPage);
+  }, [sortedReports, safeReportsPage, reportsPerPage]);
+
+  useEffect(() => {
+    if (reportsPage > reportsTotalPages && reportsTotalPages > 0) {
+      setReportsPage(reportsTotalPages);
+    }
+  }, [reportsTotalPages, reportsPage]);
+
+  const sortedBatches = useMemo(() => {
+    if (!batches) return [];
+    return [...batches].sort((a, b) => {
+      let comparison = 0;
+      switch (batchesSortField) {
+        case "number":
+          comparison = a.batchNumber.localeCompare(b.batchNumber);
+          break;
+        case "date":
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case "amount":
+          comparison = a.totalAmount - b.totalAmount;
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+      }
+      return batchesSortOrder === "asc" ? comparison : -comparison;
+    });
+  }, [batches, batchesSortField, batchesSortOrder]);
+
+  const batchesTotalPages = Math.max(1, Math.ceil(sortedBatches.length / batchesPerPage));
+  const safeBatchesPage = Math.min(batchesPage, batchesTotalPages);
+  const paginatedBatches = useMemo(() => {
+    const start = (safeBatchesPage - 1) * batchesPerPage;
+    return sortedBatches.slice(start, start + batchesPerPage);
+  }, [sortedBatches, safeBatchesPage, batchesPerPage]);
+
+  useEffect(() => {
+    if (batchesPage > batchesTotalPages && batchesTotalPages > 0) {
+      setBatchesPage(batchesTotalPages);
+    }
+  }, [batchesTotalPages, batchesPage]);
+
+  const configsTotalPages = Math.max(1, Math.ceil((commissionConfigs?.length || 0) / configsPerPage));
+  const safeConfigsPage = Math.min(configsPage, configsTotalPages);
+
+  useEffect(() => {
+    if (configsPage > configsTotalPages && configsTotalPages > 0) {
+      setConfigsPage(configsTotalPages);
+    }
+  }, [configsTotalPages, configsPage]);
+
+  const paginatedConfigs = useMemo(() => {
+    if (!commissionConfigs) return [];
+    const start = (safeConfigsPage - 1) * configsPerPage;
+    return commissionConfigs.slice(start, start + configsPerPage);
+  }, [commissionConfigs, safeConfigsPage, configsPerPage]);
+
+  const handleReportsSort = (field: "group" | "count" | "amount") => {
+    if (reportsSortField === field) {
+      setReportsSortOrder(reportsSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setReportsSortField(field);
+      setReportsSortOrder("asc");
+    }
+    setReportsPage(1);
+  };
+
+  const handleBatchesSort = (field: "number" | "date" | "amount" | "status") => {
+    if (batchesSortField === field) {
+      setBatchesSortOrder(batchesSortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setBatchesSortField(field);
+      setBatchesSortOrder("asc");
+    }
+    setBatchesPage(1);
+  };
+
+  const ReportsSortIcon = ({ field }: { field: "group" | "count" | "amount" }) => {
+    if (reportsSortField !== field) return <ChevronsUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return reportsSortOrder === "asc" ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />;
+  };
+
+  const BatchesSortIcon = ({ field }: { field: "number" | "date" | "amount" | "status" }) => {
+    if (batchesSortField !== field) return <ChevronsUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return batchesSortOrder === "asc" ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />;
+  };
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -231,33 +364,109 @@ export default function AdminIncome() {
                     : "No report data available"}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        {reportGroupBy === "category" && (language === "es" ? "Categoría" : "Category")}
-                        {reportGroupBy === "beneficiary" && (language === "es" ? "Beneficiario" : "Beneficiary")}
-                        {reportGroupBy === "property" && (language === "es" ? "Propiedad" : "Property")}
-                        {["day", "week", "month"].includes(reportGroupBy) && (language === "es" ? "Periodo" : "Period")}
-                      </TableHead>
-                      <TableHead>{language === "es" ? "Transacciones" : "Transactions"}</TableHead>
-                      <TableHead>{language === "es" ? "Monto Total" : "Total Amount"}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reports.map((report, index) => (
-                      <TableRow key={index} data-testid={`row-report-${index}`}>
-                        <TableCell className="font-medium">
-                          {report.category || report.beneficiaryId || report.propertyId || report.date || "-"}
-                        </TableCell>
-                        <TableCell>{report.transactionCount}</TableCell>
-                        <TableCell className="font-bold">
-                          ${report.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                        </TableCell>
+                <div className="space-y-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead 
+                          className="cursor-pointer select-none"
+                          onClick={() => handleReportsSort("group")}
+                          data-testid="th-reports-group"
+                        >
+                          <div className="flex items-center">
+                            {reportGroupBy === "category" && (language === "es" ? "Categoría" : "Category")}
+                            {reportGroupBy === "beneficiary" && (language === "es" ? "Beneficiario" : "Beneficiary")}
+                            {reportGroupBy === "property" && (language === "es" ? "Propiedad" : "Property")}
+                            {["day", "week", "month"].includes(reportGroupBy) && (language === "es" ? "Periodo" : "Period")}
+                            <ReportsSortIcon field="group" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer select-none"
+                          onClick={() => handleReportsSort("count")}
+                          data-testid="th-reports-count"
+                        >
+                          <div className="flex items-center">
+                            {language === "es" ? "Transacciones" : "Transactions"}
+                            <ReportsSortIcon field="count" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer select-none"
+                          onClick={() => handleReportsSort("amount")}
+                          data-testid="th-reports-amount"
+                        >
+                          <div className="flex items-center">
+                            {language === "es" ? "Monto Total" : "Total Amount"}
+                            <ReportsSortIcon field="amount" />
+                          </div>
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedReports.map((report, index) => (
+                        <TableRow key={index} data-testid={`row-report-${index}`}>
+                          <TableCell className="font-medium">
+                            {report.category || report.beneficiaryId || report.propertyId || report.date || "-"}
+                          </TableCell>
+                          <TableCell>{report.transactionCount}</TableCell>
+                          <TableCell className="font-bold">
+                            ${report.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground" data-testid="text-reports-pagination-info">
+                        {language === "es" ? "Mostrando" : "Showing"} {Math.min((safeReportsPage - 1) * reportsPerPage + 1, sortedReports.length)}-{Math.min(safeReportsPage * reportsPerPage, sortedReports.length)} {language === "es" ? "de" : "of"} {sortedReports.length}
+                      </span>
+                      <Select
+                        value={reportsPerPage.toString()}
+                        onValueChange={(val) => {
+                          setReportsPerPage(Number(val));
+                          setReportsPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-[80px]" data-testid="select-reports-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setReportsPage(p => Math.max(1, p - 1))}
+                        disabled={safeReportsPage <= 1}
+                        data-testid="button-reports-prev-page"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        {language === "es" ? "Anterior" : "Previous"}
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {safeReportsPage} / {reportsTotalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setReportsPage(p => Math.min(reportsTotalPages, p + 1))}
+                        disabled={safeReportsPage >= reportsTotalPages}
+                        data-testid="button-reports-next-page"
+                      >
+                        {language === "es" ? "Siguiente" : "Next"}
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -287,54 +496,141 @@ export default function AdminIncome() {
                     : "No payout batches registered"}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{language === "es" ? "Número" : "Number"}</TableHead>
-                      <TableHead>{language === "es" ? "Fecha" : "Date"}</TableHead>
-                      <TableHead>{language === "es" ? "Monto Total" : "Total Amount"}</TableHead>
-                      <TableHead>{language === "es" ? "Estado" : "Status"}</TableHead>
-                      <TableHead>{language === "es" ? "Acciones" : "Actions"}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {batches.map((batch) => (
-                      <TableRow key={batch.id} data-testid={`row-batch-${batch.id}`}>
-                        <TableCell className="font-medium">{batch.batchNumber}</TableCell>
-                        <TableCell>
-                          {format(new Date(batch.createdAt), "PP", {
-                            locale: language === "es" ? es : undefined,
-                          })}
-                        </TableCell>
-                        <TableCell className="font-bold">
-                          ${batch.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[batch.status]} data-testid={`badge-status-${batch.id}`}>
-                            {statusLabels[batch.status]?.[language] || batch.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {batch.status === "draft" && (
-                            <div className="flex gap-2">
-                              <Button size="sm" data-testid={`button-approve-${batch.id}`}>
-                                {language === "es" ? "Aprobar" : "Approve"}
-                              </Button>
-                              <Button size="sm" variant="destructive" data-testid={`button-reject-${batch.id}`}>
-                                {language === "es" ? "Rechazar" : "Reject"}
-                              </Button>
-                            </div>
-                          )}
-                          {batch.status === "approved" && (
-                            <Button size="sm" variant="outline" data-testid={`button-mark-paid-${batch.id}`}>
-                              {language === "es" ? "Marcar Pagado" : "Mark Paid"}
-                            </Button>
-                          )}
-                        </TableCell>
+                <div className="space-y-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead 
+                          className="cursor-pointer select-none"
+                          onClick={() => handleBatchesSort("number")}
+                          data-testid="th-batches-number"
+                        >
+                          <div className="flex items-center">
+                            {language === "es" ? "Número" : "Number"}
+                            <BatchesSortIcon field="number" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer select-none"
+                          onClick={() => handleBatchesSort("date")}
+                          data-testid="th-batches-date"
+                        >
+                          <div className="flex items-center">
+                            {language === "es" ? "Fecha" : "Date"}
+                            <BatchesSortIcon field="date" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer select-none"
+                          onClick={() => handleBatchesSort("amount")}
+                          data-testid="th-batches-amount"
+                        >
+                          <div className="flex items-center">
+                            {language === "es" ? "Monto Total" : "Total Amount"}
+                            <BatchesSortIcon field="amount" />
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer select-none"
+                          onClick={() => handleBatchesSort("status")}
+                          data-testid="th-batches-status"
+                        >
+                          <div className="flex items-center">
+                            {language === "es" ? "Estado" : "Status"}
+                            <BatchesSortIcon field="status" />
+                          </div>
+                        </TableHead>
+                        <TableHead>{language === "es" ? "Acciones" : "Actions"}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedBatches.map((batch) => (
+                        <TableRow key={batch.id} data-testid={`row-batch-${batch.id}`}>
+                          <TableCell className="font-medium">{batch.batchNumber}</TableCell>
+                          <TableCell>
+                            {format(new Date(batch.createdAt), "PP", {
+                              locale: language === "es" ? es : undefined,
+                            })}
+                          </TableCell>
+                          <TableCell className="font-bold">
+                            ${batch.totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={statusColors[batch.status]} data-testid={`badge-status-${batch.id}`}>
+                              {statusLabels[batch.status]?.[language] || batch.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {batch.status === "draft" && (
+                              <div className="flex gap-2">
+                                <Button size="sm" data-testid={`button-approve-${batch.id}`}>
+                                  {language === "es" ? "Aprobar" : "Approve"}
+                                </Button>
+                                <Button size="sm" variant="destructive" data-testid={`button-reject-${batch.id}`}>
+                                  {language === "es" ? "Rechazar" : "Reject"}
+                                </Button>
+                              </div>
+                            )}
+                            {batch.status === "approved" && (
+                              <Button size="sm" variant="outline" data-testid={`button-mark-paid-${batch.id}`}>
+                                {language === "es" ? "Marcar Pagado" : "Mark Paid"}
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground" data-testid="text-batches-pagination-info">
+                        {language === "es" ? "Mostrando" : "Showing"} {Math.min((safeBatchesPage - 1) * batchesPerPage + 1, sortedBatches.length)}-{Math.min(safeBatchesPage * batchesPerPage, sortedBatches.length)} {language === "es" ? "de" : "of"} {sortedBatches.length}
+                      </span>
+                      <Select
+                        value={batchesPerPage.toString()}
+                        onValueChange={(val) => {
+                          setBatchesPerPage(Number(val));
+                          setBatchesPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-[80px]" data-testid="select-batches-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setBatchesPage(p => Math.max(1, p - 1))}
+                        disabled={safeBatchesPage <= 1}
+                        data-testid="button-batches-prev-page"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        {language === "es" ? "Anterior" : "Previous"}
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {safeBatchesPage} / {batchesTotalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setBatchesPage(p => Math.min(batchesTotalPages, p + 1))}
+                        disabled={safeBatchesPage >= batchesTotalPages}
+                        data-testid="button-batches-next-page"
+                      >
+                        {language === "es" ? "Siguiente" : "Next"}
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -369,36 +665,87 @@ export default function AdminIncome() {
                     : "No commission configurations"}
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{language === "es" ? "Tipo" : "Type"}</TableHead>
-                      <TableHead>ID</TableHead>
-                      <TableHead>{language === "es" ? "Porcentaje" : "Percentage"}</TableHead>
-                      <TableHead>{language === "es" ? "Notas" : "Notes"}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commissionConfigs.map((config) => (
-                      <TableRow key={config.id} data-testid={`row-config-${config.id}`}>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {config.propertyId ? (language === "es" ? "Propiedad" : "Property") : (language === "es" ? "Usuario" : "User")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {config.propertyId || config.userId}
-                        </TableCell>
-                        <TableCell className="font-bold">
-                          {config.commissionPercentage}%
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {config.notes || "-"}
-                        </TableCell>
+                <div className="space-y-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{language === "es" ? "Tipo" : "Type"}</TableHead>
+                        <TableHead>ID</TableHead>
+                        <TableHead>{language === "es" ? "Porcentaje" : "Percentage"}</TableHead>
+                        <TableHead>{language === "es" ? "Notas" : "Notes"}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedConfigs.map((config) => (
+                        <TableRow key={config.id} data-testid={`row-config-${config.id}`}>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {config.propertyId ? (language === "es" ? "Propiedad" : "Property") : (language === "es" ? "Usuario" : "User")}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {config.propertyId || config.userId}
+                          </TableCell>
+                          <TableCell className="font-bold">
+                            {config.commissionPercentage}%
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {config.notes || "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground" data-testid="text-configs-pagination-info">
+                        {language === "es" ? "Mostrando" : "Showing"} {Math.min((safeConfigsPage - 1) * configsPerPage + 1, commissionConfigs.length)}-{Math.min(safeConfigsPage * configsPerPage, commissionConfigs.length)} {language === "es" ? "de" : "of"} {commissionConfigs.length}
+                      </span>
+                      <Select
+                        value={configsPerPage.toString()}
+                        onValueChange={(val) => {
+                          setConfigsPerPage(Number(val));
+                          setConfigsPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-[80px]" data-testid="select-configs-per-page">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setConfigsPage(p => Math.max(1, p - 1))}
+                        disabled={safeConfigsPage <= 1}
+                        data-testid="button-configs-prev-page"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        {language === "es" ? "Anterior" : "Previous"}
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {safeConfigsPage} / {configsTotalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setConfigsPage(p => Math.min(configsTotalPages, p + 1))}
+                        disabled={safeConfigsPage >= configsTotalPages}
+                        data-testid="button-configs-next-page"
+                      >
+                        {language === "es" ? "Siguiente" : "Next"}
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
