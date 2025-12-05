@@ -765,7 +765,41 @@ export default function InteractiveMap() {
     </div>
   );
 
-  const MapSkeleton = () => (<div className="w-full h-full bg-muted animate-pulse flex items-center justify-center"><div className="text-center space-y-4"><img src={logoIcon} alt="HomesApp" className="h-16 w-auto mx-auto opacity-50" /><div className="flex items-center justify-center gap-2"><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div><div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div></div><p className="text-sm text-muted-foreground">{language === "es" ? "Cargando mapa..." : "Loading map..."}</p></div></div>);
+  const MapSkeleton = () => {
+    if (loadError) {
+      console.error("Google Maps load error:", loadError);
+      return (
+        <div className="w-full h-full bg-muted flex items-center justify-center">
+          <div className="text-center space-y-4 p-8">
+            <img src={logoIcon} alt="HomesApp" className="h-16 w-auto mx-auto opacity-50" />
+            <p className="text-sm text-destructive font-medium">
+              {language === "es" ? "Error al cargar el mapa" : "Error loading map"}
+            </p>
+            <p className="text-xs text-muted-foreground max-w-md">
+              {loadError.message || (language === "es" ? "Hubo un problema al cargar Google Maps. Por favor, recargue la página." : "There was a problem loading Google Maps. Please reload the page.")}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+              {language === "es" ? "Recargar" : "Reload"}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="w-full h-full bg-muted animate-pulse flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <img src={logoIcon} alt="HomesApp" className="h-16 w-auto mx-auto opacity-50" />
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+          <p className="text-sm text-muted-foreground">{language === "es" ? "Cargando mapa..." : "Loading map..."}</p>
+        </div>
+      </div>
+    );
+  };
 
   const MapUserMenu = () => {
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();

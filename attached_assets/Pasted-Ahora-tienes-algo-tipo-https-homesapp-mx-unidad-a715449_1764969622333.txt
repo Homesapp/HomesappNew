@@ -1,0 +1,319 @@
+Ahora tienes algo tipo:
+
+https://homesapp.mx/unidad/a715449b-6c8f-4120-a8b0-216ac2e7902b
+
+La idea es mantener el ID interno (para que nada se rompa) pero mostrar algo limpio y entendible para humanos y SEO.
+
+Yo lo haría así:
+
+a) Estructura base
+
+Para renta:
+
+https://homesapp.mx/{agencia_slug}/renta/{tipo_slug}/{zona_o_condo_slug}/{unidad_slug}-{shortid}
+
+
+Para venta:
+
+https://homesapp.mx/{agencia_slug}/venta/{tipo_slug}/{zona_o_condo_slug}/{unidad_slug}-{shortid}
+
+
+Donde:
+
+agencia_slug → tulum-rental-homes, seaside-mahahual, etc.
+
+tipo_slug → departamento, casa, estudio, local, oficina, terreno, edificio, etc.
+
+zona_o_condo_slug → la-veleta, aldea-zama, zona-nove, xiimbal, etc.
+
+unidad_slug → zona-nove-1, xiimbal-35-sin-muebles, casa-imox-02a.
+
+shortid → últimos 6–8 caracteres del UUID para asegurar unicidad, por ejemplo a715449b.
+
+Así, tus ejemplos quedarían:
+
+Zona Nove - 1 (renta, departamento)
+https://homesapp.mx/tulum-rental-homes/renta/departamento/la-veleta/zona-nove-1-a715449b
+
+Xiimbal - 35 (sin muebles, renta, departamento)
+https://homesapp.mx/tulum-rental-homes/renta/departamento/la-veleta/xiimbal-35-sin-muebles-d64b0813
+
+Casa Imox - 02A (renta, casa)
+https://homesapp.mx/tulum-rental-homes/renta/casa/la-veleta/casa-imox-02a-23bd6435
+
+Casas fuera de condo:
+https://homesapp.mx/{agencia_slug}/{renta|venta}/casa/{zona_slug}/{nombre_casa_slug}-{shortid}
+Ej: .../venta/casa/la-veleta/casa-imox-02a-23bd6435
+
+Si en el futuro quieres algo aún más corto para WhatsApp, puedes además crear un short link:
+
+https://homesapp.mx/p/a715449b
+
+
+que haga redirect a la URL bonita de arriba.
+
+2) Slugs: cómo generarlos automáticamente
+
+Regla general:
+
+Pasar a minúsculas.
+
+Quitar acentos y caracteres raros.
+
+Reemplazar espacios y símbolos por -.
+
+Limitar longitud (p.ej. 40 caracteres).
+
+Añadir sufijo incremental si hay duplicados (ej. zona-nove-1-2).
+
+Ejemplos:
+
+"Tulum Rental Homes" → tulum-rental-homes
+
+"La Veleta" → la-veleta
+
+"Zona Nove - 1" → zona-nove-1
+
+"Xiimbal - 35 (sin muebles)" → xiimbal-35-sin-muebles
+
+"Casa Imox 02A" → casa-imox-02a
+
+3) Tipos de unidad y operaciones (renta/venta)
+
+Para soportar renta/venta, terrenos, locales, etc., en el modelo de datos yo agregaría:
+
+Campos nuevos en “propiedad / unidad”
+
+operation_type (enum):
+
+rent_long (renta largo plazo)
+
+rent_vacation (vacacional)
+
+sale (venta)
+
+property_type (enum):
+
+departamento
+
+casa
+
+estudio
+
+local_comercial
+
+oficina
+
+edificio
+
+terreno
+
+bodega
+
+otros
+
+agency_id + agency_slug
+
+development_id + development_slug (para condos/proyectos)
+
+zone_slug (la veleta, centro, region-15, etc.)
+
+property_slug / unit_slug
+
+shortid (derivado del UUID, para la URL)
+
+Luego, para cada tipo, activas ciertos atributos específicos (campos condicionales):
+
+Residencial (departamento, casa, estudio)
+
+Recámaras
+
+Baños
+
+Amueblado: amueblado | semi | sin_muebles
+
+m² interiores
+
+m² terraza
+
+Estacionamientos
+
+¿Pet friendly?
+
+Nivel / piso
+
+Amenidades (piscina, gym, etc.)
+
+Terrenos
+
+m² de terreno
+
+Frente y fondo
+
+Uso de suelo
+
+Servicios (agua, luz, drenaje)
+
+Tipo de calle (terracería, pavimentada)
+
+Régimen (ejidal, privado, etc.)
+
+Locales / Oficinas / Comerciales
+
+m²
+
+Frente de fachada
+
+Altura
+
+Permisos/licencias
+
+Tipo de giro permitido
+
+Estacionamiento clientes
+
+Edificios
+de unidades
+
+m² construidos totales
+
+m² terreno
+
+Ocupación actual (%)
+
+Rent roll (si quieres ir pro 😏)
+
+4) Cambios en el admin de HomesApp (propiedades)
+
+La idea es ordenarte la cabeza al cargar y gestionar listings, no sólo cambiar la URL.
+
+A) Agrupar secciones en el sidebar
+
+Algo así:
+
+Propiedades
+
+🏠 Residencial en renta
+
+🏡 Residencial en venta
+
+🏢 Locales y oficinas
+
+🏬 Comerciales y edificios
+
+🌱 Terrenos
+
+📦 Bodegas / Otros
+
+Cada vista es simplemente un filtro sobre property_type + operation_type.
+
+B) Filtros rápidos en cada listado
+
+En la tabla de propiedades:
+
+Agencia
+
+Zona
+
+Condo / desarrollo
+
+Tipo (casa, dpto, terreno, local…)
+
+Operación (renta/venta)
+
+Rango de precio
+
+Estado: activa / pausada / reservada / rentada / vendida
+
+C) Formulario de creación/edición de propiedad
+
+Paso 1: Básicos
+
+Agencia (obligatorio)
+
+Operación: renta / venta
+
+Tipo de propiedad
+
+Zona
+
+Condo / proyecto (opcional)
+
+Nombre comercial de la unidad (lo que verá el cliente: “Zona Nove - 1”)
+
+Paso 2: Detalles según tipo
+
+Si residencial: recámaras, baños, m², amueblado, amenities…
+
+Si terreno: m², frente, fondo, uso de suelo, servicios…
+
+Si local: m², frente, giro, permisos, etc.
+
+Paso 3: Precio y condiciones
+
+Precio mensual o de venta
+
+Moneda
+
+Depósito
+
+Mínimo plazo (en caso de renta)
+
+Si permite subarrendar (para tu modelo TRH)
+
+Paso 4: Media y enlaces
+
+Fotos, video, tour 360
+
+URL pública (readonly) → mostrando ya la friendly URL
+
+Botón “Copiar link de la unidad”
+
+Cuando guardas, el backend genera/actualiza:
+
+property_slug
+
+zone_slug
+
+development_slug
+
+URL pública final.
+
+5) Mensaje del vendedor con nuevas URLs
+
+Tomando tu texto inicial, quedaría algo así:
+
+Hola Maximiliano! Encontré estas propiedades perfectas para ti:
+
+1. Zona Nove - 1
+   Ubicación: La Veleta
+   2 rec. | $20,000 MXN/mes
+   Ver: https://homesapp.mx/tulum-rental-homes/renta/departamento/la-veleta/zona-nove-1-a715449b
+
+2. Xiimbal - 35 (sin muebles)
+   Ubicación: La Veleta
+   2 rec. | $20,500 MXN/mes
+   Ver: https://homesapp.mx/tulum-rental-homes/renta/departamento/la-veleta/xiimbal-35-sin-muebles-d64b0813
+
+3. Casa Imox - 02A
+   Ubicación: La Veleta
+   1 rec. | $17,500 MXN/mes
+   Ver: https://homesapp.mx/tulum-rental-homes/renta/casa/la-veleta/casa-imox-02a-23bd6435
+
+¿Cuál te gustaría visitar primero?
+
+
+En el front de HomesApp, cada agencia vería y copiaría su URL con su propio agency_slug.
+
+6) Tema técnico importante: migración y compatibilidad
+
+Para no romper nada:
+
+Mantén la ruta vieja:
+
+GET /unidad/{uuid} → sigue existiendo.
+
+Pero que haga un 301 redirect a la nueva URL friendly si ya existe slug.
+
+Desde el admin y los bots, siempre copia la URL nueva.
+Las viejas sólo se mantienen por compatibilidad con enlaces antiguos.
