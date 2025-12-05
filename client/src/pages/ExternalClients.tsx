@@ -190,6 +190,13 @@ export default function ExternalClients() {
   const [createLeadStep, setCreateLeadStep] = useState<1 | 2>(1); // 2-step wizard: 1=Contact, 2=Preferences
   const [isValidatingStep, setIsValidatingStep] = useState(false); // Validation loading state
   const [isEditLeadDialogOpen, setIsEditLeadDialogOpen] = useState(false);
+  
+  // Edit choice flow states - for choosing between Edit Lead or Edit Card
+  const [isEditChoiceDialogOpen, setIsEditChoiceDialogOpen] = useState(false);
+  const [isSelectCardDialogOpen, setIsSelectCardDialogOpen] = useState(false);
+  const [isEditCardDialogOpen, setIsEditCardDialogOpen] = useState(false);
+  const [selectedCardForEdit, setSelectedCardForEdit] = useState<any>(null);
+  const [leadCardsForEdit, setLeadCardsForEdit] = useState<any[]>([]);
   const [isDeleteLeadDialogOpen, setIsDeleteLeadDialogOpen] = useState(false);
   const [isConvertToLeadDialogOpen, setIsConvertToLeadDialogOpen] = useState(false);
   const [isLeadDetailOpen, setIsLeadDetailOpen] = useState(false);
@@ -995,6 +1002,90 @@ export default function ExternalClients() {
       });
     },
   });
+
+  // Update presentation card mutation
+  const updateCardMutation = useMutation({
+    mutationFn: async ({ cardId, data }: { cardId: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/external/presentation-cards/${cardId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external/presentation-cards"] });
+      setIsEditCardDialogOpen(false);
+      setSelectedCardForEdit(null);
+      toast({
+        title: language === "es" ? "Tarjeta actualizada" : "Card updated",
+        description: language === "es" 
+          ? "La tarjeta de presentación ha sido actualizada."
+          : "The presentation card has been updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: language === "es" ? "Error" : "Error",
+        description: error.message || (language === "es" 
+          ? "No se pudo actualizar la tarjeta."
+          : "Failed to update card."),
+      });
+    },
+  });
+
+  // Helper function to open edit choice dialog
+  const handleOpenEditChoice = async (lead: ExternalLead) => {
+    setSelectedLead(lead);
+    // Fetch all presentation cards for this lead
+    try {
+      const res = await fetch(`/api/external/presentation-cards/lead/${lead.id}`, { credentials: 'include' });
+      if (res.ok) {
+        const cards = await res.json();
+        setLeadCardsForEdit(cards || []);
+      } else {
+        setLeadCardsForEdit([]);
+      }
+    } catch {
+      setLeadCardsForEdit([]);
+    }
+    setIsEditChoiceDialogOpen(true);
+  };
+
+  // Helper to handle edit choice selection
+  const handleEditChoiceSelect = (choice: "lead" | "card") => {
+    setIsEditChoiceDialogOpen(false);
+    if (choice === "lead") {
+      // Open lead edit dialog
+      if (selectedLead) {
+        editLeadForm.reset(selectedLead);
+        setEditCondominiumId(selectedLead.interestedCondominiumId || "");
+        setSelectedEditCharacteristics((selectedLead as any).desiredCharacteristics || []);
+        setSelectedEditAmenities((selectedLead as any).desiredAmenities || []);
+        setSelectedEditPropertyTypes(selectedLead.desiredUnitType ? selectedLead.desiredUnitType.split(", ").filter(Boolean) : []);
+        setSelectedEditZones(selectedLead.desiredNeighborhood ? selectedLead.desiredNeighborhood.split(", ").filter(Boolean) : []);
+        hydrateEditPropertySelections(selectedLead);
+        setEditPetQuantity((selectedLead as any).petQuantity || 1);
+        setIsEditLeadDialogOpen(true);
+      }
+    } else {
+      // Card edit flow
+      if (leadCardsForEdit.length === 1) {
+        // Only one card, edit directly
+        setSelectedCardForEdit(leadCardsForEdit[0]);
+        setIsEditCardDialogOpen(true);
+      } else if (leadCardsForEdit.length > 1) {
+        // Multiple cards, show selection dialog
+        setIsSelectCardDialogOpen(true);
+      } else {
+        // No cards - notify user
+        toast({
+          title: language === "es" ? "Sin tarjetas" : "No cards",
+          description: language === "es" 
+            ? "Este lead no tiene tarjetas de presentación."
+            : "This lead has no presentation cards.",
+        });
+      }
+    }
+  };
 
   // Convert lead to client mutation
   const convertLeadToClientMutation = useMutation({
