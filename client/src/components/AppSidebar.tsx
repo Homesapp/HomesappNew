@@ -333,7 +333,6 @@ export function AppSidebar({ userRole, userId }: AppSidebarProps) {
     { titleKey: "sidebar.sellerLeads", url: "/external/clients", icon: Users, roles: ["external_agency_seller"] },
     { titleKey: "sidebar.sellerCalendar", url: "/external/seller-calendar", icon: Calendar, roles: ["external_agency_seller"] },
     { titleKey: "sidebar.sellerCatalog", url: "/external/seller-catalog", icon: Home, roles: ["external_agency_seller"] },
-    { titleKey: "sidebar.sellerTemplates", url: "/external/seller-templates", icon: MessageSquare, roles: ["external_agency_seller"] },
     { titleKey: "sidebar.sellerSocialMedia", url: "/external/seller-social-media", icon: Share2, roles: ["external_agency_seller"] },
     { titleKey: "sidebar.sellerReports", url: "/external/seller-reports", icon: BarChart3, roles: ["external_agency_seller"] },
     { titleKey: "sidebar.sellerCommissions", url: "/external/seller-commissions", icon: DollarSign, roles: ["external_agency_seller"] },
