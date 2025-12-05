@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { HelpPanel } from "@/components/OnboardingSystem";
 
 const formSchema = insertExternalAgencySchema.extend({});
 
@@ -557,15 +558,18 @@ export default function ExternalAgencyConfig() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">
-          {language === "es" ? "Configuración de Agencia" : "Agency Configuration"}
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          {language === "es" 
-            ? "Administra la información y notificaciones de tu agencia"
-            : "Manage your agency information and notifications"}
-        </p>
+      <div className="flex items-center gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {language === "es" ? "Configuración de Agencia" : "Agency Configuration"}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            {language === "es" 
+              ? "Administra la información y notificaciones de tu agencia"
+              : "Manage your agency information and notifications"}
+          </p>
+        </div>
+        <HelpPanel helpKey="agency-settings" />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

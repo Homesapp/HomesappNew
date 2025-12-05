@@ -80,6 +80,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useMemo } from "react";
+import { HelpPanel } from "@/components/OnboardingSystem";
 
 const LEAD_STATUSES = [
   { 
@@ -574,11 +575,14 @@ export default function LeadsKanban() {
     <div className="container mx-auto py-6 space-y-6">
       {/* Header with metrics */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">CRM - Pipeline de Leads</h1>
-          <p className="text-muted-foreground mt-1">
-            Gestiona tu flujo de prospectos y rentas
-          </p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-3xl font-bold">CRM - Pipeline de Leads</h1>
+            <p className="text-muted-foreground mt-1">
+              Gestiona tu flujo de prospectos y rentas
+            </p>
+          </div>
+          <HelpPanel helpKey="seller-leads" />
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
