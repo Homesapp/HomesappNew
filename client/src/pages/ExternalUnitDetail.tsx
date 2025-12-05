@@ -37,6 +37,7 @@ import { insertExternalUnitOwnerSchema, insertExternalUnitAccessControlSchema, i
 import { formatFloor, floorOptions } from "@/lib/unitHelpers";
 import { UnitImageGallery } from "@/components/external/UnitImageGallery";
 import { SectionMediaManager } from "@/components/external/SectionMediaManager";
+import { PhotoSlotManager } from "@/components/external/PhotoSlotManager";
 import { UnitAmenitiesSelector } from "@/components/external/UnitAmenitiesSelector";
 import { PropertyPreviewDialog } from "@/components/external/PropertyPreviewDialog";
 
@@ -1191,14 +1192,18 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
       {/* Image Gallery - Full Width Hero Section */}
       <div className="space-y-6">
         <Tabs defaultValue="gallery" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
             <TabsTrigger value="gallery" className="flex items-center gap-1" data-testid="tab-gallery">
               <Image className="h-4 w-4" />
               {language === "es" ? "Galería" : "Gallery"}
             </TabsTrigger>
-            <TabsTrigger value="sections" className="flex items-center gap-1" data-testid="tab-sections">
+            <TabsTrigger value="slots" className="flex items-center gap-1" data-testid="tab-slots">
               <Upload className="h-4 w-4" />
-              {language === "es" ? "Organizar por Sección" : "Organize by Section"}
+              {language === "es" ? "Principal/Secundarias" : "Primary/Secondary"}
+            </TabsTrigger>
+            <TabsTrigger value="sections" className="flex items-center gap-1" data-testid="tab-sections">
+              <Users className="h-4 w-4" />
+              {language === "es" ? "Por Sección" : "By Section"}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="gallery" className="mt-4">
@@ -1215,6 +1220,16 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
                   unitNumber: unit.unitNumber,
                   ...data,
                 });
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="slots" className="mt-4">
+            <PhotoSlotManager
+              unitId={id}
+              language={language}
+              readOnly={!user}
+              onPhotoChange={() => {
+                queryClient.invalidateQueries({ queryKey: ['/api/external-units', id] });
               }}
             />
           </TabsContent>

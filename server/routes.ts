@@ -30786,7 +30786,11 @@ ${{precio}}/mes
       const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
       if (!hasAccess) return;
 
-      await storage.reorderPhotosInSlot(id, slot, photoIds);
+      const result = await storage.reorderPhotosInSlot(id, slot, photoIds);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.error || 'Failed to reorder photos' });
+      }
 
       res.json({ success: true, message: `${slot} photos reordered successfully` });
     } catch (error: any) {

@@ -41,6 +41,8 @@ Automated email lead import from external real estate platforms (Tokko Broker, E
 
 A photo editing system for property images includes canvas-based adjustments (brightness, contrast, etc.), preset real estate filters, and a watermark/logo overlay system with agency-level configuration. It also features a BulkPhotoEditor component and export functionality.
 
+A robust photo slot management system organizes property photos into Primary (max 5) and Secondary (max 20) slots with position tracking. Features include drag-and-drop reordering, slot transfer between primary/secondary, capacity indicators with progress bars, and quality version tracking for HD photo reimports. The system supports Google Drive photo migration with batching and resume capability, tracking migration status per photo (none, pending, processing, done, error).
+
 Reusable searchable dropdown components (`SearchableSelect`, `SearchableMultiSelect`) are implemented for improved UX in forms, supporting bilingual placeholders and messages.
 
 A deterministic public chatbot (FloatingChat) for lead capture uses a state machine architecture instead of LLM to guarantee data collection. Features include mandatory step-by-step data collection (operation type, name, phone, budget, zone, move date, bedrooms), quick reply buttons for common options, phone validation with retry logic (max 2 attempts), normalized phone storage for duplicate detection, bilingual support (Spanish), property/source context awareness (homepage vs property page), and optional appointment scheduling after lead capture with date/time selection.

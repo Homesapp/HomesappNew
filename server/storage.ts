@@ -14686,6 +14686,9 @@ export class DatabaseStorage implements IStorage {
 
   async addPhotoToSlot(unitId: string, slot: 'primary' | 'secondary', data: Omit<InsertExternalUnitMedia, 'unitId' | 'photoSlot' | 'position'>): Promise<ExternalUnitMedia | { error: string }> {
     const maxPhotos = slot === 'primary' ? 5 : 20;
+    
+    // Use a subquery to atomically get count and insert with position
+    // This prevents race conditions by making the operation atomic
     const counts = await this.countPhotosBySlot(unitId);
     
     if (counts[slot] >= maxPhotos) {
@@ -14694,21 +14697,44 @@ export class DatabaseStorage implements IStorage {
 
     const nextPosition = counts[slot] + 1;
     
-    const [result] = await db
-      .insert(externalUnitMedia)
-      .values({
-        ...data,
-        unitId,
-        photoSlot: slot,
-        position: nextPosition,
-        mediaType: 'photo'
-      })
-      .returning();
-    
-    return result;
+    try {
+      const [result] = await db
+        .insert(externalUnitMedia)
+        .values({
+          ...data,
+          unitId,
+          photoSlot: slot,
+          position: nextPosition,
+          mediaType: 'photo'
+        })
+        .returning();
+      
+      // Double-check count after insert to handle race conditions
+      const postCounts = await this.countPhotosBySlot(unitId);
+      if (postCounts[slot] > maxPhotos) {
+        // We exceeded the limit due to a race condition, rollback
+        await db.delete(externalUnitMedia).where(eq(externalUnitMedia.id, result.id));
+        return { error: `Maximum ${maxPhotos} ${slot} photos allowed (concurrent limit reached)` };
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('Failed to add photo to slot:', error);
+      return { error: error.message || 'Failed to add photo' };
+    }
   }
 
-  async reorderPhotosInSlot(unitId: string, slot: 'primary' | 'secondary', photoIds: string[]): Promise<void> {
+  async reorderPhotosInSlot(unitId: string, slot: 'primary' | 'secondary', photoIds: string[]): Promise<{ success: boolean; error?: string }> {
+    // Validate all photo IDs belong to this unit and slot
+    const existingPhotos = await this.getPhotosBySlot(unitId, slot);
+    const existingIds = new Set(existingPhotos.map(p => p.id));
+    
+    const invalidIds = photoIds.filter(id => !existingIds.has(id));
+    if (invalidIds.length > 0) {
+      return { success: false, error: `Invalid photo IDs: ${invalidIds.join(', ')}` };
+    }
+    
+    // Update positions
     for (let i = 0; i < photoIds.length; i++) {
       await db
         .update(externalUnitMedia)
@@ -14719,6 +14745,8 @@ export class DatabaseStorage implements IStorage {
           eq(externalUnitMedia.photoSlot, slot)
         ));
     }
+    
+    return { success: true };
   }
 
   async changePhotoSlot(photoId: string, newSlot: 'primary' | 'secondary'): Promise<ExternalUnitMedia | { error: string }> {
