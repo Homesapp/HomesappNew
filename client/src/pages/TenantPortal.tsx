@@ -31,6 +31,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Building,
   Building2,
   Phone,
   Mail,
@@ -201,6 +202,9 @@ export default function TenantPortal() {
   // Payment filters
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const [paymentYearFilter, setPaymentYearFilter] = useState<string>("all");
+  
+  // Document filters
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<string>("all");
 
   const receiptForm = useForm<z.infer<typeof receiptSchema>>({
     resolver: zodResolver(receiptSchema),
@@ -1301,8 +1305,51 @@ export default function TenantPortal() {
 
               {/* Portal 2.0 Documents - Grouped by Type - Always shown */}
               <Separator />
-              <div>
-                <h3 className="text-lg font-semibold mb-4">{t("tenant.sharedDocuments", "Shared Documents")}</h3>
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h3 className="text-lg font-semibold">{t("tenant.sharedDocuments", "Shared Documents")}</h3>
+                  
+                  {/* Document Filters */}
+                  {portalDocuments.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select 
+                        value={documentTypeFilter} 
+                        onValueChange={setDocumentTypeFilter}
+                      >
+                        <SelectTrigger 
+                          className="w-[160px] h-9" 
+                          data-testid="select-document-type"
+                        >
+                          <Filter className="h-4 w-4 mr-2" />
+                          <SelectValue placeholder={t("documents.filterByType", "Filter by type")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t("common.allTypes", "All Types")}</SelectItem>
+                          <SelectItem value="lease">{t("documents.typeLeaseContract", "Lease Contract")}</SelectItem>
+                          <SelectItem value="contract">{t("documents.typeContract", "Contract")}</SelectItem>
+                          <SelectItem value="invoice">{t("documents.typeInvoice", "Invoice")}</SelectItem>
+                          <SelectItem value="receipt">{t("documents.typeReceipt", "Receipt")}</SelectItem>
+                          <SelectItem value="maintenance">{t("documents.typeMaintenance", "Maintenance")}</SelectItem>
+                          <SelectItem value="legal">{t("documents.typeLegal", "Legal")}</SelectItem>
+                          <SelectItem value="other">{t("documents.typeOther", "Other")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      {documentTypeFilter !== "all" && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setDocumentTypeFilter("all")}
+                          data-testid="button-doc-filter-reset"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          {t("common.clear", "Clear")}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
                 {portalDocumentsLoading ? (
                   <div className="flex items-center justify-center p-8">
                     <Loader2 className="h-6 w-6 animate-spin" />
@@ -1316,15 +1363,23 @@ export default function TenantPortal() {
                   </Card>
                 ) : (
                   <div className="space-y-4">
-                    {/* Group documents by type */}
-                    {Object.entries(
-                      portalDocuments.reduce((acc, doc) => {
-                        const type = doc.documentType || 'other';
-                        if (!acc[type]) acc[type] = [];
-                        acc[type].push(doc);
-                        return acc;
-                      }, {} as Record<string, PortalDocument[]>)
-                    ).map(([type, docs]) => {
+                    {/* Group documents by type with filter applied */}
+                    {(() => {
+                      const filteredDocs = documentTypeFilter === "all" 
+                        ? portalDocuments 
+                        : portalDocuments.filter(doc => (doc.documentType || 'other') === documentTypeFilter);
+                      
+                      if (filteredDocs.length === 0) {
+                        return (
+                          <Card>
+                            <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                              <FileText className="h-10 w-10 text-muted-foreground mb-2" />
+                              <p className="text-muted-foreground">{t("documents.noMatchingDocuments", "No documents match your filter")}</p>
+                            </CardContent>
+                          </Card>
+                        );
+                      }
+                      
                       const documentTypeLabels: Record<string, string> = {
                         lease: t("documents.typeLeaseContract", "Lease Contract"),
                         contract: t("documents.typeContract", "Contract"),
@@ -1334,40 +1389,82 @@ export default function TenantPortal() {
                         legal: t("documents.typeLegal", "Legal Documents"),
                         other: t("documents.typeOther", "Other Documents"),
                       };
-                      const typeLabel = documentTypeLabels[type] || type.replace('_', ' ');
-                      return (
-                      <Card key={type}>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium">{typeLabel}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                          <div className="divide-y">
-                            {docs.map((doc) => (
-                              <a 
-                                key={doc.id} 
-                                href={doc.fileUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-4 p-4 hover-elevate"
-                                data-testid={`doc-row-${doc.id}`}
-                              >
-                                <FileText className="h-5 w-5 text-muted-foreground" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">{doc.fileName}</p>
-                                  {doc.description && (
-                                    <p className="text-sm text-muted-foreground truncate">{doc.description}</p>
-                                  )}
-                                  <p className="text-xs text-muted-foreground">
-                                    {format(new Date(doc.createdAt), "MMM d, yyyy")}
-                                  </p>
-                                </div>
-                              </a>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                      );
-                    })}
+                      
+                      return Object.entries(
+                        filteredDocs.reduce((acc, doc) => {
+                          const type = doc.documentType || 'other';
+                          if (!acc[type]) acc[type] = [];
+                          acc[type].push(doc);
+                          return acc;
+                        }, {} as Record<string, PortalDocument[]>)
+                      ).map(([type, docs]) => {
+                        const typeLabel = documentTypeLabels[type] || type.replace('_', ' ');
+                        return (
+                          <Card key={type}>
+                            <CardHeader className="pb-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <CardTitle className="text-sm font-medium">{typeLabel}</CardTitle>
+                                <Badge variant="secondary" className="text-xs">
+                                  {docs.length} {docs.length === 1 ? t("common.document", "doc") : t("common.documents", "docs")}
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                              <div className="divide-y">
+                                {docs.map((doc) => (
+                                  <a 
+                                    key={doc.id} 
+                                    href={doc.fileUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-4 p-4 hover-elevate"
+                                    data-testid={`doc-row-${doc.id}`}
+                                  >
+                                    <FileText className="h-5 w-5 text-muted-foreground" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-medium truncate">{doc.fileName}</p>
+                                        {/* Visibility chip */}
+                                        <Badge 
+                                          variant="outline" 
+                                          className="text-xs h-5 gap-1"
+                                        >
+                                          {doc.uploadedByRole === 'tenant' ? (
+                                            <>
+                                              <User className="h-3 w-3" />
+                                              {t("documents.uploadedByYou", "You")}
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Building className="h-3 w-3" />
+                                              {t("documents.uploadedByAgency", "Agency")}
+                                            </>
+                                          )}
+                                        </Badge>
+                                      </div>
+                                      {doc.description && (
+                                        <p className="text-sm text-muted-foreground truncate">{doc.description}</p>
+                                      )}
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                        <Calendar className="h-3 w-3" />
+                                        {format(new Date(doc.createdAt), "MMM d, yyyy", { locale: locale === "es" ? es : undefined })}
+                                        {doc.fileSize && (
+                                          <>
+                                            <span className="text-muted-foreground/50">|</span>
+                                            <span>{(doc.fileSize / 1024).toFixed(1)} KB</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <Download className="h-4 w-4 text-muted-foreground" />
+                                  </a>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>
