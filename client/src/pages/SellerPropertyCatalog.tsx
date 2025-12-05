@@ -67,6 +67,7 @@ import {
   Percent
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
+import { UnifiedPropertyCard, PropertyStatus } from "@/components/UnifiedPropertyCard";
 
 interface Unit {
   id: string;
@@ -2047,323 +2048,55 @@ export default function SellerPropertyCatalog() {
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {units.map((unit) => {
                 const matchInfo = selectedLead ? calculateMatchScore(unit, selectedLead) : { score: 0, reasons: [] };
+                const waterStatus = getServiceStatus(unit, 'water');
+                const internetStatus = getServiceStatus(unit, 'internet');
+                const hoaIncluded = Boolean(unit.condominiumId || unit.condominiumName);
+                
+                const unitStatus: PropertyStatus = unit.status === "active" ? "available" : "rented";
+                
                 return (
-                  <Card 
-                    key={unit.id} 
-                    className="group overflow-hidden flex flex-col bg-card hover-elevate transition-all duration-200" 
-                    data-testid={`card-property-${unit.id}`}
-                  >
-                    {/* Image Section - Clickable to open detail */}
-                    <div 
-                      className="relative aspect-[16/10] bg-muted overflow-hidden cursor-pointer"
-                      onClick={() => handleOpenDetail(unit)}
-                      data-testid={`button-open-detail-${unit.id}`}
-                    >
-                      {unit.images && unit.images.length > 0 ? (
-                        <img
-                          src={unit.images[0]}
-                          alt={unit.name}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/20">
-                          <Home className="h-12 w-12 text-muted-foreground/40" />
-                        </div>
-                      )}
-                      
-                      {/* Gradient Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                      
-                      {/* Top Left: Match Score with Tooltip */}
-                      {matchInfo.score > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className={`absolute left-2 top-2 flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-white cursor-help ${
-                              matchInfo.score >= 70 ? "bg-green-600" : 
-                              matchInfo.score >= 40 ? "bg-amber-500" : 
-                              "bg-orange-500"
-                            }`}
-                            data-testid={`badge-match-score-${unit.id}`}
-                            >
-                              <Target className="h-3 w-3" />
-                              {matchInfo.score}%
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-xs">
-                            <p className="font-semibold mb-1">Match con {selectedLead?.firstName}</p>
-                            {matchInfo.reasons.length > 0 ? (
-                              <ul className="text-xs space-y-0.5">
-                                {matchInfo.reasons.map((reason, i) => (
-                                  <li key={i} className="flex items-center gap-1">
-                                    <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                    {reason}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">Coincidencia basada en criterios generales</p>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                      
-                      {/* Top Right: Already Shared Badge */}
-                      {selectedLead && sharedUnitIds.has(unit.id) && (
-                        <Badge 
-                          className="absolute right-2 top-2 bg-blue-600 hover:bg-blue-700 text-white border-0 text-xs px-2 py-0.5"
-                          data-testid={`badge-shared-${unit.id}`}
-                        >
-                          <SendHorizontal className="h-3 w-3 mr-1" />
-                          Ya enviada
-                        </Badge>
-                      )}
-                      
-                      {/* Top Right: Image Count - Shifted down if shared badge is showing */}
-                      {unit.images && unit.images.length > 1 && (
-                        <div className={`absolute right-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-xs text-white ${
-                          selectedLead && sharedUnitIds.has(unit.id) ? 'top-10' : 'top-2'
-                        }`}>
-                          <Maximize2 className="h-3 w-3" />
-                          {unit.images.length}
-                        </div>
-                      )}
-                      
-                    </div>
-
-                    {/* Content Section */}
-                    <CardContent className="p-3 flex-1 flex flex-col gap-2">
-                      {/* Status Badge - outside image container to avoid clipping */}
-                      <Badge
-                        className={`w-fit text-xs px-2 py-0.5 mb-1 ${
-                          unit.status === "active" 
-                            ? "bg-green-600 hover:bg-green-700 text-white border-0" 
-                            : "bg-red-600 hover:bg-red-700 text-white border-0"
-                        }`}
-                      >
-                        {unit.status === "active" ? "Disponible" : "Rentada"}
-                      </Badge>
-                      {/* Referrer Badge - Shows if property has a referrer for higher commission */}
-                      {unit.referrerName && (
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-[10px] px-1.5 py-0.5">
-                            <Star className="h-3 w-3 mr-0.5 fill-current" />
-                            Referido
-                          </Badge>
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                            40-50% comisión
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Title Row: Name + Prices */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-base line-clamp-1" data-testid={`text-unit-name-${unit.id}`}>
-                            {unit.condominiumName || unit.name}
-                          </h3>
-                          <div className="flex items-center justify-start gap-2 text-sm text-muted-foreground w-full">
-                            {unit.unitNumber && (
-                              <span className="font-medium text-foreground">#{unit.unitNumber}</span>
-                            )}
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-                              <span className="truncate">{unit.zone || "Sin zona"}</span>
-                            </span>
-                          </div>
-                        </div>
-                        {/* Prices - Clean black text style */}
-                        <div className="flex-shrink-0 text-right">
-                          {/* Rent Price */}
-                          {unit.monthlyRent && (
-                            <div className="flex items-center gap-1 justify-end">
-                              <span className="text-sm font-bold text-foreground">
-                                ${unit.monthlyRent?.toLocaleString()}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                /{unit.currency || "MXN"}/mes
-                              </span>
-                            </div>
-                          )}
-                          {/* Sale Price */}
-                          {unit.salePrice && parseFloat(unit.salePrice) > 0 && (
-                            <div className="flex items-center gap-1 justify-end">
-                              <span className="text-sm font-bold text-foreground">
-                                ${parseFloat(unit.salePrice).toLocaleString()}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {unit.currency || "MXN"} venta
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Property Specs Row with Service Icons */}
-                      <div className="flex items-center justify-between gap-2 py-1 text-sm">
-                        <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-                          <div className="flex items-center gap-1">
-                            <Bed className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{unit.bedrooms || 0}</span>
-                            <span className="text-muted-foreground text-xs">rec</span>
-                          </div>
-                          <Separator orientation="vertical" className="h-4" />
-                          <div className="flex items-center gap-1">
-                            <Bath className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{unit.bathrooms || 0}</span>
-                            <span className="text-muted-foreground text-xs">baños</span>
-                          </div>
-                          {unit.squareMeters && (
-                            <>
-                              <Separator orientation="vertical" className="h-4" />
-                              <div className="flex items-center gap-1">
-                                <Square className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">{unit.squareMeters}</span>
-                                <span className="text-muted-foreground text-xs">m²</span>
-                              </div>
-                            </>
-                          )}
-                          {unit.petsAllowed && (
-                            <>
-                              <Separator orientation="vertical" className="h-4" />
-                              <div className="flex items-center gap-1 text-green-600 dark:text-green-500">
-                                <PawPrint className="h-4 w-4" />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        
-                        {/* Service Icons - 2x2 grid on right */}
-                        {(() => {
-                          const waterStatus = getServiceStatus(unit, 'water');
-                          const internetStatus = getServiceStatus(unit, 'internet');
-                          const hoaIncluded = Boolean(unit.condominiumId || unit.condominiumName);
-                          
-                          return (
-                            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 flex-shrink-0">
-                              <div 
-                                className={`flex items-center gap-0.5 ${waterStatus ? 'text-green-600' : 'text-muted-foreground/40'}`}
-                                title={waterStatus ? 'Agua incluida' : 'Agua no incluida'}
-                              >
-                                <Droplets className="h-3 w-3" />
-                                {waterStatus ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-                              </div>
-                              <div 
-                                className={`flex items-center gap-0.5 ${internetStatus ? 'text-green-600' : 'text-muted-foreground/40'}`}
-                                title={internetStatus ? 'Internet incluido' : 'Internet no incluido'}
-                              >
-                                <Wifi className="h-3 w-3" />
-                                {internetStatus ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-                              </div>
-                              <div 
-                                className="flex items-center gap-0.5 text-muted-foreground/40"
-                                title="Luz no incluida"
-                              >
-                                <Zap className="h-3 w-3" />
-                                <X className="h-2.5 w-2.5" />
-                              </div>
-                              <div 
-                                className={`flex items-center gap-0.5 ${hoaIncluded ? 'text-green-600' : 'text-muted-foreground/40'}`}
-                                title={hoaIncluded ? 'Mantenimiento HOA incluido' : 'Sin HOA'}
-                              >
-                                <Building className="h-3 w-3" />
-                                {hoaIncluded ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* Characteristics Badges Row */}
-                      <div className="flex flex-wrap gap-1">
-                        {unit.unitType && (
-                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
-                            {unit.unitType}
-                          </Badge>
-                        )}
-                        {unit.hasFurniture && (
-                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
-                            Amueblado
-                          </Badge>
-                        )}
-                        {unit.hasParking && (
-                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
-                            Estacionamiento
-                          </Badge>
-                        )}
-                        {unit.hasAC && (
-                          <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0.5">
-                            A/C
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Amenities Badges Row */}
-                      {(unit.amenities && unit.amenities.length > 0) && (
-                        <div className="flex flex-wrap gap-1">
-                          {unit.amenities.slice(0, 4).map((amenity, idx) => (
-                            <Badge key={idx} variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
-                              {amenity}
-                            </Badge>
-                          ))}
-                          {unit.amenities.length > 4 && (
-                            <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0.5">
-                              +{unit.amenities.length - 4}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-
-                    {/* Action Footer */}
-                    <CardFooter className="p-3 pt-0 gap-2 mt-auto">
-                      {selectedLead ? (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className={`h-11 w-11 flex-shrink-0 ${
-                              favoriteUnitIds.has(unit.id) 
-                                ? 'text-red-500 border-red-200 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/50' 
-                                : ''
-                            }`}
-                            onClick={() => toggleFavoriteMutation.mutate({ leadId: selectedLead.id, unitId: unit.id })}
-                            disabled={toggleFavoriteMutation.isPending}
-                            data-testid={`button-favorite-${unit.id}`}
-                          >
-                            <Heart className={`h-4 w-4 ${favoriteUnitIds.has(unit.id) ? 'fill-current' : ''}`} />
-                          </Button>
-                          <Button
-                            className="flex-1 h-11 gap-2 text-sm font-medium"
-                            onClick={() => handleDirectWhatsApp(unit, selectedLead)}
-                            data-testid={`button-whatsapp-${unit.id}`}
-                          >
-                            <SiWhatsapp className="h-4 w-4" />
-                            Enviar a {selectedLead.firstName}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            variant="outline"
-                            className="flex-1 h-11 gap-2 text-sm"
-                            onClick={() => handleFindMatches(unit)}
-                            data-testid={`button-find-matches-${unit.id}`}
-                          >
-                            <Users className="h-4 w-4" />
-                            Buscar Leads
-                          </Button>
-                          <Button
-                            className="flex-1 h-11 gap-2 text-sm font-medium"
-                            onClick={() => handleShareClick(unit)}
-                            data-testid={`button-share-${unit.id}`}
-                          >
-                            <SiWhatsapp className="h-4 w-4" />
-                            Compartir
-                          </Button>
-                        </>
-                      )}
-                    </CardFooter>
-                  </Card>
+                  <UnifiedPropertyCard
+                    key={unit.id}
+                    id={unit.id}
+                    title={unit.name}
+                    unitNumber={unit.unitNumber}
+                    location={unit.zone || "Sin zona"}
+                    zone={unit.zone}
+                    condominiumName={unit.condominiumName}
+                    rentPrice={unit.monthlyRent}
+                    salePrice={unit.salePrice ? parseFloat(unit.salePrice) : null}
+                    currency={unit.currency || "MXN"}
+                    bedrooms={unit.bedrooms || 0}
+                    bathrooms={unit.bathrooms || 0}
+                    area={unit.squareMeters}
+                    status={unitStatus}
+                    images={unit.images}
+                    propertyType={unit.unitType}
+                    petFriendly={unit.petsAllowed || false}
+                    furnished={unit.hasFurniture || false}
+                    hasParking={unit.hasParking || false}
+                    hasAC={unit.hasAC || false}
+                    includedServices={{
+                      water: waterStatus === true,
+                      internet: internetStatus === true,
+                      hoa: hoaIncluded,
+                    }}
+                    isReferral={!!unit.referrerName}
+                    referrerName={unit.referrerName}
+                    commissionRate="40-50%"
+                    context="seller"
+                    matchInfo={matchInfo.score > 0 ? matchInfo : null}
+                    isShared={selectedLead ? sharedUnitIds.has(unit.id) : false}
+                    isFavorite={selectedLead ? favoriteUnitIds.has(unit.id) : false}
+                    selectedLeadName={selectedLead?.firstName || null}
+                    onSendToLead={selectedLead ? () => handleDirectWhatsApp(unit, selectedLead) : undefined}
+                    onFavorite={selectedLead ? () => toggleFavoriteMutation.mutate({ leadId: selectedLead.id, unitId: unit.id }) : undefined}
+                    isFavoriteLoading={toggleFavoriteMutation.isPending}
+                    onFindLeads={() => handleFindMatches(unit)}
+                    onShare={() => handleShareClick(unit)}
+                    onClick={() => handleOpenDetail(unit)}
+                    amenities={unit.amenities}
+                  />
                 );
               })}
               </div>
