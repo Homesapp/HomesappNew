@@ -43,7 +43,7 @@ import {
   Eye
 } from "lucide-react";
 
-type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales";
+type UserRole = "master" | "admin" | "admin_jr" | "seller" | "owner" | "management" | "concierge" | "provider" | "cliente" | "abogado" | "contador" | "agente_servicios_especiales" | "external_agency_seller" | "external_agency_admin";
 
 interface HelpSection {
   id: string;
@@ -630,11 +630,24 @@ const roleHelpContent: Record<UserRole, HelpSection[]> = {
 roleHelpContent.admin = roleHelpContent.master;
 roleHelpContent.admin_jr = roleHelpContent.master;
 roleHelpContent.management = roleHelpContent.master;
+// External agency roles use seller content
+roleHelpContent.external_agency_seller = roleHelpContent.seller;
+roleHelpContent.external_agency_admin = roleHelpContent.master;
+
+// Map roles to their display role for translations
+const roleTranslationMap: Record<string, string> = {
+  external_agency_seller: "seller",
+  external_agency_admin: "master",
+  admin: "master",
+  admin_jr: "master",
+  management: "master",
+};
 
 export default function Help() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const userRole = (user?.role || "cliente") as UserRole;
+  const displayRole = roleTranslationMap[userRole] || userRole;
 
   const helpSections = roleHelpContent[userRole] || roleHelpContent.cliente;
 
@@ -664,8 +677,8 @@ export default function Help() {
         <div className="flex items-start gap-4 p-4 bg-accent/50 rounded-lg">
           <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold mb-1">{t(`help.${userRole}.overview.title`)}</h3>
-            <p className="text-sm text-muted-foreground">{t(`help.${userRole}.overview.desc`)}</p>
+            <h3 className="font-semibold mb-1">{t(`help.${displayRole}.overview.title`)}</h3>
+            <p className="text-sm text-muted-foreground">{t(`help.${displayRole}.overview.desc`)}</p>
           </div>
         </div>
 
