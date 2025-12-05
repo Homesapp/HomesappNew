@@ -7381,6 +7381,11 @@ export const externalLeads = pgTable("external_leads", {
   phone: varchar("phone", { length: 50 }),
   phoneLast4: varchar("phone_last4", { length: 4 }), // Solo últimos 4 dígitos para broker
   
+  // Información personal adicional
+  nationality: varchar("nationality", { length: 100 }), // Nacionalidad del lead
+  city: varchar("city", { length: 100 }), // Ciudad de residencia
+  address: text("address"), // Dirección completa
+  
   // Detalles de búsqueda de propiedad
   contractDuration: varchar("contract_duration", { length: 50 }), // e.g., "6 meses", "1 año"
   checkInDate: timestamp("check_in_date"), // Fecha deseada de entrada (timestamp)

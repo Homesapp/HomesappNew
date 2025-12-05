@@ -894,22 +894,24 @@ export default function ExternalClients() {
 
   const updateLeadMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditLeadFormData }) => {
-      // Include selected characteristics, amenities, property types, and zones
-      // Always use badge state directly (empty array = no selection)
-      const dataWithSelections = {
-        ...data,
-        desiredCharacteristics: selectedEditCharacteristics,
-        desiredAmenities: selectedEditAmenities,
-        desiredUnitType: selectedEditPropertyTypes.join(", ") || null,
-        desiredNeighborhood: selectedEditZones.join(", ") || null,
-        interestedCondominiumIds: selectedEditCondominiums.length > 0 ? selectedEditCondominiums : null,
-        interestedUnitIds: selectedEditUnits.length > 0 ? selectedEditUnits : null,
-        petQuantity: editPetQuantity > 0 ? editPetQuantity : null,
-        // Convert budget values to strings for API (decimal fields)
-        budgetMin: data.budgetMin ? String(data.budgetMin) : undefined,
-        budgetMax: data.budgetMax ? String(data.budgetMax) : undefined,
+      // Only send personal information fields - search preferences are managed via Presentation Cards
+      // Do NOT include: characteristics, amenities, property types, zones, budget, pets, etc.
+      const personalDataOnly = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        email: data.email,
+        nationality: data.nationality,
+        city: data.city,
+        address: data.address,
+        status: data.status,
+        notes: data.notes,
+        registrationType: data.registrationType,
+        phoneLast4: data.phoneLast4,
+        sellerId: data.sellerId,
+        source: data.source,
       };
-      const res = await apiRequest("PATCH", `/api/external-leads/${id}`, dataWithSelections);
+      const res = await apiRequest("PATCH", `/api/external-leads/${id}`, personalDataOnly);
       return res.json();
     },
     onSuccess: () => {
@@ -4623,7 +4625,7 @@ export default function ExternalClients() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Lead Dialog - Full screen on mobile */}
+      {/* Edit Lead Dialog - Simplified Personal Information Only */}
       <Dialog open={isEditLeadDialogOpen} onOpenChange={(open) => {
         setIsEditLeadDialogOpen(open);
         if (!open) {
@@ -4631,883 +4633,67 @@ export default function ExternalClients() {
           setSelectedEditAmenities([]);
         }
       }}>
-        <DialogContent className="sm:max-w-2xl max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto max-sm:!left-0 max-sm:!top-0 max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!w-full max-sm:!h-full max-sm:!max-w-none max-sm:!rounded-none">
-          <DialogHeader className="pb-4 border-b">
+        <DialogContent className="sm:max-w-lg max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Pencil className="h-5 w-5 text-primary" />
+              <div className="p-2.5 rounded-full bg-primary/10">
+                <User className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <DialogTitle className="text-xl">
-                    {language === "es" ? "Editar Lead" : "Edit Lead"}
-                  </DialogTitle>
-                  {selectedLead && (
-                    <Badge variant={selectedLead.registrationType === "broker" ? "default" : "secondary"}>
-                      {selectedLead.registrationType === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
-                    </Badge>
-                  )}
-                </div>
-                <DialogDescription className="mt-1">
-                  {language === "es" 
-                    ? "Modifique la información del prospecto."
-                    : "Modify the prospect information."}
+                <DialogTitle className="text-lg font-semibold">
+                  {language === "es" ? "Editar Información Personal" : "Edit Personal Information"}
+                </DialogTitle>
+                <DialogDescription className="text-sm">
+                  {selectedLead?.firstName} {selectedLead?.lastName}
                 </DialogDescription>
               </div>
+              {selectedLead && (
+                <Badge variant={selectedLead.registrationType === "broker" ? "default" : "secondary"} className="ml-auto">
+                  {selectedLead.registrationType === "broker" ? "Broker" : (language === "es" ? "Vendedor" : "Seller")}
+                </Badge>
+              )}
             </div>
           </DialogHeader>
+          
           <Form {...editLeadForm}>
-            <form onSubmit={editLeadForm.handleSubmit((data) => selectedLead && updateLeadMutation.mutate({ id: selectedLead.id, data }))} className="space-y-6 py-4">
+            <form onSubmit={editLeadForm.handleSubmit((data) => selectedLead && updateLeadMutation.mutate({ id: selectedLead.id, data }))} className="space-y-5">
               
-              {/* Personal Information Section */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  {language === "es" ? "Información Personal" : "Personal Information"}
-                </h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={editLeadForm.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Nombre" : "First Name"}</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} data-testid="input-edit-lead-firstname" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editLeadForm.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Apellido" : "Last Name"}</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} data-testid="input-edit-lead-lastname" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Contact Information Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  {language === "es" ? "Información de Contacto" : "Contact Information"}
-                </h3>
-                {selectedLead?.registrationType === "broker" ? (
-                  <FormField
-                    control={editLeadForm.control}
-                    name="phoneLast4"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Últimos 4 dígitos del teléfono" : "Last 4 Phone Digits"}</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} maxLength={4} placeholder="1234" data-testid="input-edit-lead-phonelast4" />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          {language === "es" ? "Por seguridad, solo se almacenan los últimos 4 dígitos" : "For security, only the last 4 digits are stored"}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={editLeadForm.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Teléfono" : "Phone"}</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="+52 984 123 4567" data-testid="input-edit-lead-phone" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editLeadForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} type="email" placeholder="ejemplo@correo.com" data-testid="input-edit-lead-email" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Location Information Section - Only for Seller type */}
-              {selectedLead?.registrationType !== "broker" && (
-                <div className="space-y-4 pt-4 border-t">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    {language === "es" ? "Ubicación" : "Location"}
-                  </h3>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={editLeadForm.control}
-                      name="nationality"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Nacionalidad" : "Nationality"}</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder={language === "es" ? "Mexicana" : "Mexican"} data-testid="input-edit-lead-nationality" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editLeadForm.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{language === "es" ? "Ciudad" : "City"}</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="Tulum" data-testid="input-edit-lead-city" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={editLeadForm.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem className="sm:col-span-2">
-                          <FormLabel>{language === "es" ? "Dirección" : "Address"}</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder={language === "es" ? "Calle, número, colonia..." : "Street, number, neighborhood..."} data-testid="input-edit-lead-address" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Status and Source Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  {language === "es" ? "Estado y Origen" : "Status & Source"}
-                </h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={editLeadForm.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Estado" : "Status"}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-lead-status">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="nuevo_lead">{language === "es" ? "Nuevo Lead" : "New Lead"}</SelectItem>
-                            <SelectItem value="opciones_enviadas">{language === "es" ? "Opciones Enviadas" : "Options Sent"}</SelectItem>
-                            <SelectItem value="cita_coordinada">{language === "es" ? "Cita Coordinada" : "Appointment Scheduled"}</SelectItem>
-                            <SelectItem value="cita_concretada">{language === "es" ? "Cita Concretada" : "Appointment Completed"}</SelectItem>
-                            <SelectItem value="cita_cancelada">{language === "es" ? "Cita Cancelada" : "Appointment Cancelled"}</SelectItem>
-                            <SelectItem value="reprogramar_cita">{language === "es" ? "Reprogramar Cita" : "Reschedule Appointment"}</SelectItem>
-                            <SelectItem value="interesado">{language === "es" ? "Interesado" : "Interested"}</SelectItem>
-                            <SelectItem value="oferta_enviada">{language === "es" ? "Oferta Enviada" : "Offer Sent"}</SelectItem>
-                            <SelectItem value="formato_renta_enviado">{language === "es" ? "Formato Renta Enviado" : "Rental Form Sent"}</SelectItem>
-                            <SelectItem value="proceso_renta">{language === "es" ? "Proceso de Renta" : "Rental Process"}</SelectItem>
-                            <SelectItem value="renta_concretada">{language === "es" ? "Renta Concretada" : "Rental Completed"}</SelectItem>
-                            <SelectItem value="no_responde">{language === "es" ? "No Responde" : "No Response"}</SelectItem>
-                            <SelectItem value="muerto">{language === "es" ? "Muerto" : "Dead"}</SelectItem>
-                            <SelectItem value="no_dar_servicio">{language === "es" ? "No Dar Servicio" : "Do Not Service"}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editLeadForm.control}
-                    name="source"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Fuente" : "Source"}</FormLabel>
-                        <FormControl>
-                          <Input {...field} value={field.value || ""} placeholder={language === "es" ? "Facebook, Referido, etc." : "Facebook, Referral, etc."} data-testid="input-edit-lead-source" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Property Interest Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  {language === "es" ? "Propiedad de Interés" : "Property Interest"}
-                </h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={editLeadForm.control}
-                    name="interestedCondominiumId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Condominio" : "Condominium"}</FormLabel>
-                        <Select 
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            setEditCondominiumId(value);
-                            editLeadForm.setValue("interestedUnitId", undefined);
-                          }} 
-                          value={field.value || ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-lead-condominium">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar condominio" : "Select condominium"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {condominiums.map((condo) => (
-                              <SelectItem key={condo.id} value={condo.id}>
-                                {condo.name} {condo.neighborhood ? `(${condo.neighborhood})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={editLeadForm.control}
-                    name="interestedUnitId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{language === "es" ? "Unidad" : "Unit"}</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          value={field.value || ""}
-                          disabled={!editCondominiumId || editUnits.length === 0}
-                        >
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-lead-unit">
-                              <SelectValue placeholder={
-                                !editCondominiumId 
-                                  ? (language === "es" ? "Primero seleccione condominio" : "First select condominium")
-                                  : editUnits.length === 0
-                                    ? (language === "es" ? "Sin unidades disponibles" : "No units available")
-                                    : (language === "es" ? "Seleccionar unidad" : "Select unit")
-                              } />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {editUnits.map((unit) => (
-                              <SelectItem key={unit.id} value={unit.id}>
-                                {unit.unitNumber} {unit.type ? `(${unit.type})` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Property Preferences Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  {language === "es" ? "Preferencias de Propiedad" : "Property Preferences"}
-                </h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <FormLabel className="flex items-center gap-2">
-                      <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                      {language === "es" ? "Presupuesto (MXN)" : "Budget (MXN)"}
-                    </FormLabel>
-                    <div className="flex items-center gap-2">
-                      <FormField
-                        control={editLeadForm.control}
-                        name="budgetMin"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                type="number"
-                                value={field.value || ""} 
-                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                                placeholder={language === "es" ? "Mín" : "Min"}
-                                data-testid="input-edit-lead-budget-min" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <span className="text-muted-foreground">-</span>
-                      <FormField
-                        control={editLeadForm.control}
-                        name="budgetMax"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                type="number"
-                                value={field.value || ""} 
-                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                                placeholder={language === "es" ? "Máx" : "Max"}
-                                data-testid="input-edit-lead-budget-max" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                      {language === "es" ? "Tipo de Propiedad" : "Property Type"}
-                    </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" data-testid="multiselect-edit-lead-unittype">
-                          {selectedEditPropertyTypes.length > 0 
-                            ? `${selectedEditPropertyTypes.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                            : (language === "es" ? "Seleccionar tipos..." : "Select types...")}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[250px] p-2" align="start">
-                        <div className="space-y-1">
-                          {(activePropertyTypes.length > 0 ? activePropertyTypes : [
-                            { id: "dept", name: language === "es" ? "Departamento" : "Apartment" },
-                            { id: "casa", name: language === "es" ? "Casa" : "House" },
-                            { id: "estudio", name: language === "es" ? "Estudio" : "Studio" },
-                            { id: "ph", name: "PH / Penthouse" },
-                            { id: "villa", name: "Villa" },
-                          ]).map((pt) => (
-                            <div
-                              key={pt.id}
-                              className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                              onClick={() => {
-                                setSelectedEditPropertyTypes(prev => 
-                                  prev.includes(pt.name) 
-                                    ? prev.filter(t => t !== pt.name) 
-                                    : [...prev, pt.name]
-                                );
-                              }}
-                              data-testid={`checkbox-edit-propertytype-${pt.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
-                            >
-                              <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedEditPropertyTypes.includes(pt.name) ? "bg-primary border-primary" : "border-input")}>
-                                {selectedEditPropertyTypes.includes(pt.name) && <Check className="h-3 w-3 text-primary-foreground" />}
-                              </div>
-                              <span className="text-sm">{pt.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                      {language === "es" ? "Zona / Colonia" : "Area"}
-                    </FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" data-testid="multiselect-edit-lead-neighborhood">
-                          {selectedEditZones.length > 0 
-                            ? `${selectedEditZones.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                            : (language === "es" ? "Seleccionar zonas..." : "Select areas...")}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[250px] p-2" align="start">
-                        <div className="space-y-1">
-                          {(activeZones.length > 0 ? activeZones : [
-                            { id: "aldea", name: "Aldea Zama" },
-                            { id: "veleta", name: "La Veleta" },
-                            { id: "centro", name: "Centro" },
-                            { id: "otro", name: language === "es" ? "Otro" : "Other" },
-                          ]).map((zone) => (
-                            <div
-                              key={zone.id}
-                              className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                              onClick={() => {
-                                setSelectedEditZones(prev => 
-                                  prev.includes(zone.name) 
-                                    ? prev.filter(z => z !== zone.name) 
-                                    : [...prev, zone.name]
-                                );
-                              }}
-                              data-testid={`checkbox-edit-zone-${zone.name.toLowerCase().replace(/[^a-z]/g, '-')}`}
-                            >
-                              <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedEditZones.includes(zone.name) ? "bg-primary border-primary" : "border-input")}>
-                                {selectedEditZones.includes(zone.name) && <Check className="h-3 w-3 text-primary-foreground" />}
-                              </div>
-                              <span className="text-sm">{zone.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </FormItem>
-                  <FormField
-                    control={editLeadForm.control}
-                    name="contractDuration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "Duración del Contrato" : "Contract Duration"}
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-lead-duration">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="6 meses">6 {language === "es" ? "meses" : "months"}</SelectItem>
-                            <SelectItem value="1 año">1 {language === "es" ? "año" : "year"}</SelectItem>
-                            <SelectItem value="2 años">2 {language === "es" ? "años" : "years"}</SelectItem>
-                            <SelectItem value="3+ años">3+ {language === "es" ? "años" : "years"}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={editLeadForm.control}
-                    name="checkInDate"
-                    render={({ field }) => {
-                      const today = new Date();
-                      const minYear = today.getFullYear();
-                      const maxYear = today.getFullYear() + 3;
-                      
-                      const formatDateForInput = (date: Date | string | null | undefined): string => {
-                        if (!date) return "";
-                        const d = new Date(date);
-                        if (isNaN(d.getTime())) return "";
-                        const year = d.getFullYear();
-                        if (year < minYear || year > maxYear) return "";
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const day = String(d.getDate()).padStart(2, '0');
-                        return `${year}-${month}-${day}`;
-                      };
-                      
-                      const handleDateChange = (dateString: string) => {
-                        if (!dateString) {
-                          field.onChange(undefined);
-                          return;
-                        }
-                        const [year, month, day] = dateString.split('-').map(Number);
-                        if (year < minYear || year > maxYear) {
-                          return;
-                        }
-                        const newDate = new Date(year, month - 1, day, 12, 0, 0);
-                        if (!isNaN(newDate.getTime())) {
-                          field.onChange(newDate);
-                        }
-                      };
-                      
-                      const minDate = `${minYear}-01-01`;
-                      const maxDate = `${maxYear}-12-31`;
-                      
-                      return (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                            {language === "es" ? "Fecha de Mudanza" : "Move-in Date"}
-                          </FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="date" 
-                              min={minDate}
-                              max={maxDate}
-                              value={formatDateForInput(field.value)} 
-                              onChange={(e) => handleDateChange(e.target.value)}
-                              onBlur={(e) => {
-                                const val = e.target.value;
-                                if (val) {
-                                  const [year] = val.split('-').map(Number);
-                                  if (year < minYear || year > maxYear) {
-                                    field.onChange(undefined);
-                                  }
-                                }
-                              }}
-                              data-testid="input-edit-lead-checkin"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-                  <FormField
-                    control={editLeadForm.control}
-                    name="hasPets"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
-                          {language === "es" ? "¿Tiene Mascotas?" : "Has Pets?"}
-                        </FormLabel>
-                        <Select onValueChange={(value) => {
-                          field.onChange(value);
-                          if (value === "No") {
-                            setEditPetQuantity(0);
-                          } else if (editPetQuantity === 0) {
-                            setEditPetQuantity(1);
-                          }
-                        }} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-edit-lead-pets">
-                              <SelectValue placeholder={language === "es" ? "Seleccionar" : "Select"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="No">No</SelectItem>
-                            <SelectItem value="Sí - Perro">{language === "es" ? "Sí - Perro" : "Yes - Dog"}</SelectItem>
-                            <SelectItem value="Sí - Gato">{language === "es" ? "Sí - Gato" : "Yes - Cat"}</SelectItem>
-                            <SelectItem value="Sí - Otro">{language === "es" ? "Sí - Otro" : "Yes - Other"}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {editLeadForm.watch("hasPets") && editLeadForm.watch("hasPets") !== "No" && (
+              {/* Name Fields - Always visible */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={editLeadForm.control}
+                  name="firstName"
+                  render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <PawPrint className="h-3.5 w-3.5 text-muted-foreground" />
-                        {language === "es" ? "Cantidad de Mascotas" : "Number of Pets"}
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Nombre" : "First Name"}
                       </FormLabel>
                       <FormControl>
                         <Input 
-                          type="number" 
-                          min={1} 
-                          max={10}
-                          value={editPetQuantity}
-                          onChange={(e) => setEditPetQuantity(parseInt(e.target.value) || 1)}
-                          data-testid="input-edit-lead-pet-quantity"
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                </div>
-              </div>
-
-              {/* Property Interest Selectors - Sequential Picker */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  {language === "es" ? "Propiedades de Interés" : "Interested Properties"}
-                </h3>
-                
-                {/* Property Picker Row */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {/* Condominium Selector */}
-                  <Popover open={editCondoPopoverOpen} onOpenChange={setEditCondoPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={editCondoPopoverOpen}
-                        className="flex-1 justify-between"
-                        data-testid="button-edit-lead-select-condo"
-                      >
-                        {editPendingCondoId
-                          ? (condominiums.find(c => c.id === editPendingCondoId)?.name || (language === "es" ? "Seleccionar condominio" : "Select condominium"))
-                          : (language === "es" ? "Seleccionar condominio" : "Select condominium")}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0" align="start">
-                      <Command shouldFilter={false}>
-                        <CommandInput
-                          placeholder={language === "es" ? "Buscar condominio..." : "Search condominium..."}
-                          value={editCondoSearchQuery}
-                          onValueChange={setEditCondoSearchQuery}
-                          data-testid="input-edit-lead-condo-search"
-                        />
-                        <CommandList>
-                          <CommandEmpty>
-                            {language === "es" ? "No se encontraron condominios" : "No condominiums found"}
-                          </CommandEmpty>
-                          <CommandGroup>
-                            <ScrollArea className="h-[200px]">
-                              {filteredEditCondominiums.map((condo) => (
-                                <CommandItem
-                                  key={condo.id}
-                                  value={condo.id}
-                                  onSelect={() => {
-                                    setEditPendingCondoId(condo.id);
-                                    setEditPendingUnitId("");
-                                    setEditCondoPopoverOpen(false);
-                                  }}
-                                  data-testid={`item-edit-condo-${condo.id}`}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      editPendingCondoId === condo.id ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {condo.name} {condo.neighborhood ? `(${condo.neighborhood})` : ""}
-                                </CommandItem>
-                              ))}
-                            </ScrollArea>
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  
-                  {/* Unit Selector - Only shown when condominium is selected */}
-                  {editPendingCondoId && (
-                    <Select
-                      value={editPendingUnitId}
-                      onValueChange={setEditPendingUnitId}
-                    >
-                      <SelectTrigger className="flex-1" data-testid="select-edit-lead-unit">
-                        <SelectValue placeholder={language === "es" ? "Unidad (opcional)" : "Unit (optional)"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <ScrollArea className="h-[200px]">
-                          {editPendingUnits.length === 0 ? (
-                            <SelectItem value="loading" disabled>
-                              {language === "es" ? "Cargando unidades..." : "Loading units..."}
-                            </SelectItem>
-                          ) : (
-                            editPendingUnits.map((unit) => (
-                              <SelectItem key={unit.id} value={unit.id}>
-                                {unit.unitNumber} {unit.type ? `(${unit.type})` : ""}
-                              </SelectItem>
-                            ))
-                          )}
-                        </ScrollArea>
-                      </SelectContent>
-                    </Select>
-                  )}
-                  
-                  {/* Add Property Button */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={addEditProperty}
-                    disabled={!editPendingCondoId}
-                    data-testid="button-edit-lead-add-property"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* Added Properties List */}
-                {editPropertySelections.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      {editPropertySelections.length} {language === "es" ? "propiedad(es) agregada(s)" : "property(ies) added"}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {editPropertySelections.map((prop, index) => (
-                        <Badge
-                          key={`${prop.condominiumId}-${prop.unitId || 'condo'}-${index}`}
-                          variant="secondary"
-                          className="flex items-center gap-1 pr-1"
-                          data-testid={`badge-edit-property-${index}`}
-                        >
-                          <span>
-                            {prop.condominiumName}
-                            {prop.unitNumber && ` - ${prop.unitNumber}`}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4 p-0 hover:bg-destructive/20"
-                            onClick={() => removeEditProperty(index)}
-                            data-testid={`button-remove-edit-property-${index}`}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                <FormDescription className="text-xs">
-                  {language === "es" 
-                    ? "Opcional: Seleccione condominio, opcionalmente una unidad, y presione + para agregar" 
-                    : "Optional: Select condominium, optionally a unit, and press + to add"}
-                </FormDescription>
-              </div>
-
-              {/* Characteristics & Amenities Section - Collapsible */}
-              {(activeCharacteristics.length > 0 || activeAmenities.length > 0) && (
-                <Collapsible className="space-y-2 pt-4 border-t">
-                  <CollapsibleTrigger className="flex items-center justify-between w-full py-2 group">
-                    <div className="flex items-center gap-2 text-sm font-semibold">
-                      <Building2 className="h-4 w-4" />
-                      {language === "es" ? "Características y Amenidades" : "Characteristics & Amenities"}
-                      {(selectedEditCharacteristics.length > 0 || selectedEditAmenities.length > 0) && (
-                        <Badge variant="secondary" className="ml-2 text-xs">
-                          {selectedEditCharacteristics.length + selectedEditAmenities.length}
-                        </Badge>
-                      )}
-                    </div>
-                    <ChevronsUpDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-4 pt-2">
-                    <p className="text-xs text-muted-foreground">
-                      {language === "es" 
-                        ? "Opcional: características y amenidades que busca el cliente"
-                        : "Optional: characteristics and amenities the client is looking for"}
-                    </p>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {/* Unit Characteristics - Popover */}
-                      {activeCharacteristics.length > 0 && (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                            {language === "es" ? "Características" : "Characteristics"}
-                          </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-between" data-testid="multiselect-edit-characteristics">
-                                {selectedEditCharacteristics.length > 0 
-                                  ? `${selectedEditCharacteristics.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                                  : (language === "es" ? "Seleccionar..." : "Select...")}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[280px] p-2" align="start">
-                              <ScrollArea className="h-[200px]">
-                                <div className="space-y-1">
-                                  {activeCharacteristics.map((char) => (
-                                    <div
-                                      key={char.id}
-                                      className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                                      onClick={() => {
-                                        setSelectedEditCharacteristics(prev => 
-                                          prev.includes(char.id) 
-                                            ? prev.filter(id => id !== char.id)
-                                            : [...prev, char.id]
-                                        );
-                                      }}
-                                      data-testid={`checkbox-edit-char-${char.id}`}
-                                    >
-                                      <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedEditCharacteristics.includes(char.id) ? "bg-primary border-primary" : "border-input")}>
-                                        {selectedEditCharacteristics.includes(char.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      <span className="text-sm">{language === "es" ? char.name : (char.nameEn || char.name)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            </PopoverContent>
-                          </Popover>
-                        </FormItem>
-                      )}
-
-                      {/* Amenities - Popover */}
-                      {activeAmenities.length > 0 && (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                            {language === "es" ? "Amenidades" : "Amenities"}
-                          </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-between" data-testid="multiselect-edit-amenities">
-                                {selectedEditAmenities.length > 0 
-                                  ? `${selectedEditAmenities.length} ${language === "es" ? "seleccionado(s)" : "selected"}`
-                                  : (language === "es" ? "Seleccionar..." : "Select...")}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[280px] p-2" align="start">
-                              <ScrollArea className="h-[200px]">
-                                <div className="space-y-1">
-                                  {activeAmenities.map((amenity) => (
-                                    <div
-                                      key={amenity.id}
-                                      className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
-                                      onClick={() => {
-                                        setSelectedEditAmenities(prev => 
-                                          prev.includes(amenity.id) 
-                                            ? prev.filter(id => id !== amenity.id)
-                                            : [...prev, amenity.id]
-                                        );
-                                      }}
-                                      data-testid={`checkbox-edit-amenity-${amenity.id}`}
-                                    >
-                                      <div className={cn("h-4 w-4 rounded border flex items-center justify-center", selectedEditAmenities.includes(amenity.id) ? "bg-primary border-primary" : "border-input")}>
-                                        {selectedEditAmenities.includes(amenity.id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      <span className="text-sm">{language === "es" ? amenity.name : (amenity.nameEn || amenity.name)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </ScrollArea>
-                            </PopoverContent>
-                          </Popover>
-                        </FormItem>
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-
-              {/* Notes Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-sm font-semibold flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  {language === "es" ? "Notas y Comentarios" : "Notes & Comments"}
-                </h3>
-                <FormField
-                  control={editLeadForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Textarea 
                           {...field} 
                           value={field.value || ""} 
-                          placeholder={language === "es" ? "Agregue notas relevantes sobre el prospecto..." : "Add relevant notes about the prospect..."}
-                          className="min-h-[100px]"
-                          data-testid="input-edit-lead-notes" 
+                          className="h-11"
+                          data-testid="input-edit-lead-firstname" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editLeadForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Apellido" : "Last Name"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          value={field.value || ""} 
+                          className="h-11"
+                          data-testid="input-edit-lead-lastname" 
                         />
                       </FormControl>
                       <FormMessage />
@@ -5516,7 +4702,183 @@ export default function ExternalClients() {
                 />
               </div>
 
-              <DialogFooter className="pt-4 border-t gap-2 sm:gap-0">
+              {/* Contact Fields */}
+              {selectedLead?.registrationType === "broker" ? (
+                <FormField
+                  control={editLeadForm.control}
+                  name="phoneLast4"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Últimos 4 dígitos del teléfono" : "Last 4 Phone Digits"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          value={field.value || ""} 
+                          maxLength={4} 
+                          placeholder="1234" 
+                          className="h-11"
+                          data-testid="input-edit-lead-phonelast4" 
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        {language === "es" ? "Por seguridad, solo se almacenan los últimos 4 dígitos" : "For security, only the last 4 digits are stored"}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={editLeadForm.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {language === "es" ? "Teléfono" : "Phone"}
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                              {...field} 
+                              value={field.value || ""} 
+                              placeholder="+52 984 123 4567" 
+                              className="h-11 pl-10"
+                              data-testid="input-edit-lead-phone" 
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editLeadForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Email
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                              {...field} 
+                              value={field.value || ""} 
+                              type="email" 
+                              placeholder="ejemplo@correo.com" 
+                              className="h-11 pl-10"
+                              data-testid="input-edit-lead-email" 
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
+              {/* Nationality - Always visible for seller type */}
+              {selectedLead?.registrationType !== "broker" && (
+                <FormField
+                  control={editLeadForm.control}
+                  name="nationality"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {language === "es" ? "Nacionalidad" : "Nationality"}
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            {...field} 
+                            value={field.value || ""} 
+                            placeholder={language === "es" ? "Mexicana, Estadounidense, etc." : "Mexican, American, etc."} 
+                            className="h-11 pl-10"
+                            data-testid="input-edit-lead-nationality" 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Optional Location Fields - Collapsible */}
+              {selectedLead?.registrationType !== "broker" && (
+                <Collapsible className="space-y-3">
+                  <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <MapPin className="h-4 w-4" />
+                    <span>{language === "es" ? "Ubicación adicional (opcional)" : "Additional location (optional)"}</span>
+                    <ChevronsUpDown className="h-4 w-4 ml-auto" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-4 pt-2">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField
+                        control={editLeadForm.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              {language === "es" ? "Ciudad" : "City"}
+                            </FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                value={field.value || ""} 
+                                placeholder="Tulum" 
+                                className="h-11"
+                                data-testid="input-edit-lead-city" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editLeadForm.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              {language === "es" ? "Dirección" : "Address"}
+                            </FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                value={field.value || ""} 
+                                placeholder={language === "es" ? "Calle, número..." : "Street, number..."} 
+                                className="h-11"
+                                data-testid="input-edit-lead-address" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* Footer with helpful note */}
+              <div className="rounded-lg bg-muted/50 p-3 mt-2">
+                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  {language === "es" 
+                    ? "Las preferencias de búsqueda (presupuesto, tipo de propiedad, zona, etc.) se editan desde las Tarjetas de Presentación."
+                    : "Search preferences (budget, property type, zone, etc.) are edited from Presentation Cards."}
+                </p>
+              </div>
+
+              <DialogFooter className="pt-4 gap-2 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -5538,7 +4900,7 @@ export default function ExternalClients() {
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      {language === "es" ? "Guardar Cambios" : "Save Changes"}
+                      {language === "es" ? "Guardar" : "Save"}
                     </>
                   )}
                 </Button>
