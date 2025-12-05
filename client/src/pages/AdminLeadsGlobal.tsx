@@ -64,6 +64,7 @@ import {
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import type { ExternalLeadWithActiveCard, User as UserType } from "@shared/schema";
 import { format, formatDistanceToNow, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
@@ -287,6 +288,7 @@ type SortOrder = "asc" | "desc";
 
 export default function AdminLeadsGlobal() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -294,11 +296,25 @@ export default function AdminLeadsGlobal() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState("inbox");
   const [assignDialogLead, setAssignDialogLead] = useState<ExternalLeadWithActiveCard | null>(null);
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string>("");
   
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  const isAdminOrMaster = user?.role === 'master' || user?.role === 'admin';
+
+  const { data: agencies } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/external-agencies'],
+    enabled: isAdminOrMaster,
+  });
+
+  useEffect(() => {
+    if (isAdminOrMaster && agencies && agencies.length > 0 && !selectedAgencyId) {
+      setSelectedAgencyId(agencies[0].id);
+    }
+  }, [agencies, isAdminOrMaster, selectedAgencyId]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -321,10 +337,19 @@ export default function AdminLeadsGlobal() {
     );
   };
 
-  const { data: leadsResponse, isLoading } = useQuery<{ data: ExternalLeadWithActiveCard[], total: number }>({
-    queryKey: ["/api/external-leads"],
+  const { data: leadsResponse, isLoading } = useQuery<{ data: ExternalLeadWithActiveCard[], total: number, requiresAgencySelection?: boolean }>({
+    queryKey: ["/api/external-leads", selectedAgencyId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedAgencyId) params.append("agencyId", selectedAgencyId);
+      const res = await fetch(`/api/external-leads?${params.toString()}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch leads");
+      return res.json();
+    },
+    enabled: !isAdminOrMaster || !!selectedAgencyId,
   });
   const leads = leadsResponse?.data || [];
+  const requiresAgencySelection = leadsResponse?.requiresAgencySelection;
 
   const { data: sellers = [] } = useQuery<UserType[]>({
     queryKey: ["/api/external/sellers"],
@@ -343,7 +368,7 @@ export default function AdminLeadsGlobal() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external-leads", selectedAgencyId] });
       toast({ title: "Lead asignado", description: "El lead fue asignado correctamente" });
     },
     onError: () => {
@@ -471,10 +496,28 @@ export default function AdminLeadsGlobal() {
               Vista general de todos los leads de la agencia
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {isAdminOrMaster && agencies && agencies.length > 0 && (
+              <Select
+                value={selectedAgencyId}
+                onValueChange={setSelectedAgencyId}
+              >
+                <SelectTrigger className="w-[200px]" data-testid="select-agency">
+                  <Building2 className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Seleccionar agencia" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agencies.map((agency) => (
+                    <SelectItem key={agency.id} value={agency.id}>
+                      {agency.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Button 
               variant="outline"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/external-leads"] })}
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/external-leads", selectedAgencyId] })}
               data-testid="button-refresh"
             >
               <RefreshCw className="h-4 w-4 mr-2" />

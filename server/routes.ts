@@ -18347,6 +18347,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // User feedback endpoint (from feedback dialog with extended fields)
+  app.post("/api/user-feedback", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.session?.adminUser?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Usuario no autenticado" });
+      }
+
+      const { type, title, description, urgency, category, pageUrl, userEmail, userName } = req.body;
+
+      if (!type || !title || !description) {
+        return res.status(400).json({ message: "Datos inválidos", errors: [{ message: "type, title y description son requeridos" }] });
+      }
+
+      // Build enriched description with extra context
+      let enrichedDescription = description;
+      const metadata: string[] = [];
+      if (urgency) metadata.push(`Urgencia: ${urgency}`);
+      if (category) metadata.push(`Área: ${category}`);
+      if (pageUrl) metadata.push(`Página: ${pageUrl}`);
+      if (userEmail) metadata.push(`Email: ${userEmail}`);
+      if (userName) metadata.push(`Nombre: ${userName}`);
+      
+      if (metadata.length > 0) {
+        enrichedDescription = `${description}\n\n---\nMetadatos:\n${metadata.join('\n')}`;
+      }
+
+      const sanitizedData = {
+        type: sanitizeText(type),
+        title: sanitizeText(title),
+        description: sanitizeHtml(enrichedDescription),
+      };
+
+      const validationResult = insertFeedbackSchema.safeParse(sanitizedData);
+      if (!validationResult.success) {
+        return res.status(400).json({
+          message: "Datos inválidos",
+          errors: validationResult.error.errors,
+        });
+      }
+
+      const newFeedback = await storage.createFeedback({
+        ...validationResult.data,
+        userId,
+      });
+
+      await createAuditLog(
+        req,
+        "create",
+        "feedback",
+        newFeedback.id,
+        `User feedback creado: ${newFeedback.type} - ${newFeedback.title}`
+      );
+
+      res.status(201).json(newFeedback);
+    } catch (error: any) {
+      console.error("Error creating user feedback:", error);
+      res.status(500).json({ message: "Error al crear feedback" });
+    }
+  });
+
   // Error Log routes - Automatic error tracking
   app.post("/api/error-logs", async (req: any, res) => {
     try {
@@ -30839,14 +30901,14 @@ ${{precio}}/mes
       if (leadId) {
         const lead = await storage.getExternalLead(leadId);
         if (lead) {
-          leadName = `\${lead.firstName || ''} \${lead.lastName || ''}`.trim() || null;
+          leadName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || null;
         }
       }
       
       if (clientId) {
         const client = await storage.getExternalClient(clientId);
         if (client) {
-          clientName = `\${client.firstName || ''} \${client.lastName || ''}`.trim() || null;
+          clientName = `${client.firstName || ''} ${client.lastName || ''}`.trim() || null;
         }
       }
       
@@ -30865,7 +30927,7 @@ ${{precio}}/mes
         showingId: showingId || null,
         contractId: contractId || null,
         performedBy: userId,
-        performedByName: userDetails ? `\${userDetails.firstName || ''} \${userDetails.lastName || ''}`.trim() || null : null,
+        performedByName: userDetails ? `${userDetails.firstName || ''} ${userDetails.lastName || ''}`.trim() || null : null,
         details: details || null,
       }).returning();
       
@@ -32446,18 +32508,32 @@ ${{precio}}/mes
   // GET /api/external-leads - Get all leads for agency
   app.get("/api/external-leads", isAuthenticated, requireRole([...EXTERNAL_ADMIN_ROLES, 'external_agency_seller']), async (req: any, res) => {
     try {
-      const agencyId = await getUserAgencyId(req);
+      const userRole = req.user?.cachedRole || req.user?.role;
+      const isAdminOrMaster = ['master', 'admin'].includes(userRole);
+      
+      // Allow admin/master users to specify agencyId via query parameter
+      let agencyId: string | null;
+      if (isAdminOrMaster && req.query.agencyId) {
+        agencyId = req.query.agencyId as string;
+      } else {
+        agencyId = await getUserAgencyId(req);
+      }
+      
       if (!agencyId) {
+        if (isAdminOrMaster) {
+          // For admin/master users without agency, return empty with a message
+          return res.json({ data: [], total: 0, limit: 50, offset: 0, hasMore: false, requiresAgencySelection: true });
+        }
         return res.status(403).json({ message: "No agency access" });
       }
       
       const { status, registrationType, sellerId, expiringDays, search, sortField, sortOrder, limit = '50', offset = '0' } = req.query;
-      
+
       const limitNum = Math.max(1, Math.min(parseInt(limit as string, 10) || 50, 1000));
       const offsetNum = Math.max(0, parseInt(offset as string, 10) || 0);
       
       // Security: Force seller scoping for seller users - they can only see their own leads
-      const userRole = req.user?.cachedRole || req.user?.role;
+      
       const userId = req.user?.claims?.sub || req.user?.id;
       const isSeller = userRole === 'external_agency_seller';
       const effectiveSellerId = isSeller ? userId : (sellerId as string | undefined);
