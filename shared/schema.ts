@@ -6779,9 +6779,7 @@ export const externalPayments = pgTable("external_payments", {
   index("idx_external_payments_status").on(table.status),
   index("idx_external_payments_due_date").on(table.dueDate),
   index("idx_external_payments_service_type").on(table.serviceType),
-  // TODO: Add unique index manually with SQL to prevent duplicate payments:
-  // CREATE UNIQUE INDEX idx_external_payments_schedule_date_unique 
-  // ON external_payments (schedule_id, DATE(due_date));
+  uniqueIndex("idx_external_payments_schedule_due_unique").on(table.scheduleId, table.dueDate),
 ]);
 
 export const insertExternalPaymentSchema = createInsertSchema(externalPayments).omit({

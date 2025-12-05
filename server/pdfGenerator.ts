@@ -306,12 +306,25 @@ const PDF_TEMPLATES = {
 
 type TemplateStyle = keyof typeof PDF_TEMPLATES;
 
-// Helper: Draw dual logos (HomesApp + Agency)
+// Helper: Load image from URL as buffer
+async function loadImageFromUrl(url: string): Promise<Buffer | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('Failed to load logo image:', error);
+    return null;
+  }
+}
+
+// Helper: Draw dual logos (HomesApp + Agency) - synchronous version with pre-loaded buffer
 function drawDualLogos(
   doc: any,
   yPos: number,
   agencyName: string,
-  agencyLogoUrl: string | null | undefined,
+  logoBuffer: Buffer | null,
   colors: typeof PDF_TEMPLATES.professional
 ): number {
   // HomesApp logo (left)
@@ -327,13 +340,30 @@ function drawDualLogos(
 
   // Agency branding (right)
   if (agencyName) {
-    // Note: Logo image rendering would require loading from URL
-    // For now, we display agency name as text branding
-    // TODO: Implement image loading if agencyLogoUrl is provided
-    doc.fontSize(16)
-      .fillColor(colors.primary)
-      .font('Helvetica-Bold')
-      .text(agencyName, 400, yPos, { align: 'right', width: 145 });
+    // Try to render agency logo if buffer is available
+    if (logoBuffer) {
+      try {
+        // Add logo image on the right side (max width: 80px, max height: 40px)
+        doc.image(logoBuffer, 465, yPos, { 
+          fit: [80, 40],
+          align: 'right',
+          valign: 'top'
+        });
+      } catch (imgError) {
+        // Fallback to text if image fails to render
+        console.error('Failed to render logo image:', imgError);
+        doc.fontSize(16)
+          .fillColor(colors.primary)
+          .font('Helvetica-Bold')
+          .text(agencyName, 400, yPos, { align: 'right', width: 145 });
+      }
+    } else {
+      // No logo buffer, use text branding
+      doc.fontSize(16)
+        .fillColor(colors.primary)
+        .font('Helvetica-Bold')
+        .text(agencyName, 400, yPos, { align: 'right', width: 145 });
+    }
     
     doc.fontSize(9)
       .fillColor(colors.textSecondary)
@@ -515,6 +545,9 @@ export async function generateRentalFormPDF(
   agencyLogoUrl: string | null = null,
   templateStyle: TemplateStyle = 'professional'
 ): Promise<Buffer> {
+  // Pre-load agency logo if URL is provided
+  const logoBuffer = agencyLogoUrl ? await loadImageFromUrl(agencyLogoUrl) : null;
+  
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
@@ -531,7 +564,7 @@ export async function generateRentalFormPDF(
 
       // Header with dual logos
       let yPosition = 40;
-      yPosition = drawDualLogos(doc, yPosition, agencyName, agencyLogoUrl, colors);
+      yPosition = drawDualLogos(doc, yPosition, agencyName, logoBuffer, colors);
 
       // Title
       doc.fontSize(22)
@@ -663,6 +696,9 @@ export async function generateOwnerFormPDF(
   agencyLogoUrl: string | null = null,
   templateStyle: TemplateStyle = 'professional'
 ): Promise<Buffer> {
+  // Pre-load agency logo if URL is provided
+  const logoBuffer = agencyLogoUrl ? await loadImageFromUrl(agencyLogoUrl) : null;
+  
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({
@@ -679,7 +715,7 @@ export async function generateOwnerFormPDF(
 
       // Header with dual logos
       let yPosition = 40;
-      yPosition = drawDualLogos(doc, yPosition, agencyName, agencyLogoUrl, colors);
+      yPosition = drawDualLogos(doc, yPosition, agencyName, logoBuffer, colors);
 
       // Title
       doc.fontSize(22)

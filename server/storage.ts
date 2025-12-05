@@ -7199,8 +7199,39 @@ export class DatabaseStorage implements IStorage {
     let incidentScore = 100;
     let communicationScore = 100;
 
-    // Check for payment delays (would need payment history tracking)
-    const hasPaymentDelay = false; // TODO: Implement payment history check
+    // Check for payment delays using rentalPayments table
+    const now = new Date();
+    const payments = await db.select().from(rentalPayments)
+      .where(eq(rentalPayments.rentalContractId, contractId));
+    
+    // Only consider payments with relevant statuses (not cancelled/refunded)
+    const relevantStatuses = ['pending', 'approved', 'paid', 'verified'];
+    const relevantPayments = payments.filter(p => relevantStatuses.includes(p.status));
+    
+    // Count overdue payments (pending status and past due date)
+    const overduePayments = relevantPayments.filter(p => 
+      p.status === 'pending' && p.dueDate && new Date(p.dueDate) < now
+    );
+    
+    // Count late payments (completed payments that were paid after due date)
+    const completedStatuses = ['approved', 'paid', 'verified'];
+    const latePayments = relevantPayments.filter(p => 
+      completedStatuses.includes(p.status) &&
+      p.paymentDate && p.dueDate && new Date(p.paymentDate) > new Date(p.dueDate)
+    );
+    
+    const hasPaymentDelay = overduePayments.length > 0 || latePayments.length > 0;
+    
+    // Calculate payment score based on payment history
+    const completedPayments = relevantPayments.filter(p => completedStatuses.includes(p.status));
+    const totalCompleted = completedPayments.length;
+    if (totalCompleted > 0) {
+      paymentScore = Math.max(0, 100 - (latePayments.length / totalCompleted) * 50);
+    }
+    // Deduct for overdue payments
+    if (overduePayments.length > 0) {
+      paymentScore = Math.max(0, paymentScore - (overduePayments.length * 20));
+    }
 
     // Check for open incidents (chats with type="rental" and open issues)
     const conversations = await db.select().from(chatConversations)

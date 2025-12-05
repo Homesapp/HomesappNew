@@ -3,6 +3,7 @@ import {
   appNotifications, 
   appNotificationPreferences,
   userFeedbackReports,
+  users,
   InsertAppNotification,
   InsertUserFeedbackReport,
   AppNotification,
@@ -10,6 +11,7 @@ import {
   UserFeedbackReport,
 } from "@shared/schema";
 import { eq, and, desc, sql, isNull, or, count } from "drizzle-orm";
+import { getUncachableResendClient } from "../resend-service";
 
 export type NotificationCategory = 'lead' | 'payment' | 'maintenance' | 'message' | 'appointment' | 'contract' | 'system';
 
@@ -444,5 +446,223 @@ class FeedbackService {
   }
 }
 
+class EmailNotificationService {
+  private async getUserEmail(userId: string): Promise<string | null> {
+    const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
+    return user?.email || null;
+  }
+
+  private async getUserName(userId: string): Promise<string> {
+    const [user] = await db
+      .select({ firstName: users.firstName, lastName: users.lastName })
+      .from(users)
+      .where(eq(users.id, userId));
+    return user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Usuario' : 'Usuario';
+  }
+
+  private async checkEmailPreferences(userId: string, category: NotificationCategory): Promise<boolean> {
+    const [prefs] = await db
+      .select()
+      .from(appNotificationPreferences)
+      .where(eq(appNotificationPreferences.userId, userId));
+    
+    if (!prefs) return true;
+    
+    if (prefs.emailNotifications === false) return false;
+    
+    const categoryKey = `${category}Notifications` as keyof typeof prefs;
+    if (prefs[categoryKey] === false) return false;
+    
+    return true;
+  }
+
+  private generateEmailHtml(title: string, body: string, actionUrl?: string, actionText?: string): string {
+    return `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #1E3A5F 0%, #2d5a7b 100%); padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">HomesApp</h1>
+          <p style="color: #B8D4E8; margin: 8px 0 0; font-size: 14px;">Tulum Rental Homes</p>
+        </div>
+        <div style="padding: 32px 24px;">
+          <h2 style="color: #1E3A5F; margin: 0 0 16px; font-size: 20px; font-weight: 600;">${title}</h2>
+          <p style="color: #4a5568; margin: 0 0 24px; font-size: 16px; line-height: 1.6;">${body}</p>
+          ${actionUrl ? `
+            <a href="${actionUrl}" style="display: inline-block; background-color: #1E3A5F; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; font-size: 14px;">
+              ${actionText || 'Ver detalles'}
+            </a>
+          ` : ''}
+        </div>
+        <div style="background-color: #f7fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #718096; margin: 0; font-size: 12px;">Este es un mensaje automático de HomesApp.</p>
+          <p style="color: #718096; margin: 8px 0 0; font-size: 12px;">© ${new Date().getFullYear()} Tulum Rental Homes. Todos los derechos reservados.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  async sendNotificationEmail(
+    recipientUserId: string,
+    subject: string,
+    title: string,
+    body: string,
+    actionUrl?: string,
+    actionText?: string,
+    category: NotificationCategory = 'system'
+  ): Promise<boolean> {
+    try {
+      const canSendEmail = await this.checkEmailPreferences(recipientUserId, category);
+      if (!canSendEmail) {
+        console.log('[EmailNotification] User opted out of email notifications:', recipientUserId);
+        return false;
+      }
+
+      const email = await this.getUserEmail(recipientUserId);
+      if (!email) {
+        console.log('[EmailNotification] User has no email:', recipientUserId);
+        return false;
+      }
+
+      const { client, fromEmail } = await getUncachableResendClient();
+      const html = this.generateEmailHtml(title, body, actionUrl, actionText);
+
+      const { data, error } = await client.emails.send({
+        from: fromEmail,
+        to: [email],
+        subject: `HomesApp - ${subject}`,
+        html,
+      });
+
+      if (error) {
+        console.error('[EmailNotification] Failed to send:', error);
+        return false;
+      }
+
+      console.log('[EmailNotification] Email sent successfully:', data?.id);
+      return true;
+    } catch (error) {
+      console.error('[EmailNotification] Error sending email:', error);
+      return false;
+    }
+  }
+
+  async sendPaymentReminderEmail(
+    recipientUserId: string,
+    amount: number,
+    dueDate: Date,
+    propertyName: string
+  ): Promise<boolean> {
+    const formattedAmount = amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+    const formattedDate = dueDate.toLocaleDateString('es-MX', { 
+      year: 'numeric', month: 'long', day: 'numeric' 
+    });
+
+    return this.sendNotificationEmail(
+      recipientUserId,
+      'Recordatorio de Pago',
+      'Recordatorio de Pago Próximo',
+      `Tienes un pago de ${formattedAmount} pendiente para la propiedad ${propertyName}. La fecha de vencimiento es el ${formattedDate}.`,
+      undefined,
+      'Ver mis pagos',
+      'payment'
+    );
+  }
+
+  async sendPaymentConfirmationEmail(
+    recipientUserId: string,
+    amount: number,
+    propertyName: string
+  ): Promise<boolean> {
+    const formattedAmount = amount.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+
+    return this.sendNotificationEmail(
+      recipientUserId,
+      'Pago Confirmado',
+      'Tu pago ha sido verificado',
+      `Tu pago de ${formattedAmount} para la propiedad ${propertyName} ha sido verificado exitosamente.`,
+      undefined,
+      'Ver recibo',
+      'payment'
+    );
+  }
+
+  async sendContractExpirationEmail(
+    recipientUserId: string,
+    propertyName: string,
+    expirationDate: Date,
+    daysRemaining: number
+  ): Promise<boolean> {
+    const formattedDate = expirationDate.toLocaleDateString('es-MX', { 
+      year: 'numeric', month: 'long', day: 'numeric' 
+    });
+
+    return this.sendNotificationEmail(
+      recipientUserId,
+      'Contrato por Vencer',
+      'Tu contrato está por vencer',
+      `Tu contrato de renta para ${propertyName} vence el ${formattedDate} (${daysRemaining} días restantes). Por favor contacta a tu administrador para renovar.`,
+      undefined,
+      'Ver contrato',
+      'contract'
+    );
+  }
+
+  async sendMaintenanceTicketEmail(
+    recipientUserId: string,
+    ticketTitle: string,
+    ticketStatus: string,
+    propertyName: string
+  ): Promise<boolean> {
+    const statusLabels: Record<string, string> = {
+      'new': 'creado',
+      'in_progress': 'en progreso',
+      'resolved': 'resuelto',
+      'closed': 'cerrado',
+    };
+
+    return this.sendNotificationEmail(
+      recipientUserId,
+      'Actualización de Mantenimiento',
+      `Ticket de mantenimiento ${statusLabels[ticketStatus] || ticketStatus}`,
+      `El ticket "${ticketTitle}" para la propiedad ${propertyName} ha sido ${statusLabels[ticketStatus] || 'actualizado'}.`,
+      undefined,
+      'Ver ticket',
+      'maintenance'
+    );
+  }
+
+  async sendDirectEmail(
+    toEmail: string,
+    subject: string,
+    title: string,
+    body: string,
+    actionUrl?: string,
+    actionText?: string
+  ): Promise<boolean> {
+    try {
+      const { client, fromEmail } = await getUncachableResendClient();
+      const html = this.generateEmailHtml(title, body, actionUrl, actionText);
+
+      const { data, error } = await client.emails.send({
+        from: fromEmail,
+        to: [toEmail],
+        subject: `HomesApp - ${subject}`,
+        html,
+      });
+
+      if (error) {
+        console.error('[EmailNotification] Failed to send direct email:', error);
+        return false;
+      }
+
+      console.log('[EmailNotification] Direct email sent successfully:', data?.id);
+      return true;
+    } catch (error) {
+      console.error('[EmailNotification] Error sending direct email:', error);
+      return false;
+    }
+  }
+}
+
 export const notificationService = new NotificationService();
 export const feedbackService = new FeedbackService();
+export const emailNotificationService = new EmailNotificationService();
