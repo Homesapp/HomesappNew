@@ -1,0 +1,59 @@
+Objetivo: Simplificar el sidebar del rol master/admin y asegurarnos de que todas las secciones funcionen correctamente sin perder funcionalidades.
+
+Reorganizar el sidebar del admin (AppSidebar.tsx)
+
+Tomar el listado actual de items para master/admin y reagruparlos en estas secciones:
+
+Inicio (dashboard general + dashboard de ingresos).
+
+Operación de rentas (leads, kanban, citas, calendario, contratos, ofertas, tareas).
+
+Propiedades (propiedades, condominios, HOA, invitaciones, importaciones, solicitudes de cambio, destacadas).
+
+Personas & Agencias (vendedores internos, clientes, propietarios, agencias externas, usuarios & roles).
+
+Finanzas (panel de ingresos, pagos a propietarios, comisiones a vendedores, reportes).
+
+Configuración & Sistema (configuración de agencia, horarios, integraciones, permisos, configuración del sidebar, ayuda/feedback).
+
+Reducir el número de items visibles por defecto para master/admin:
+
+Dejar sólo los módulos que ya están en producción/uso real.
+
+Modulos “experimentales” o futuros (ej. analytics avanzados, predictive, etc.) ocultarlos por defecto usando la configuración de visibilidad.
+
+Usar la pantalla de configuración del sidebar
+
+En admin/SidebarConfig.tsx:
+
+Definir un “preset” por defecto para el rol master y otro para admin, con la estructura anterior.
+
+Asegurarse de que los items que ya no queremos que aparezcan NO estén activos para estos roles.
+
+Unificar experiencias de catálogo
+
+Donde sea que se muestren propiedades (admin, vendedor, cliente, propietario), usar el mismo componente de card estándar (el nuevo diseño).
+
+Para cada rol, sólo cambiar los botones de acción (ej. “Editar”, “Asignar”, “Compartir”, “Ver leads”, etc.), pero mantener la misma card visual.
+
+Limpieza de menú
+
+Revisar si hay items duplicados o muy específicos que puedan moverse dentro de otra pantalla (por ejemplo, configuraciones que podrían ser un tab dentro de “Configuración” en lugar de estar como opción de menú).
+
+Verificar que los labels del sidebar coincidan con las rutas y títulos de página (traducciones ES/EN coherentes).
+
+QA del admin después del cambio
+
+Probar con usuario master:
+
+Cada item nuevo del sidebar abre la pantalla correcta sin errores 404/500.
+
+Las tablas tienen paginación y filtros funcionales (propiedades, contratos, leads, agencias, etc.).
+
+Probar con usuario admin_jr:
+
+Menú más reducido, sólo con las secciones que realmente debe usar (Operación de rentas + Propiedades + Personas básicas).
+
+Confirmar que no ve pantallas de configuración avanzada (integraciones, permisos, etc.).
+
+Confirmar que la reestructuración del sidebar no afecta los roles de vendedor, cliente, propietario ni agencias externas (su sidebar debe seguir igual que ahora, sólo usando las cards unificadas de propiedades).

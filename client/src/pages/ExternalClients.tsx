@@ -82,8 +82,10 @@ import {
   X,
   MoreVertical,
   Pencil,
+  Edit,
   Edit2,
   Trash2,
+  CreditCard,
   LayoutGrid,
   Table as TableIcon,
   Columns,
@@ -3249,21 +3251,7 @@ export default function ExternalClients() {
                   onUpdateStatus={(leadId, newStatus) => {
                     updateLeadStatusMutation.mutate({ leadId, status: newStatus });
                   }}
-                  onEdit={(lead) => {
-                    setSelectedLead(lead);
-                    editLeadForm.reset(lead);
-                    setEditCondominiumId(lead.interestedCondominiumId || "");
-                    setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
-                    setSelectedEditAmenities((lead as any).desiredAmenities || []);
-                    // Initialize property types and zones from comma-separated string
-                    setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
-                    setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
-                    // Initialize multi-select condominiums and units
-                    hydrateEditPropertySelections(lead);
-                    // Initialize pet quantity
-                    setEditPetQuantity((lead as any).petQuantity || 1);
-                    setIsEditLeadDialogOpen(true);
-                  }}
+                  onEdit={(lead) => handleOpenEditChoice(lead)}
                   onDelete={(lead) => {
                     setSelectedLead(lead);
                     setIsDeleteLeadDialogOpen(true);
@@ -3438,18 +3426,7 @@ export default function ExternalClients() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => {
-                                    setSelectedLead(lead);
-                                    editLeadForm.reset(lead);
-                                    setEditCondominiumId(lead.interestedCondominiumId || "");
-                                    setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
-                                    setSelectedEditAmenities((lead as any).desiredAmenities || []);
-                                    setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
-                                    setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
-                                    hydrateEditPropertySelections(lead);
-                                    setEditPetQuantity((lead as any).petQuantity || 1);
-                                    setIsEditLeadDialogOpen(true);
-                                  }}
+                                  onClick={() => handleOpenEditChoice(lead)}
                                   data-testid={`button-edit-lead-${lead.id}`}
                                 >
                                   <Pencil className="h-4 w-4" />
@@ -3536,20 +3513,7 @@ export default function ExternalClients() {
                                     WhatsApp
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedLead(lead);
-                                    editLeadForm.reset(lead);
-                                    setEditCondominiumId(lead.interestedCondominiumId || "");
-                                    setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
-                                    setSelectedEditAmenities((lead as any).desiredAmenities || []);
-                                    setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
-                                    setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
-                                    hydrateEditPropertySelections(lead);
-                                    setEditPetQuantity((lead as any).petQuantity || 1);
-                                    setIsEditLeadDialogOpen(true);
-                                  }}
-                                >
+                                <DropdownMenuItem onClick={() => handleOpenEditChoice(lead)}>
                                   <Edit2 className="h-4 w-4 mr-2" />
                                   {language === "es" ? "Editar" : "Edit"}
                                 </DropdownMenuItem>
@@ -3624,18 +3588,7 @@ export default function ExternalClients() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0"
-                                onClick={() => {
-                                  setSelectedLead(lead);
-                                  editLeadForm.reset(lead);
-                                  setEditCondominiumId(lead.interestedCondominiumId || "");
-                                  setSelectedEditCharacteristics((lead as any).desiredCharacteristics || []);
-                                  setSelectedEditAmenities((lead as any).desiredAmenities || []);
-                                  setSelectedEditPropertyTypes(lead.desiredUnitType ? lead.desiredUnitType.split(", ").filter(Boolean) : []);
-                                  setSelectedEditZones(lead.desiredNeighborhood ? lead.desiredNeighborhood.split(", ").filter(Boolean) : []);
-                                  hydrateEditPropertySelections(lead);
-                                  setEditPetQuantity((lead as any).petQuantity || 1);
-                                  setIsEditLeadDialogOpen(true);
-                                }}
+                                onClick={() => handleOpenEditChoice(lead)}
                                 data-testid={`button-edit-lead-footer-${lead.id}`}
                               >
                                 <Edit2 className="h-4 w-4" />
@@ -5929,15 +5882,7 @@ export default function ExternalClients() {
               onClick={() => {
                 setIsLeadDetailOpen(false);
                 if (selectedLead) {
-                  editLeadForm.reset(selectedLead);
-                  setEditCondominiumId(selectedLead.interestedCondominiumId || "");
-                  setSelectedEditCharacteristics((selectedLead as any).desiredCharacteristics || []);
-                  setSelectedEditAmenities((selectedLead as any).desiredAmenities || []);
-                  setSelectedEditPropertyTypes(selectedLead.desiredUnitType ? selectedLead.desiredUnitType.split(", ").filter(Boolean) : []);
-                  setSelectedEditZones(selectedLead.desiredNeighborhood ? selectedLead.desiredNeighborhood.split(", ").filter(Boolean) : []);
-                  hydrateEditPropertySelections(selectedLead);
-                  setEditPetQuantity((selectedLead as any).petQuantity || 1);
-                  setIsEditLeadDialogOpen(true);
+                  handleOpenEditChoice(selectedLead);
                 }
               }}
               data-testid="button-lead-detail-edit"
@@ -6017,6 +5962,234 @@ export default function ExternalClients() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Choice Dialog - Ask Lead or Card */}
+      <Dialog open={isEditChoiceDialogOpen} onOpenChange={setIsEditChoiceDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              {language === "es" ? "¿Qué desea editar?" : "What would you like to edit?"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Seleccione si desea editar la información del lead o sus tarjetas de presentación."
+                : "Choose whether to edit lead information or presentation cards."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button
+              variant="outline"
+              className="h-auto py-4 justify-start gap-3"
+              onClick={() => handleEditChoiceSelect("lead")}
+              data-testid="button-edit-lead-choice"
+            >
+              <User className="h-5 w-5 text-blue-500" />
+              <div className="text-left">
+                <p className="font-medium">{language === "es" ? "Editar Lead" : "Edit Lead"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {language === "es" 
+                    ? "Modificar información personal, preferencias y notas"
+                    : "Modify personal info, preferences and notes"}
+                </p>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-auto py-4 justify-start gap-3"
+              onClick={() => handleEditChoiceSelect("card")}
+              disabled={leadCardsForEdit.length === 0}
+              data-testid="button-edit-card-choice"
+            >
+              <CreditCard className="h-5 w-5 text-green-500" />
+              <div className="text-left">
+                <p className="font-medium">
+                  {language === "es" ? "Editar Tarjeta de Presentación" : "Edit Presentation Card"}
+                  {leadCardsForEdit.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{leadCardsForEdit.length}</Badge>
+                  )}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {leadCardsForEdit.length === 0
+                    ? (language === "es" ? "No hay tarjetas disponibles" : "No cards available")
+                    : (language === "es" 
+                        ? "Modificar detalles de tarjetas generadas"
+                        : "Modify generated card details")}
+                </p>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditChoiceDialogOpen(false)}>
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Select Card Dialog - When Multiple Cards Exist */}
+      <Dialog open={isSelectCardDialogOpen} onOpenChange={setIsSelectCardDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              {language === "es" ? "Seleccionar Tarjeta" : "Select Card"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Este lead tiene múltiples tarjetas de presentación. Seleccione la que desea editar."
+                : "This lead has multiple presentation cards. Select the one you want to edit."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 py-4 max-h-[400px] overflow-y-auto">
+            {leadCardsForEdit.map((card: any, index: number) => (
+              <Button
+                key={card.id}
+                variant="outline"
+                className="h-auto py-3 justify-start gap-3"
+                onClick={() => {
+                  setSelectedCardForEdit(card);
+                  setIsSelectCardDialogOpen(false);
+                  setIsEditCardDialogOpen(true);
+                }}
+                data-testid={`button-select-card-${index}`}
+              >
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary font-medium">
+                  {index + 1}
+                </div>
+                <div className="text-left flex-1">
+                  <p className="font-medium">
+                    {card.title || (language === "es" ? `Tarjeta #${index + 1}` : `Card #${index + 1}`)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {card.createdAt ? new Date(card.createdAt).toLocaleDateString() : ''} 
+                    {card.propertyCount && ` • ${card.propertyCount} ${language === "es" ? "propiedades" : "properties"}`}
+                  </p>
+                </div>
+              </Button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsSelectCardDialogOpen(false)}>
+              {language === "es" ? "Cancelar" : "Cancel"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Presentation Card Dialog */}
+      <Dialog open={isEditCardDialogOpen} onOpenChange={(open) => {
+        setIsEditCardDialogOpen(open);
+        if (!open) setSelectedCardForEdit(null);
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              {language === "es" ? "Editar Tarjeta de Presentación" : "Edit Presentation Card"}
+            </DialogTitle>
+            <DialogDescription>
+              {language === "es" 
+                ? "Modifique los detalles de la tarjeta de presentación."
+                : "Modify the presentation card details."}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCardForEdit && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              updateCardMutation.mutate({
+                cardId: selectedCardForEdit.id,
+                data: {
+                  title: formData.get("title") as string,
+                  notes: formData.get("notes") as string,
+                  expiresAt: formData.get("expiresAt") ? new Date(formData.get("expiresAt") as string).toISOString() : null,
+                }
+              });
+            }}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="card-title">
+                    {language === "es" ? "Título de la Tarjeta" : "Card Title"}
+                  </Label>
+                  <Input
+                    id="card-title"
+                    name="title"
+                    defaultValue={selectedCardForEdit.title || ""}
+                    placeholder={language === "es" ? "Ej: Propiedades recomendadas" : "E.g.: Recommended properties"}
+                    data-testid="input-card-title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="card-notes">
+                    {language === "es" ? "Notas" : "Notes"}
+                  </Label>
+                  <Textarea
+                    id="card-notes"
+                    name="notes"
+                    defaultValue={selectedCardForEdit.notes || ""}
+                    placeholder={language === "es" ? "Notas adicionales..." : "Additional notes..."}
+                    rows={3}
+                    data-testid="input-card-notes"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="card-expires">
+                    {language === "es" ? "Fecha de Expiración" : "Expiration Date"}
+                  </Label>
+                  <Input
+                    id="card-expires"
+                    name="expiresAt"
+                    type="date"
+                    defaultValue={selectedCardForEdit.expiresAt 
+                      ? new Date(selectedCardForEdit.expiresAt).toISOString().split('T')[0] 
+                      : ""}
+                    data-testid="input-card-expires"
+                  />
+                </div>
+                {selectedCardForEdit.publicUrl && (
+                  <div className="space-y-2">
+                    <Label>{language === "es" ? "Enlace Público" : "Public Link"}</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        readOnly
+                        value={selectedCardForEdit.publicUrl}
+                        className="text-sm"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedCardForEdit.publicUrl);
+                          toast({
+                            title: language === "es" ? "Copiado" : "Copied",
+                            description: language === "es" ? "Enlace copiado al portapapeles" : "Link copied to clipboard",
+                          });
+                        }}
+                        data-testid="button-copy-card-link"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setIsEditCardDialogOpen(false)}>
+                  {language === "es" ? "Cancelar" : "Cancel"}
+                </Button>
+                <Button type="submit" disabled={updateCardMutation.isPending} data-testid="button-save-card">
+                  {updateCardMutation.isPending ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {language === "es" ? "Guardando..." : "Saving..."}</>
+                  ) : (
+                    <><Save className="mr-2 h-4 w-4" /> {language === "es" ? "Guardar" : "Save"}</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Lead Import Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
