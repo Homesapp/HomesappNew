@@ -57,7 +57,7 @@ import {
 import { usePortalAuth } from "@/contexts/PortalAuthContext";
 import { usePortalApi } from "@/hooks/usePortalApi";
 import { useTranslation } from "@/hooks/useTranslation";
-import { FirstStepsChecklist, EmptyState, ContextualHelp } from "@/components/OnboardingSystem";
+import { FirstStepsChecklist, EmptyState, ContextualHelp, HelpPanel, EnhancedEmptyState } from "@/components/OnboardingSystem";
 
 interface ContractInfo {
   id: number;
@@ -887,11 +887,14 @@ export default function OwnerPortal() {
           <TabsContent value="payments">
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold">{t("owner.paymentReceipts", "Payment Receipts")}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {t("owner.reviewReceipts", "Review and confirm tenant payment receipts")}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{t("owner.paymentReceipts", "Payment Receipts")}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {t("owner.reviewReceipts", "Review and confirm tenant payment receipts")}
+                    </p>
+                  </div>
+                  <HelpPanel helpKey="owner-payments" />
                 </div>
                 <Dialog open={showChargeDialog} onOpenChange={setShowChargeDialog}>
                   <DialogTrigger asChild>
@@ -1393,11 +1396,14 @@ export default function OwnerPortal() {
 
           <TabsContent value="maintenance">
             <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold">{t("owner.maintenanceReports", "Maintenance Reports")}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {t("owner.maintenanceReportsDesc", "View and track maintenance issues reported by tenants")}
-                </p>
+              <div className="flex items-center gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">{t("owner.maintenanceReports", "Maintenance Reports")}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t("owner.maintenanceReportsDesc", "View and track maintenance issues reported by tenants")}
+                  </p>
+                </div>
+                <HelpPanel helpKey="owner-maintenance" />
               </div>
 
               <Card>
@@ -1525,11 +1531,14 @@ export default function OwnerPortal() {
 
           <TabsContent value="documents">
             <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold">{t("owner.contractDocuments", "Contract Documents")}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {t("owner.contractDocumentsDesc", "Access rental contract and property documents")}
-                </p>
+              <div className="flex items-center gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">{t("owner.contractDocuments", "Contract Documents")}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t("owner.contractDocumentsDesc", "Access rental contract and property documents")}
+                  </p>
+                </div>
+                <HelpPanel helpKey="owner-documents" />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
