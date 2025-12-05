@@ -35395,6 +35395,59 @@ ${{precio}}/mes
     }
   });
 
+  // GET /api/public/resolve-owner-form-token/:agencySlug/:unitSlug - Resolve owner form token by slugs
+  app.get("/api/public/resolve-owner-form-token/:agencySlug/:unitSlug", async (req, res) => {
+    try {
+      const { agencySlug, unitSlug } = req.params;
+      
+      // Find agency by slug
+      const agency = await db.select()
+        .from(externalAgencies)
+        .where(and(
+          eq(externalAgencies.slug, agencySlug),
+          eq(externalAgencies.isActive, true)
+        ))
+        .limit(1);
+      
+      if (!agency.length) {
+        return res.status(404).json({ message: "Agencia no encontrada" });
+      }
+      
+      // Find unit by slug and agency
+      const unit = await db.select()
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.slug, unitSlug),
+          eq(externalUnits.agencyId, agency[0].id)
+        ))
+        .limit(1);
+      
+      if (!unit.length) {
+        return res.status(404).json({ message: "Unidad no encontrada" });
+      }
+      
+      // Find active owner form token for this unit (recipient type 'owner')
+      const token = await db.select()
+        .from(rentalFormTokens)
+        .where(and(
+          eq(rentalFormTokens.externalUnitId, unit[0].id),
+          eq(rentalFormTokens.status, "active"),
+          eq(rentalFormTokens.recipientType, "owner")
+        ))
+        .orderBy(desc(rentalFormTokens.createdAt))
+        .limit(1);
+      
+      if (!token.length) {
+        return res.status(404).json({ message: "No hay formato de propietario activo para esta propiedad" });
+      }
+      
+      res.json({ token: token[0].token });
+    } catch (error: any) {
+      console.error("Error resolving owner form token:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  });
+
   app.get("/api/public/sellers", async (req, res) => {
     try {
       const agencies = await storage.getExternalAgencies({ isActive: true });

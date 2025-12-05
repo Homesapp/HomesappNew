@@ -327,12 +327,18 @@ export default function ExternalGenerateRentalFormLinkDialog({
   const getFormLink = () => {
     if (!generatedToken) return "";
     const baseUrl = window.location.origin;
-    // Use friendly URL for tenant forms only when both slugs are available
-    if (recipientType === "tenant" && generatedToken.agencySlug && generatedToken.unitSlug) {
-      return `${baseUrl}/${generatedToken.agencySlug}/formato-renta/${generatedToken.unitSlug}`;
+    // Use friendly URL when both slugs are available
+    if (generatedToken.agencySlug && generatedToken.unitSlug) {
+      if (recipientType === "tenant") {
+        return `${baseUrl}/${generatedToken.agencySlug}/formato-renta/${generatedToken.unitSlug}`;
+      } else if (recipientType === "owner") {
+        return `${baseUrl}/${generatedToken.agencySlug}/propietario/${generatedToken.unitSlug}`;
+      }
     }
-    // Fallback to token-based URL (also used for owner forms)
-    return `${baseUrl}/public-rental-form/${generatedToken.token}`;
+    // Fallback to token-based URL
+    return recipientType === "owner" 
+      ? `${baseUrl}/public-owner-form/${generatedToken.token}`
+      : `${baseUrl}/public-rental-form/${generatedToken.token}`;
   };
 
   const copyToClipboard = async (text: string, type: "link" | "whatsapp") => {

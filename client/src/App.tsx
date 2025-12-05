@@ -150,6 +150,7 @@ import PublicOfferForm from "@/pages/PublicOfferForm";
 import PublicRentalForm from "@/pages/PublicRentalForm";
 import PublicOfferBySlug from "@/pages/PublicOfferBySlug";
 import PublicRentalFormBySlug from "@/pages/PublicRentalFormBySlug";
+import PublicOwnerFormBySlug from "@/pages/PublicOwnerFormBySlug";
 import PublicOwnerForm from "@/pages/PublicOwnerForm";
 import PublicLeadRegistration from "@/pages/PublicLeadRegistration";
 import PublicPropertySubmission from "@/pages/PublicPropertySubmission";
@@ -287,6 +288,7 @@ function AuthenticatedApp() {
         <Route path="/public-owner-form/:token" component={PublicOwnerForm} />
         <Route path="/:agencySlug/oferta/:unitSlug" component={PublicOfferBySlug} />
         <Route path="/:agencySlug/formato-renta/:unitSlug" component={PublicRentalFormBySlug} />
+        <Route path="/:agencySlug/propietario/:unitSlug" component={PublicOwnerFormBySlug} />
         <Route path="/leads/vendedor" component={LeadRegistrationVendedor} />
         <Route path="/leads/broker" component={LeadRegistrationBroker} />
         <Route path="/brokers/register" component={PublicBrokerRegistration} />

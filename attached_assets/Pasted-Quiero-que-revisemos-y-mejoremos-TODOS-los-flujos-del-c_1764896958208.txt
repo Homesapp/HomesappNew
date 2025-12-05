@@ -1,0 +1,248 @@
+Quiero que revisemos y mejoremos TODOS los flujos del chatbot que aparece en la home pública de HomesApp / Tulum Rental Homes.
+
+Ahora mismo detecté:
+
+Cuando escribo “soy propietario”, el bot responde literalmente list_property.
+
+El bot se presenta como “Tulum Rental Homes” aunque estoy en HomesApp.
+
+El bot pregunta por renta vacacional, pero actualmente NO ofrecemos renta vacacional (solo renta larga y, por HomesApp, venta).
+
+Necesito:
+
+Arreglar el flujo de propietarios (“soy propietario”).
+
+Revisar y asegurar que las demás opciones (rentar, comprar, otras dudas) funcionen bien.
+
+Desactivar o ajustar correctamente la opción de renta vacacional.
+
+Unificar todo con la creación de leads / formularios que ya tenemos.
+
+1) Branding correcto del chatbot
+
+En la web de HomesApp:
+
+El bot debe presentarse como algo tipo:
+
+“HomesApp – Asistente Virtual”
+
+Mensaje de bienvenida sugerido:
+
+“👋 Hola, soy el asistente de HomesApp. ¿Quieres rentar, comprar o enlistar tu propiedad?”
+
+En la web de Tulum Rental Homes (cuando lo usemos ahí):
+
+Nombre:
+
+“Tulum Rental Homes – Asistente Virtual”
+
+Mensaje de bienvenida:
+
+“👋 Hola, soy el asistente de Tulum Rental Homes. Te ayudo con rentas a largo plazo.”
+
+Asegúrense de que el branding se determine por el contexto/ruta (HomesApp vs TRH) y de que no se mezclen.
+
+2) Flujo “Soy propietario” / “Quiero enlistar mi propiedad”
+
+Problema actual: el bot responde list_property (nombre de la acción) en vez de un texto humano.
+
+Lo que quiero:
+
+El bot debe reconocer frases tipo:
+
+“soy propietario”
+
+“tengo una propiedad”
+
+“quiero enlistar mi propiedad”
+
+“quiero que la administren / la renten”
+
+Respuesta inicial sugerida:
+
+“Perfecto, eres propietario 🙌 Te ayudo a enlistar tu propiedad.
+¿La quieres rentar a largo plazo con Tulum Rental Homes o la quieres vender con HomesApp?”
+
+Opciones:
+
+Botones o quick replies:
+
+Renta a largo plazo
+
+Venta
+
+Según la opción:
+
+Renta a largo plazo (TRH):
+
+Pedir datos básicos:
+
+ubicación (zona/condominio),
+
+tipo de unidad,
+
+recámaras,
+
+presupuesto de renta deseado,
+
+nombre, WhatsApp, correo.
+
+Al final:
+
+crear un lead de propietario asociado a TRH (tipo “owner_rent_long”),
+
+opcional: enviar link al formulario público de owner si ya lo tienen,
+
+responder algo tipo:
+
+“✅ Listo, registramos tu propiedad para renta larga. Un asesor de Tulum Rental Homes te contactará pronto.”
+
+Venta (HomesApp):
+
+Pedir datos similares, pero enfocados a venta (precio de venta deseado, etc.).
+
+Crear un lead de propietario de venta para HomesApp (tipo “owner_sale”).
+
+Mensaje final:
+
+“✅ Listo, registramos tu propiedad para venta con HomesApp. Un asesor de ventas te contactará pronto.”
+
+Importante:
+
+NUNCA mostrar al usuario nombres internos como list_property, intent_*, etc.
+
+Siempre devolver mensajes claros en español.
+
+3) Flujo para personas que quieren rentar (clientes inquilinos)
+
+Revisar que el bot maneje bien frases tipo:
+
+“quiero rentar”
+
+“busco renta”
+
+“quiero un departamento en Tulum”
+
+Comportamiento deseado:
+
+Bot pregunta por info mínima:
+
+zona deseada,
+
+presupuesto mensual,
+
+fechas aproximadas de ingreso,
+
+si tiene mascotas,
+
+nombre y WhatsApp.
+
+Con esa info:
+
+crear un lead de renta larga (tipo “tenant_rent_long”) dentro del sistema,
+
+asociarlo a la agencia / pipeline correcto.
+
+Opcional: dar link para seguir viendo propiedades en el mapa o catálogo.
+
+Mensaje final:
+
+“✅ Listo, registramos tu búsqueda de renta. Un asesor te contactará pronto con opciones que se ajusten a tu perfil.”
+
+Verificar que:
+
+se estén creando leads correctamente,
+
+no haya respuestas rotas / placeholders,
+
+los mensajes estén en buen español.
+
+4) Flujo para personas que quieren comprar (compradores)
+
+Frases tipo:
+
+“quiero comprar”
+
+“busco departamento en venta”
+
+“quiero invertir”
+
+Flujo deseado:
+
+Bot pregunta:
+
+presupuesto,
+
+forma de pago (contado / crédito),
+
+zonas de interés,
+
+tipo de unidad,
+
+nombre y WhatsApp.
+
+Crear un lead de comprador para HomesApp (tipo “buyer_sale”).
+
+Mensaje final:
+
+“✅ Perfecto, registramos tu búsqueda de compra. Un asesor de HomesApp te contactará para mostrarte las mejores opciones.”
+
+Revisar que este flujo esté conectado con el módulo de leads/compradores que ya tienen.
+
+5) Renta vacacional – por ahora NO ofrecemos
+
+Actualmente el bot pregunta por vacacional, pero por ahora NO manejamos renta vacacional.
+
+Lo que necesito:
+
+Si el usuario dice algo como:
+
+“renta vacacional”
+
+“quiero rentar por una semana”
+
+“airbnb”, etc.
+
+El bot debe responder algo como:
+
+“Por ahora nos especializamos en rentas a largo plazo (6 o 12 meses) y venta de propiedades.
+Si te interesa renta larga o comprar, te puedo ayudar con eso. 🙂
+¿Qué prefieres?”
+
+Ofrecer opciones:
+
+Renta a largo plazo
+
+Compra
+
+Es decir:
+
+NO crear leads de renta vacacional por ahora.
+
+Solo redirigir a los flujos que sí existen (renta larga / compra).
+
+A futuro, cuando activemos vacacional, podemos añadir un flujo específico.
+
+6) QA de flujos principales
+
+Por favor revisen y prueben, uno por uno:
+
+Propietario que quiere enlistar propiedad (renta / venta).
+
+Cliente que quiere rentar a largo plazo.
+
+Cliente que quiere comprar.
+
+Usuario que pregunta por “vacacional” (debe redirigir, no crear un flujo que no existe).
+
+Usuario que hace una pregunta general (“tengo una duda”, “no encuentro algo”):
+
+el bot debería dar una respuesta genérica útil (cómo contactarnos, horarios, etc.).
+
+Y al final:
+
+confirmen qué intents / flujos quedaron configurados,
+
+cómo se crean los leads en cada caso (tipo de lead, agencia, etc.),
+
+y peguen uno o dos ejemplos reales de conversación por cada flujo para que yo pueda ver cómo se siente desde el punto de vista del usuario.

@@ -1,0 +1,107 @@
+Quiero que el chatbot funcione en español e inglés.
+
+1) Detección automática de idioma
+
+El bot debe detectar si el mensaje del usuario está principalmente en español o inglés.
+
+Regla simple:
+
+si el usuario escribe en inglés (“I want to rent”, “I’m an owner”, “I want to buy”),
+
+el bot debe contestar en inglés y mantener esa preferencia durante la sesión.
+
+si escribe en español, seguir en español.
+
+Guardar en sesión algo como language: 'es' | 'en'.
+
+2) Mensajes de bienvenida en ambos idiomas
+
+En HomesApp:
+
+Español:
+
+“👋 Hola, soy el asistente de HomesApp. ¿Quieres rentar, comprar o enlistar tu propiedad?”
+
+Inglés:
+
+“👋 Hi! I’m the HomesApp assistant. Are you looking to rent, buy, or list your property?”
+
+En Tulum Rental Homes:
+
+Español:
+
+“👋 Hola, soy el asistente de Tulum Rental Homes. Te ayudo con rentas a largo plazo.”
+
+Inglés:
+
+“👋 Hi! I’m the Tulum Rental Homes assistant. I can help you with long-term rentals.”
+
+El idioma del saludo debe seguir la detección del primer mensaje del usuario, o por defecto español si no hay mensaje aún.
+
+3) Flujos principales también en inglés
+
+Para cada flujo que ya existe en español, necesitamos la versión equivalente en inglés:
+
+Propietario / Owner (list property):
+
+Frases a reconocer en inglés:
+
+“I’m an owner”, “I have a property”, “I want to list my property”.
+
+El bot debe hacer las mismas preguntas pero en inglés y crear el mismo tipo de lead (owner_rent_long o owner_sale) con language = 'en'.
+
+Cliente que quiere rentar:
+
+Frases tipo:
+
+“I want to rent”, “I need a long-term rental”, “I’m looking for an apartment to rent”.
+
+Preguntas en inglés (budget, move-in date, area, pets, etc.) y creación del lead correspondiente (tenant_rent_long, language = 'en').
+
+Cliente que quiere comprar:
+
+Frases tipo:
+
+“I want to buy”, “I’m looking to buy a condo”, “I want to invest in Tulum”.
+
+Preguntas en inglés y creación del lead (buyer_sale, language = 'en').
+
+Vacacional:
+
+Cuando el usuario pregunte por renta vacacional en inglés:
+
+“vacation rental”, “short-term rental”, “Airbnb”, etc.
+
+Respuesta:
+
+“Right now we specialize in long-term rentals (6–12 months) and property sales. If you’re interested in those, I can help you 🙂 Would you like to rent long-term or buy?”
+
+4) Opción para cambiar de idioma manualmente
+
+Añadir quick replies/atajos:
+
+“🌐 Change to English”
+
+“🌐 Cambiar a español”
+
+Si el usuario los pulsa:
+
+actualizar language en la sesión,
+
+seguir respondiendo en el nuevo idioma.
+
+5) Leads con idioma guardado
+
+Cuando el bot cree un lead (owner, tenant, buyer), guardar el idioma detectado:
+
+campo preferredLanguage o similar ('es' / 'en').
+
+Esto ayudará a los agentes a saber en qué idioma contactar al prospecto.
+
+Al final, por favor:
+
+confirmen cómo implementaron la detección de idioma,
+
+qué intents/frases añadieron en inglés,
+
+y muestren uno o dos ejemplos de conversación de cada flujo (owner, renter, buyer, vacation inquiry) en inglés para que pueda revisarlos.
