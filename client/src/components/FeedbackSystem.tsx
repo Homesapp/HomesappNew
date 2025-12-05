@@ -344,14 +344,15 @@ export function FeedbackButton({
       <>
         <button
           onClick={() => setOpen(true)}
-          className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 
-            bg-primary text-primary-foreground rounded-full shadow-lg 
-            hover-elevate active-elevate-2 transition-all duration-200
-            md:bottom-6 md:right-6 ${className}`}
+          className={`fixed bottom-20 right-3 z-40 flex items-center justify-center 
+            w-9 h-9 bg-muted/80 text-muted-foreground rounded-full shadow-md border
+            hover:bg-primary hover:text-primary-foreground hover:shadow-lg
+            transition-all duration-200 backdrop-blur-sm
+            md:bottom-6 md:right-4 ${className}`}
           data-testid="button-feedback-floating"
+          title="Enviar feedback"
         >
           <MessageSquare className="h-4 w-4" />
-          <span className="hidden sm:inline text-sm font-medium">Feedback</span>
         </button>
         <FeedbackDialog open={open} onOpenChange={setOpen} defaultType={defaultType} />
       </>
