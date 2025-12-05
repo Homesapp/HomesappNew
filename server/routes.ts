@@ -30662,6 +30662,234 @@ ${{precio}}/mes
     }
   });
 
+  // ==========================================
+  // Photo Slot Management Endpoints
+  // ==========================================
+
+  // GET /api/external-units/:id/photos/slots - Get photos organized by slot (primary/secondary)
+  app.get("/api/external-units/:id/photos/slots", isAuthenticated, requireRole(EXTERNAL_ALL_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const [primaryPhotos, secondaryPhotos, counts] = await Promise.all([
+        storage.getPhotosBySlot(id, 'primary'),
+        storage.getPhotosBySlot(id, 'secondary'),
+        storage.countPhotosBySlot(id)
+      ]);
+
+      res.json({
+        primary: {
+          photos: primaryPhotos,
+          count: counts.primary,
+          maxAllowed: 5
+        },
+        secondary: {
+          photos: secondaryPhotos,
+          count: counts.secondary,
+          maxAllowed: 20
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching photos by slot:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch photos" });
+    }
+  });
+
+  // POST /api/external-units/:id/photos/slots/:slot - Add photo to specific slot
+  app.post("/api/external-units/:id/photos/slots/:slot", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), uploadExternalUnitImages.single('image'), async (req: any, res) => {
+    try {
+      const { id, slot } = req.params;
+
+      if (slot !== 'primary' && slot !== 'secondary') {
+        return res.status(400).json({ message: "Invalid slot. Must be 'primary' or 'secondary'" });
+      }
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const canAdd = await storage.canAddPhoto(id, slot);
+      if (!canAdd) {
+        const maxPhotos = slot === 'primary' ? 5 : 20;
+        return res.status(400).json({ 
+          message: `Maximum ${maxPhotos} ${slot} photos allowed`,
+          maxAllowed: maxPhotos
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No image file provided" });
+      }
+
+      // Upload to object storage
+      const fileName = `external-units/${id}/photos/${slot}/${Date.now()}-${req.file.originalname}`;
+      const { BucketClient } = await import("@replit/object-storage");
+      const client = new BucketClient();
+      await client.uploadFromBytes(fileName, req.file.buffer, {
+        contentType: req.file.mimetype
+      });
+      const storageUrl = `https://obj.replit.com/${client.bucketId}/${fileName}`;
+
+      const result = await storage.addPhotoToSlot(id, slot, {
+        agencyId: unit.agencyId,
+        url: storageUrl,
+        storagePath: fileName,
+        storageUrl: storageUrl,
+        source: 'manual_upload',
+        qualityVersion: 2,
+        migrationStatus: 'done',
+        mediaType: 'photo'
+      });
+
+      if ('error' in result) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      res.json({ success: true, photo: result });
+    } catch (error: any) {
+      console.error("Error adding photo to slot:", error);
+      res.status(500).json({ message: error.message || "Failed to add photo" });
+    }
+  });
+
+  // POST /api/external-units/:id/photos/slots/:slot/reorder - Reorder photos within a slot
+  app.post("/api/external-units/:id/photos/slots/:slot/reorder", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, slot } = req.params;
+      const { photoIds } = req.body;
+
+      if (slot !== 'primary' && slot !== 'secondary') {
+        return res.status(400).json({ message: "Invalid slot. Must be 'primary' or 'secondary'" });
+      }
+
+      if (!Array.isArray(photoIds)) {
+        return res.status(400).json({ message: "photoIds must be an array" });
+      }
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      await storage.reorderPhotosInSlot(id, slot, photoIds);
+
+      res.json({ success: true, message: `${slot} photos reordered successfully` });
+    } catch (error: any) {
+      console.error("Error reordering photos:", error);
+      res.status(500).json({ message: error.message || "Failed to reorder photos" });
+    }
+  });
+
+  // PATCH /api/external-units/:id/photos/:photoId/slot - Move photo to different slot
+  app.patch("/api/external-units/:id/photos/:photoId/slot", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, photoId } = req.params;
+      const { newSlot } = req.body;
+
+      if (newSlot !== 'primary' && newSlot !== 'secondary') {
+        return res.status(400).json({ message: "Invalid slot. Must be 'primary' or 'secondary'" });
+      }
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const result = await storage.changePhotoSlot(photoId, newSlot);
+
+      if ('error' in result) {
+        return res.status(400).json({ message: result.error });
+      }
+
+      res.json({ success: true, photo: result });
+    } catch (error: any) {
+      console.error("Error changing photo slot:", error);
+      res.status(500).json({ message: error.message || "Failed to change photo slot" });
+    }
+  });
+
+  // DELETE /api/external-units/:id/photos/all - Delete all photos for a unit
+  app.delete("/api/external-units/:id/photos/all", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const deletedCount = await storage.deleteAllUnitPhotos(id);
+
+      res.json({ 
+        success: true, 
+        message: `Deleted ${deletedCount} photos`,
+        deletedCount 
+      });
+    } catch (error: any) {
+      console.error("Error deleting all photos:", error);
+      res.status(500).json({ message: error.message || "Failed to delete photos" });
+    }
+  });
+
+  // GET /api/external/photos/migration-stats - Get migration statistics
+  app.get("/api/external/photos/migration-stats", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const stats = await storage.getMigrationStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching migration stats:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch migration stats" });
+    }
+  });
+
+  // POST /api/external-units/:id/photos/mark-for-migration - Mark unit photos for migration
+  app.post("/api/external-units/:id/photos/mark-for-migration", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const markedCount = await storage.markPhotosForMigration(id);
+
+      res.json({ 
+        success: true, 
+        message: `Marked ${markedCount} photos for migration`,
+        markedCount 
+      });
+    } catch (error: any) {
+      console.error("Error marking photos for migration:", error);
+      res.status(500).json({ message: error.message || "Failed to mark photos for migration" });
+    }
+  });
+
+
   // POST /api/external/migrate-all-unit-media - Migrate all units' legacy images (admin only)
   app.post("/api/external/migrate-all-unit-media", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {
