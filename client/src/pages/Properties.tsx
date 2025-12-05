@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { PropertyCard } from "@/components/PropertyCard";
 import { PropertyFormDialog } from "@/components/PropertyFormDialog";
@@ -38,12 +38,30 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, SlidersHorizontal, LayoutGrid, List, Share2, Copy, X, ChevronDown } from "lucide-react";
+import { 
+  Search, 
+  Plus, 
+  SlidersHorizontal, 
+  LayoutGrid, 
+  List, 
+  Share2, 
+  Copy, 
+  X, 
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronsUpDown,
+  Home,
+} from "lucide-react";
 import { useProperties, useSearchProperties, useDeleteProperty } from "@/hooks/useProperties";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { getPropertyTitle } from "@/lib/propertyHelpers";
 import type { Property } from "@shared/schema";
+
+type SortField = "title" | "location" | "price" | "propertyType" | "status";
+type SortOrder = "asc" | "desc";
 
 export default function Properties() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -57,6 +75,12 @@ export default function Properties() {
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [selectedProperties, setSelectedProperties] = useState<Set<string>>(new Set());
   
+  // Pagination and sorting for table view
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState<SortField>("title");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  
   // Advanced filters
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [priceMin, setPriceMin] = useState<string>("");
@@ -66,6 +90,27 @@ export default function Properties() {
   const [bathroomsMin, setBathroomsMin] = useState<string>("");
   const [areaMin, setAreaMin] = useState<string>("");
   const [areaMax, setAreaMax] = useState<string>("");
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    }
+    return sortOrder === "asc" ? (
+      <ChevronUp className="h-3 w-3 ml-1" />
+    ) : (
+      <ChevronDown className="h-3 w-3 ml-1" />
+    );
+  };
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -253,6 +298,54 @@ export default function Properties() {
   if (displayProperties && hasActiveFilters) {
     displayProperties = applyAdvancedFilters(displayProperties);
   }
+
+  const sortedAndPaginatedProperties = useMemo(() => {
+    if (!displayProperties) return { sorted: [], paginated: [], totalPages: 1 };
+    
+    const sorted = [...displayProperties].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "title":
+          comparison = getPropertyTitle(a).localeCompare(getPropertyTitle(b));
+          break;
+        case "location":
+          comparison = (a.location || "").localeCompare(b.location || "");
+          break;
+        case "price":
+          comparison = Number(a.price) - Number(b.price);
+          break;
+        case "propertyType":
+          comparison = (a.propertyType || "").localeCompare(b.propertyType || "");
+          break;
+        case "status":
+          comparison = (a.status || "").localeCompare(b.status || "");
+          break;
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginated = sorted.slice(startIndex, startIndex + itemsPerPage);
+
+    return { sorted, paginated, totalPages };
+  }, [displayProperties, sortField, sortOrder, currentPage, itemsPerPage]);
+
+  const paginatedProperties = sortedAndPaginatedProperties.paginated;
+  const totalPages = sortedAndPaginatedProperties.totalPages;
+  const totalFilteredCount = sortedAndPaginatedProperties.sorted.length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode, statusFilter, debouncedSearch, priceMin, priceMax, propertyTypeFilter, bedroomsMin, bathroomsMin, areaMin, areaMax]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   return (
     <div className="space-y-6">
@@ -512,113 +605,290 @@ export default function Properties() {
           ))}
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {displayProperties && displayProperties.length > 0 ? (
-            displayProperties.map((property) => (
-              <PropertyCard
-                key={property.id}
-                id={property.id}
-                title={getPropertyTitle(property)}
-                price={Number(property.price)}
-                salePrice={property.salePrice ? Number(property.salePrice) : undefined}
-                currency={property.currency}
-                bedrooms={property.bedrooms}
-                bathrooms={Number(property.bathrooms)}
-                area={Number(property.area)}
-                location={property.location}
-                colonyName={property.colonyName || undefined}
-                status={property.status}
-                image={property.primaryImages?.[property.coverImageIndex || 0] || property.images?.[0]}
-                petFriendly={property.petFriendly || false}
-                furnished={property.furnished || false}
-                rentalType={property.rentalType || undefined}
-                amenities={property.amenities as string[] | undefined}
-                hoaIncluded={property.hoaIncluded || false}
-                virtualTourUrl={property.virtualTourUrl || undefined}
-                externalAgencyName={property.externalAgencyName}
-                externalAgencyLogoUrl={property.externalAgencyLogoUrl}
-                onView={() => handleViewProperty(property.id)}
-                onEdit={canEditProperty(property) ? () => handleEditClick(property) : undefined}
-                onDelete={canEditProperty(property) ? () => handleDeleteClick(property.id) : undefined}
-                onSchedule={() => handleScheduleAppointment(property.id)}
-                showCompare={true}
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12" data-testid="no-properties">
-              <p className="text-muted-foreground">No se encontraron propiedades</p>
+        <div className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {paginatedProperties && paginatedProperties.length > 0 ? (
+              paginatedProperties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  id={property.id}
+                  title={getPropertyTitle(property)}
+                  price={Number(property.price)}
+                  salePrice={property.salePrice ? Number(property.salePrice) : undefined}
+                  currency={property.currency}
+                  bedrooms={property.bedrooms}
+                  bathrooms={Number(property.bathrooms)}
+                  area={Number(property.area)}
+                  location={property.location}
+                  colonyName={property.colonyName || undefined}
+                  status={property.status}
+                  image={property.primaryImages?.[property.coverImageIndex || 0] || property.images?.[0]}
+                  petFriendly={property.petFriendly || false}
+                  furnished={property.furnished || false}
+                  rentalType={property.rentalType || undefined}
+                  amenities={property.amenities as string[] | undefined}
+                  hoaIncluded={property.hoaIncluded || false}
+                  virtualTourUrl={property.virtualTourUrl || undefined}
+                  externalAgencyName={property.externalAgencyName}
+                  externalAgencyLogoUrl={property.externalAgencyLogoUrl}
+                  onView={() => handleViewProperty(property.id)}
+                  onEdit={canEditProperty(property) ? () => handleEditClick(property) : undefined}
+                  onDelete={canEditProperty(property) ? () => handleDeleteClick(property.id) : undefined}
+                  onSchedule={() => handleScheduleAppointment(property.id)}
+                  showCompare={true}
+                />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12" data-testid="no-properties">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/50 mb-4">
+                    <Home className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-base font-medium text-foreground mb-1">No hay propiedades</h3>
+                  <p className="text-sm text-muted-foreground">No se encontraron propiedades con los filtros aplicados</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {totalFilteredCount > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  Mostrar
+                </span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger
+                    className="w-[70px] h-9 text-sm"
+                    data-testid="select-properties-per-page-grid"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="6">6</SelectItem>
+                    <SelectItem value="12">12</SelectItem>
+                    <SelectItem value="18">18</SelectItem>
+                    <SelectItem value="24">24</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  por página
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground" data-testid="text-properties-pagination-info-grid">
+                  Mostrando {Math.min((safeCurrentPage - 1) * itemsPerPage + 1, totalFilteredCount)}-{Math.min(safeCurrentPage * itemsPerPage, totalFilteredCount)} de {totalFilteredCount} propiedades
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                    disabled={safeCurrentPage === 1}
+                    data-testid="button-properties-prev-page-grid"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    data-testid="button-properties-next-page-grid"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </div>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {isAdminOrSeller && (
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={displayProperties && displayProperties.length > 0 && selectedProperties.size === displayProperties.length}
-                      onCheckedChange={handleSelectAll}
-                      data-testid="checkbox-select-all"
-                    />
+        <div className="space-y-4">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {isAdminOrSeller && (
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={displayProperties && displayProperties.length > 0 && selectedProperties.size === displayProperties.length}
+                        onCheckedChange={handleSelectAll}
+                        data-testid="checkbox-select-all"
+                      />
+                    </TableHead>
+                  )}
+                  <TableHead 
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort("title")}
+                    data-testid="th-property"
+                  >
+                    <div className="flex items-center">
+                      Propiedad
+                      <SortIcon field="title" />
+                    </div>
                   </TableHead>
-                )}
-                <TableHead>Propiedad</TableHead>
-                <TableHead>Ubicación</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayProperties && displayProperties.length > 0 ? (
-                displayProperties.map((property) => (
-                  <TableRow key={property.id}>
-                    {isAdminOrSeller && (
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedProperties.has(property.id)}
-                          onCheckedChange={() => handleSelectProperty(property.id)}
-                          data-testid={`checkbox-select-${property.id}`}
-                        />
+                  <TableHead 
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort("location")}
+                    data-testid="th-location"
+                  >
+                    <div className="flex items-center">
+                      Ubicación
+                      <SortIcon field="location" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort("price")}
+                    data-testid="th-price"
+                  >
+                    <div className="flex items-center">
+                      Precio
+                      <SortIcon field="price" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort("propertyType")}
+                    data-testid="th-type"
+                  >
+                    <div className="flex items-center">
+                      Tipo
+                      <SortIcon field="propertyType" />
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer select-none"
+                    onClick={() => handleSort("status")}
+                    data-testid="th-status"
+                  >
+                    <div className="flex items-center">
+                      Estado
+                      <SortIcon field="status" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedProperties && paginatedProperties.length > 0 ? (
+                  paginatedProperties.map((property) => (
+                    <TableRow key={property.id} data-testid={`row-property-${property.id}`}>
+                      {isAdminOrSeller && (
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedProperties.has(property.id)}
+                            onCheckedChange={() => handleSelectProperty(property.id)}
+                            data-testid={`checkbox-select-${property.id}`}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell className="font-medium">
+                        {getPropertyTitle(property)}
                       </TableCell>
-                    )}
-                    <TableCell className="font-medium">
-                      {getPropertyTitle(property)}
-                    </TableCell>
-                    <TableCell>{property.location}</TableCell>
-                    <TableCell>
-                      ${new Intl.NumberFormat('es-MX').format(Number(property.price))}
-                    </TableCell>
-                    <TableCell className="capitalize">{property.propertyType}</TableCell>
-                    <TableCell>
-                      <Badge variant={property.status === "rent" ? "default" : property.status === "sale" ? "secondary" : "outline"}>
-                        {property.status === "rent" ? "Renta" : property.status === "sale" ? "Venta" : "Ambos"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewProperty(property.id)}
-                        data-testid={`button-view-${property.id}`}
-                      >
-                        Ver
-                      </Button>
+                      <TableCell>{property.location}</TableCell>
+                      <TableCell>
+                        ${new Intl.NumberFormat('es-MX').format(Number(property.price))}
+                      </TableCell>
+                      <TableCell className="capitalize">{property.propertyType}</TableCell>
+                      <TableCell>
+                        <Badge variant={property.status === "rent" ? "default" : property.status === "sale" ? "secondary" : "outline"}>
+                          {property.status === "rent" ? "Renta" : property.status === "sale" ? "Venta" : "Ambos"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewProperty(property.id)}
+                          data-testid={`button-view-${property.id}`}
+                        >
+                          Ver
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={isAdminOrSeller ? 7 : 6} className="text-center py-12" data-testid="no-properties">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/50 mb-4">
+                          <Home className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-base font-medium text-foreground mb-1">No hay propiedades</h3>
+                        <p className="text-sm text-muted-foreground">No se encontraron propiedades con los filtros aplicados</p>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={isAdminOrSeller ? 7 : 6} className="text-center py-12" data-testid="no-properties">
-                    <p className="text-muted-foreground">No se encontraron propiedades</p>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {totalFilteredCount > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  Mostrar
+                </span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger
+                    className="w-[70px] h-9 text-sm"
+                    data-testid="select-properties-per-page-table"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  por página
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground" data-testid="text-properties-pagination-info-table">
+                  Mostrando {Math.min((safeCurrentPage - 1) * itemsPerPage + 1, totalFilteredCount)}-{Math.min(safeCurrentPage * itemsPerPage, totalFilteredCount)} de {totalFilteredCount} propiedades
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                    disabled={safeCurrentPage === 1}
+                    data-testid="button-properties-prev-page-table"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    data-testid="button-properties-next-page-table"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

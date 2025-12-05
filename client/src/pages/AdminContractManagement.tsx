@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,12 +57,17 @@ import {
   MessageSquare,
   Paperclip,
   ChevronRight,
+  ChevronLeft,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
   AlertCircle,
   CheckCircle,
   Plus,
   Trash2,
   Edit,
   Send,
+  Inbox,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -206,6 +211,9 @@ const STATUS_CONFIG = {
   },
 };
 
+type SortField = "property" | "tenant" | "owner" | "monthlyRent" | "leaseStartDate" | "status" | "progress";
+type SortOrder = "asc" | "desc";
+
 export default function AdminContractManagement() {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -216,6 +224,11 @@ export default function AdminContractManagement() {
   const [selectedContract, setSelectedContract] = useState<RentalContract | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("resumen");
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState<SortField>("leaseStartDate");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
   const { data: contracts, isLoading } = useQuery<RentalContract[]>({
     queryKey: [`/api/admin/rental-contracts`, statusFilter],
@@ -232,18 +245,98 @@ export default function AdminContractManagement() {
     );
   };
 
-  const filteredContracts = contracts?.filter((contract) => {
-    const matchesSearch = 
-      (contract.property?.title ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contract.tenant?.fullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contract.owner?.fullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || contract.status === statusFilter;
-    const matchesType = typeFilter === "all" || 
-      (typeFilter === "sublease" && contract.isForSublease) ||
-      (typeFilter === "regular" && !contract.isForSublease);
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    }
+    return sortOrder === "asc" ? (
+      <ChevronUp className="h-3 w-3 ml-1" />
+    ) : (
+      <ChevronDown className="h-3 w-3 ml-1" />
+    );
+  };
+
+  const filteredAndSortedContracts = useMemo(() => {
+    let result = contracts?.filter((contract) => {
+      const matchesSearch = 
+        (contract.property?.title ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (contract.tenant?.fullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (contract.owner?.fullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.id.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || contract.status === statusFilter;
+      const matchesType = typeFilter === "all" || 
+        (typeFilter === "sublease" && contract.isForSublease) ||
+        (typeFilter === "regular" && !contract.isForSublease);
+      return matchesSearch && matchesStatus && matchesType;
+    }) || [];
+
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "property":
+          comparison = (a.property?.title ?? "").localeCompare(b.property?.title ?? "");
+          break;
+        case "tenant":
+          comparison = (a.tenant?.fullName ?? "").localeCompare(b.tenant?.fullName ?? "");
+          break;
+        case "owner":
+          comparison = (a.owner?.fullName ?? "").localeCompare(b.owner?.fullName ?? "");
+          break;
+        case "monthlyRent":
+          comparison = parseFloat(a.monthlyRent || "0") - parseFloat(b.monthlyRent || "0");
+          break;
+        case "leaseStartDate":
+          const dateA = a.leaseStartDate ? new Date(a.leaseStartDate).getTime() : 0;
+          const dateB = b.leaseStartDate ? new Date(b.leaseStartDate).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+        case "status":
+          const statusOrder = ["draft", "apartado", "firmado", "check_in", "activo", "completado", "cancelado"];
+          comparison = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+          break;
+        case "progress":
+          const progressA = STATUS_CONFIG[a.status as keyof typeof STATUS_CONFIG]?.progress || 0;
+          const progressB = STATUS_CONFIG[b.status as keyof typeof STATUS_CONFIG]?.progress || 0;
+          comparison = progressA - progressB;
+          break;
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [contracts, searchTerm, statusFilter, typeFilter, sortField, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil((filteredAndSortedContracts?.length || 0) / itemsPerPage));
+  
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  
+  const paginatedContracts = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredAndSortedContracts.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedContracts, safeCurrentPage, itemsPerPage]);
+
+  const filteredContracts = paginatedContracts;
+  const totalContractsCount = filteredAndSortedContracts.length;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, typeFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
 
   const openContractDetail = (contract: RentalContract) => {
     setSelectedContract(contract);
@@ -478,13 +571,76 @@ export default function AdminContractManagement() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID / Propiedad</TableHead>
-                    <TableHead>Inquilino</TableHead>
-                    <TableHead>Propietario</TableHead>
-                    <TableHead>Renta Mensual</TableHead>
-                    <TableHead>Fechas</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Progreso</TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort("property")}
+                      data-testid="th-property"
+                    >
+                      <div className="flex items-center">
+                        ID / Propiedad
+                        <SortIcon field="property" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort("tenant")}
+                      data-testid="th-tenant"
+                    >
+                      <div className="flex items-center">
+                        Inquilino
+                        <SortIcon field="tenant" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort("owner")}
+                      data-testid="th-owner"
+                    >
+                      <div className="flex items-center">
+                        Propietario
+                        <SortIcon field="owner" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort("monthlyRent")}
+                      data-testid="th-rent"
+                    >
+                      <div className="flex items-center">
+                        Renta Mensual
+                        <SortIcon field="monthlyRent" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort("leaseStartDate")}
+                      data-testid="th-dates"
+                    >
+                      <div className="flex items-center">
+                        Fechas
+                        <SortIcon field="leaseStartDate" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort("status")}
+                      data-testid="th-status"
+                    >
+                      <div className="flex items-center">
+                        Estado
+                        <SortIcon field="status" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer select-none"
+                      onClick={() => handleSort("progress")}
+                      data-testid="th-progress"
+                    >
+                      <div className="flex items-center">
+                        Progreso
+                        <SortIcon field="progress" />
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -585,6 +741,65 @@ export default function AdminContractManagement() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!isLoading && filteredAndSortedContracts.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-4 mt-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  Mostrar
+                </span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger
+                    className="w-[70px] h-9 text-sm"
+                    data-testid="select-contracts-per-page"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="30">30</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  por página
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground" data-testid="text-pagination-info">
+                  Mostrando {Math.min((safeCurrentPage - 1) * itemsPerPage + 1, totalContractsCount)}-{Math.min(safeCurrentPage * itemsPerPage, totalContractsCount)} de {totalContractsCount} contratos
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                    disabled={safeCurrentPage === 1}
+                    data-testid="button-contracts-prev-page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    data-testid="button-contracts-next-page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </div>
