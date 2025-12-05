@@ -1028,7 +1028,8 @@ export function FirstStepsChecklist({
   
   const [localCompletedSteps, setLocalCompletedSteps] = useState<string[]>([]);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [isHidden, setIsHidden] = useState(false);
+  const [isHidden, setIsHidden] = useState(() => isChecklistHidden(userRole));
+  const [celebrationStarted, setCelebrationStarted] = useState(false);
   
   useEffect(() => {
     const stored = getStoredCompletedSteps(userRole);
@@ -1047,17 +1048,21 @@ export function FirstStepsChecklist({
   const isAllCompleted = completedCount === checklist.length && checklist.length > 0;
 
   useEffect(() => {
-    if (isAllCompleted && !isHidden && !showCelebration) {
+    if (isAllCompleted && !isHidden && !celebrationStarted) {
+      setCelebrationStarted(true);
       setShowCelebration(true);
+      
       const timer = setTimeout(() => {
         hideChecklist(userRole);
+        setShowCelebration(false);
         setIsHidden(true);
       }, 4000);
+      
       return () => clearTimeout(timer);
     }
-  }, [isAllCompleted, isHidden, userRole, showCelebration]);
+  }, [isAllCompleted, isHidden, userRole, celebrationStarted]);
 
-  if (checklist.length === 0 || isHidden) return null;
+  if (checklist.length === 0 || (isHidden && !showCelebration)) return null;
 
   const handleStepClick = (stepId: string, path?: string) => {
     saveCompletedStep(userRole, stepId);
