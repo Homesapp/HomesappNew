@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, X, Heart, PawPrint, Home, Building2, ChevronRight, Star, ChevronLeft, Sofa, Map, Grid, LayoutGrid, Droplet, Zap, Wifi, CheckCircle, XCircle } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Bed, Bath, Square, X, Heart, PawPrint, Home, Building2, ChevronRight, Star, ChevronLeft, Sofa, Map, Grid, LayoutGrid, Droplet, Zap, Wifi, CheckCircle, XCircle, Key, DollarSign } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type Property } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -287,26 +287,39 @@ export default function PropertySearch() {
           <div className="flex flex-wrap gap-2 mt-4">
             <Badge
               variant={filters.status === "rent" ? "default" : "secondary"}
-              className="rounded-full px-3 py-1.5 text-xs cursor-pointer"
+              className="rounded-full px-3 py-1.5 text-xs cursor-pointer gap-1"
               onClick={() => updateFilters({ status: filters.status === "rent" ? undefined : "rent" })}
+              data-testid="badge-filter-rent"
             >
-              En Renta
+              <Key className="h-3 w-3" />
+              Renta
             </Badge>
             <Badge
               variant={filters.status === "sale" ? "default" : "secondary"}
-              className="rounded-full px-3 py-1.5 text-xs cursor-pointer"
+              className="rounded-full px-3 py-1.5 text-xs cursor-pointer gap-1"
               onClick={() => updateFilters({ status: filters.status === "sale" ? undefined : "sale" })}
+              data-testid="badge-filter-sale"
             >
-              En Venta
+              <DollarSign className="h-3 w-3" />
+              Venta
             </Badge>
-{/* Destacadas filter hidden - external properties don't have featured field yet */}
             <Badge
               variant={filters.petFriendly ? "default" : "secondary"}
               className="rounded-full px-3 py-1.5 text-xs cursor-pointer gap-1"
               onClick={() => updateFilters({ petFriendly: !filters.petFriendly })}
+              data-testid="badge-filter-pet"
             >
               <PawPrint className="h-3 w-3" />
               Pet-friendly
+            </Badge>
+            <Badge
+              variant={filters.featured ? "default" : "secondary"}
+              className="rounded-full px-3 py-1.5 text-xs cursor-pointer gap-1"
+              onClick={() => updateFilters({ featured: !filters.featured })}
+              data-testid="badge-filter-featured"
+            >
+              <Star className="h-3 w-3" />
+              Destacados
             </Badge>
           </div>
         </div>

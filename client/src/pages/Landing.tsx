@@ -23,7 +23,10 @@ import {
   Mail,
   ArrowRight,
   Plus,
-  Minus
+  Minus,
+  Key,
+  DollarSign,
+  PawPrint
 } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -419,6 +422,33 @@ export default function Landing() {
                   Buscar
                 </Button>
               </form>
+              
+              <div className="flex flex-wrap justify-center gap-2 pt-6">
+                <Link href="/propiedades?tipo=renta">
+                  <Button variant="outline" className="gap-2" data-testid="button-filter-rent">
+                    <Key className="h-4 w-4" />
+                    Renta
+                  </Button>
+                </Link>
+                <Link href="/propiedades?tipo=venta">
+                  <Button variant="outline" className="gap-2" data-testid="button-filter-sale">
+                    <DollarSign className="h-4 w-4" />
+                    Venta
+                  </Button>
+                </Link>
+                <Link href="/propiedades?petfriendly=true">
+                  <Button variant="outline" className="gap-2" data-testid="button-filter-pet">
+                    <PawPrint className="h-4 w-4" />
+                    Pet-friendly
+                  </Button>
+                </Link>
+                <Link href="/propiedades?featured=true">
+                  <Button variant="outline" className="gap-2" data-testid="button-filter-featured">
+                    <Star className="h-4 w-4" />
+                    Destacados
+                  </Button>
+                </Link>
+              </div>
               
               <div className="flex flex-wrap justify-center gap-2 pt-4">
                 <Link href="/propiedades?zone=aldea-zama">
