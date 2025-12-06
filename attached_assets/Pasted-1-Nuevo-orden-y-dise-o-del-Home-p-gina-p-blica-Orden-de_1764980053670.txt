@@ -1,0 +1,214 @@
+1) Nuevo orden y diseño del Home (página pública)
+Orden de secciones (de arriba hacia abajo)
+
+Hero + buscador
+
+Título: “Encuentra tu próxima propiedad en Tulum.”
+
+Subtítulo corto (1 línea).
+
+Buscador inline:
+
+Zona / colonia
+
+Tipo (renta / venta)
+
+Rango de precio
+
+Botones:
+
+“Ver propiedades” (→ /propiedades)
+
+“Soy propietario” (→ /enlistar-propiedad o /como-funciona-propietarios)
+
+Propiedades destacadas ✅ (bloque principal)
+
+Título: “Propiedades destacadas”
+
+Grid de 6–9 cards (2–3 filas) con:
+
+Foto, nombre, zona, tipo, precio.
+
+Botón a la derecha: “Ver todas las propiedades” (→ /propiedades)
+
+Estas salen del flag isFeatured en el admin (ver punto 2).
+
+Explorar por zonas / categorías
+
+Banda con chips o tarjetas:
+
+“La Veleta”, “Aldea Zama”, “Región 15”, “Centro”, etc.
+
+“En renta”, “En venta”, “Largo plazo”, “Vacacional” (aunque vacacional hoy sea poco, se puede dejar futuro).
+
+Cada chip linkea a catálogo filtrado.
+
+Mapa interactivo
+
+Título: “Explora en el mapa”
+
+Descripción breve.
+
+Mapa embebido (o botón grande “Ver mapa” → /mapa)
+
+Si el mapa aún no está fino, puedes dejar solo una card con imagen y CTA “Ver mapa”.
+
+Sección muy corta de “Cómo funciona”
+
+En vez de un bloque enorme, dejar algo compacto:
+
+3 pasos en una franja:
+
+Descubre propiedades
+
+Conéctate con un asesor
+
+Firma y gestiona desde tu portal
+
+Debajo un link tipo:
+
+“Ver cómo funciona HomesApp → /como-funciona”
+
+Es decir, resumen aquí, detalle en otra página.
+
+Quiénes somos + confianza (reducido)
+
+Bloque más corto:
+
+Título: “Quiénes somos”
+
+3 bullet points: años en Tulum, procesos digitales, equipo certificado.
+
+Una sola fila de 2–3 testimonios (no todo el muro).
+
+Link: “Conoce más sobre nosotros → /quienes-somos”.
+
+Preguntas frecuentes (FAQ)
+
+Mantener la sección, pero también con link:
+
+“Ver todas las preguntas frecuentes → /preguntas-frecuentes”.
+
+Si quieres aligerar el home, puedes dejar solo 3 FAQs y el resto en la página aparte.
+
+Footer
+
+Links a:
+
+Propiedades
+
+Mapa
+
+En renta / En venta
+
+Portal inquilinos / propietarios
+
+Cómo funciona
+
+Quiénes somos
+
+FAQ
+
+Idea clave:
+Home = catálogo + entrada al ecosistema.
+Todo lo corporativo se resume y se manda a páginas específicas.
+
+2) “Destacados” en el módulo de propiedades
+
+Ahora mismo no encuentras opción de destacados → hay que crearla.
+
+2.1. Modelo de datos
+
+Agregar a Property o Unit:
+
+isFeatured (boolean, default false)
+
+Opcional: featuredOrder (number) para decidir el orden en el home.
+
+2.2. Admin de propiedades (backend + frontend)
+
+En la lista de propiedades:
+
+Nueva columna: Destacada (check / badge).
+
+Filtro: “Solo destacadas”.
+
+Acción rápida:
+
+Toggle isFeatured desde la tabla (si no quieres editar cada ficha).
+
+En la edición de una propiedad:
+
+Nuevo grupo “Visibilidad” o similar con:
+
+Checkbox: Mostrar en propiedades destacadas del home.
+
+Campo opcional Orden de destaque (1–100).
+
+2.3. Límite y control
+
+Máx. 20–30 propiedades destacadas globalmente (o por agencia, según definas).
+
+Si pasan el límite:
+
+Seguir permitiendo pero mostrar aviso en el admin:
+
+“Actualmente tienes 28 propiedades marcadas como destacadas. En el home solo se muestran las primeras 20 según el orden configurado.”
+
+3) Home consumiendo propiedades destacadas
+3.1. Endpoint
+
+Crear endpoint o query:
+
+GET /api/properties?featured=true&limit=12
+
+Filtra por isFeatured = true
+
+Ordena por featuredOrder DESC, luego por fecha o precio.
+
+3.2. Frontend Home
+
+En el componente del home:
+
+Al cargar, pedir:
+
+const featured = await fetch('/api/properties?featured=true&limit=12');
+
+
+Renderizar cards en grid.
+
+Si no hay ninguna destacada:
+
+Opción A: no mostrar la sección.
+
+Opción B: usar las últimas publicadas (/api/properties?sort=newest&limit=12).
+
+4) Qué le diría literalmente a Replit
+
+Si quieres copia/pega:
+
+Reordenar el home para que las secciones principales sean:
+
+Hero con buscador.
+
+Propiedades destacadas (grid de cards).
+
+Explorar por zonas/categorías.
+
+Mapa / botón a mapa.
+
+Una franja corta de “Cómo funciona” con link a una página “/como-funciona”.
+
+Una franja corta de “Quiénes somos + testimonios” con link a “/quienes-somos”.
+
+FAQ corto con link a “/preguntas-frecuentes”.
+
+Crear un campo isFeatured (y opcionalmente featuredOrder) en el modelo de propiedades/unidades.
+
+En el admin de propiedades: añadir columna y filtro “Destacada”, y un checkbox en la edición de la propiedad para marcarla como destacada.
+
+Límite sugerido: mostrar hasta 12–20 destacadas en el home.
+
+Crear un endpoint GET /api/properties?featured=true&limit=12 y usarlo en el home para llenar la sección “Propiedades destacadas”.
+
+Mantener “Cómo funciona”, “Quiénes somos” y “Preguntas frecuentes” como páginas independientes, y en el home solo mostrar una versión resumida + links.

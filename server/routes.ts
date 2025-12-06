@@ -39198,7 +39198,6 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
           
           await tx.insert(externalPayments).values({
             id: crypto.randomUUID(),
-                registrationType: row.registration_type?.trim() || 'seller',
             agencyId: unit.agencyId,
             contractId: contract.id,
             scheduleId: schedule.id,

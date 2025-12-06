@@ -34,7 +34,8 @@ import {
   Phone,
   Search,
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from "lucide-react";
 import { format, isValid } from "date-fns";
 import { es, enUS } from "date-fns/locale";
@@ -1593,9 +1594,9 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
 
             {/* Step 6: Confirm */}
             {step === 6 && (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">
+              <div className="space-y-3">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">
                     {language === "es" ? "Confirmar Detalles" : "Confirm Details"}
                   </h3>
                   <p className="text-sm text-muted-foreground">
@@ -1605,157 +1606,170 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                   </p>
                 </div>
 
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{language === "es" ? "Propiedad" : "Property"}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{language === "es" ? "Condominio:" : "Condominium:"}</span>
-                      <strong>{selectedUnit?.condominium?.name}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{language === "es" ? "Unidad:" : "Unit:"}</span>
-                      <strong>{selectedUnit?.unitNumber}</strong>
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* Two-column grid for compact display */}
+                <div className="grid gap-3 md:grid-cols-2">
+                  {/* Property & Owner Column */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        {language === "es" ? "Propiedad" : "Property"}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2 pt-0">
+                      <div>
+                        <span className="text-xs text-muted-foreground block">{language === "es" ? "Condominio" : "Condominium"}</span>
+                        <strong className="text-sm">{selectedUnit?.condominium?.name || condominiums?.find(c => c.id === selectedCondominiumId)?.name || "-"}</strong>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground block">{language === "es" ? "Unidad" : "Unit"}</span>
+                        <strong className="text-sm">{selectedUnit?.unitNumber || "-"}</strong>
+                      </div>
+                      <Separator className="my-2" />
+                      <div>
+                        <span className="text-xs text-muted-foreground block flex items-center gap-1">
+                          <UserCheck className="h-3 w-3" />
+                          {language === "es" ? "Propietario" : "Owner"}
+                        </span>
+                        {isCreatingNewOwner && newOwnerData.ownerName ? (
+                          <div className="flex items-center gap-2">
+                            <strong className="text-sm">{newOwnerData.ownerName}</strong>
+                            <Badge variant="secondary" className="text-xs">
+                              {language === "es" ? "Nuevo" : "New"}
+                            </Badge>
+                          </div>
+                        ) : unitOwner ? (
+                          <strong className="text-sm">{unitOwner.ownerName}</strong>
+                        ) : (
+                          <span className="text-sm text-muted-foreground italic">
+                            {language === "es" ? "Sin propietario" : "No owner"}
+                          </span>
+                        )}
+                        {(isCreatingNewOwner ? newOwnerData.ownerPhone : unitOwner?.ownerPhone) && (
+                          <p className="text-xs text-muted-foreground">{isCreatingNewOwner ? newOwnerData.ownerPhone : unitOwner?.ownerPhone}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
 
+                  {/* Tenant Column */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <User className="h-4 w-4 text-primary" />
+                        {language === "es" ? "Inquilino Principal" : "Primary Tenant"}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2 pt-0">
+                      {useExistingClient && selectedClientId && clients ? (
+                        (() => {
+                          const selectedClient = clients.find((c: any) => c.id === selectedClientId);
+                          return selectedClient ? (
+                            <>
+                              <div>
+                                <span className="text-xs text-muted-foreground block">{language === "es" ? "Nombre" : "Name"}</span>
+                                <strong className="text-sm">{selectedClient.firstName} {selectedClient.lastName}</strong>
+                              </div>
+                              <div>
+                                <span className="text-xs text-muted-foreground block">{language === "es" ? "Email" : "Email"}</span>
+                                <span className="text-sm">{selectedClient.email || "-"}</span>
+                              </div>
+                              <div>
+                                <span className="text-xs text-muted-foreground block">{language === "es" ? "Teléfono" : "Phone"}</span>
+                                <span className="text-sm">{selectedClient.phone || "-"}</span>
+                              </div>
+                            </>
+                          ) : null;
+                        })()
+                      ) : (
+                        <>
+                          <div>
+                            <span className="text-xs text-muted-foreground block">{language === "es" ? "Nombre" : "Name"}</span>
+                            <strong className="text-sm">{form.watch("tenantName") || "-"}</strong>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground block">{language === "es" ? "Email" : "Email"}</span>
+                            <span className="text-sm">{form.watch("tenantEmail") || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground block">{language === "es" ? "Teléfono" : "Phone"}</span>
+                            <span className="text-sm">{form.watch("tenantPhone") || "-"}</span>
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Terms Card - Full Width */}
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <UserCheck className="h-4 w-4" />
-                      {language === "es" ? "Propietario" : "Owner"}
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      {language === "es" ? "Términos del Contrato" : "Contract Terms"}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="text-sm space-y-1">
-                    {isCreatingNewOwner && newOwnerData.ownerName ? (
-                      <>
-                        <p><strong>{newOwnerData.ownerName}</strong></p>
-                        <p className="text-muted-foreground">{newOwnerData.ownerEmail || "-"}</p>
-                        <p className="text-muted-foreground">{newOwnerData.ownerPhone || "-"}</p>
-                        <Badge variant="secondary" className="mt-1">
-                          {language === "es" ? "Nuevo propietario" : "New owner"}
+                  <CardContent className="pt-0">
+                    {/* Key Terms Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                      <div className="text-center p-2 bg-muted/50 rounded">
+                        <span className="text-xs text-muted-foreground block">{language === "es" ? "Renta" : "Rent"}</span>
+                        <strong className="text-sm">${form.watch("monthlyRent")}</strong>
+                      </div>
+                      <div className="text-center p-2 bg-muted/50 rounded">
+                        <span className="text-xs text-muted-foreground block">{language === "es" ? "Depósito" : "Deposit"}</span>
+                        <strong className="text-sm">${form.watch("securityDeposit") || "0"}</strong>
+                      </div>
+                      <div className="text-center p-2 bg-muted/50 rounded">
+                        <span className="text-xs text-muted-foreground block">{language === "es" ? "Duración" : "Duration"}</span>
+                        <strong className="text-sm">{form.watch("leaseDurationMonths")} {language === "es" ? "meses" : "mo"}</strong>
+                      </div>
+                      <div className="text-center p-2 bg-muted/50 rounded">
+                        <span className="text-xs text-muted-foreground block">{language === "es" ? "Día de pago" : "Pay day"}</span>
+                        <strong className="text-sm">
+                          {form.watch("startDate") 
+                            ? parseInt(form.watch("startDate").split('-')[2])
+                            : "-"}
+                        </strong>
+                      </div>
+                    </div>
+                    
+                    {/* Period */}
+                    <div className="text-xs text-center text-muted-foreground mb-2">
+                      {form.watch("startDate") && safeFormatDate(new Date(form.watch("startDate")), 'dd MMM yyyy', { locale: language === "es" ? es : enUS })}
+                      {form.watch("startDate") && form.watch("endDate") && " → "}
+                      {form.watch("endDate") && safeFormatDate(new Date(form.watch("endDate")), 'dd MMM yyyy', { locale: language === "es" ? es : enUS })}
+                    </div>
+                    
+                    {/* Additional Info - Inline Badges */}
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {form.watch("hasPet") && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <PawPrint className="h-3 w-3" />
+                          {form.watch("petName") || (language === "es" ? "Mascota" : "Pet")}
                         </Badge>
-                      </>
-                    ) : unitOwner ? (
-                      <>
-                        <p><strong>{unitOwner.ownerName}</strong></p>
-                        <p className="text-muted-foreground">{unitOwner.ownerEmail || "-"}</p>
-                        <p className="text-muted-foreground">{unitOwner.ownerPhone || "-"}</p>
-                      </>
-                    ) : (
-                      <p className="text-muted-foreground italic">
-                        {language === "es" ? "Sin propietario" : "No owner"}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{language === "es" ? "Inquilino Principal" : "Primary Tenant"}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm space-y-1">
-                    {useExistingClient && selectedClientId && clients ? (
-                      (() => {
-                        const selectedClient = clients.find((c: any) => c.id === selectedClientId);
-                        return selectedClient ? (
-                          <>
-                            <p><strong>{selectedClient.firstName} {selectedClient.lastName}</strong></p>
-                            <p className="text-muted-foreground">{selectedClient.email || "-"}</p>
-                            <p className="text-muted-foreground">{selectedClient.phone || "-"}</p>
-                          </>
-                        ) : null;
-                      })()
-                    ) : (
-                      <>
-                        <p><strong>{form.watch("tenantName") || "-"}</strong></p>
-                        <p className="text-muted-foreground">{form.watch("tenantEmail") || "-"}</p>
-                        <p className="text-muted-foreground">{form.watch("tenantPhone") || "-"}</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{language === "es" ? "Términos" : "Terms"}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{language === "es" ? "Renta mensual" : "Monthly rent"}:</span>
-                      <strong>${form.watch("monthlyRent")}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{language === "es" ? "Día de pago" : "Payment day"}:</span>
-                      <strong>
-                        {form.watch("startDate") 
-                          ? `${language === "es" ? "Día" : "Day"} ${parseInt(form.watch("startDate").split('-')[2])}`
-                          : "-"}
-                      </strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{language === "es" ? "Depósito" : "Deposit"}:</span>
-                      <strong>${form.watch("securityDeposit") || "0"}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{language === "es" ? "Duración" : "Duration"}:</span>
-                      <strong>
-                        {form.watch("leaseDurationMonths")} {language === "es" ? "meses" : "months"}
-                      </strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{language === "es" ? "Período" : "Period"}:</span>
-                      <strong>
-                        {form.watch("startDate") && safeFormatDate(new Date(form.watch("startDate")), 'dd/MM/yyyy', { locale: language === "es" ? es : enUS })}
-                        {form.watch("startDate") && form.watch("endDate") && " - "}
-                        {form.watch("endDate") && safeFormatDate(new Date(form.watch("endDate")), 'dd/MM/yyyy', { locale: language === "es" ? es : enUS })}
-                      </strong>
+                      )}
+                      {additionalTenants.filter(t => t.fullName).length > 0 && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <Users className="h-3 w-3" />
+                          +{additionalTenants.filter(t => t.fullName).length} {language === "es" ? "inquilinos" : "tenants"}
+                        </Badge>
+                      )}
+                      {additionalServices.length > 0 && (
+                        <Badge variant="secondary" className="text-xs gap-1">
+                          <Zap className="h-3 w-3" />
+                          {additionalServices.length} {language === "es" ? "servicios" : "services"}
+                        </Badge>
+                      )}
                     </div>
                     
-                    {form.watch("hasPet") && (
-                      <>
-                        <Separator className="my-2" />
-                        <div className="flex items-center gap-2 text-xs">
-                          <PawPrint className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            {language === "es" ? "Mascota:" : "Pet:"}{" "}
-                            <strong className="text-foreground">{form.watch("petName") || (language === "es" ? "Sí" : "Yes")}</strong>
-                          </span>
-                        </div>
-                        {form.watch("petDescription") && (
-                          <p className="text-xs text-muted-foreground pl-6">{form.watch("petDescription")}</p>
-                        )}
-                      </>
-                    )}
-
-                    {additionalTenants.length > 0 && (
-                      <>
-                        <Separator className="my-2" />
-                        <p className="text-muted-foreground text-xs font-medium">
-                          {language === "es" ? "Inquilinos adicionales:" : "Additional tenants:"}
-                        </p>
-                        {additionalTenants.map((tenant, idx) => (
-                          tenant.fullName && (
-                            <div key={idx} className="text-xs text-muted-foreground pl-2">
-                              • {tenant.fullName}
-                            </div>
-                          )
-                        ))}
-                      </>
-                    )}
-                    
+                    {/* Expandable Services List */}
                     {additionalServices.length > 0 && (
-                      <>
-                        <Separator className="my-2" />
-                        <p className="text-muted-foreground text-xs font-medium">
-                          {language === "es" ? "Servicios adicionales:" : "Additional services:"}
-                        </p>
+                      <div className="mt-3 pt-3 border-t space-y-1">
                         {additionalServices.map((service, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-xs gap-2">
-                            <span className="text-muted-foreground capitalize flex-1">
-                              {service.serviceType} 
+                          <div key={idx} className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground capitalize">
+                              {service.serviceType}
                               <span className="text-muted-foreground/60 ml-1">
                                 ({service.paymentFrequency === "monthly" 
                                   ? (language === "es" ? "mensual" : "monthly") 
@@ -1765,13 +1779,13 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
                             {service.chargeType === "fixed" ? (
                               <span className="font-medium">${service.amount}</span>
                             ) : (
-                              <Badge variant="outline" className="text-xs">
+                              <span className="text-muted-foreground italic">
                                 {language === "es" ? "Variable" : "Variable"}
-                              </Badge>
+                              </span>
                             )}
                           </div>
                         ))}
-                      </>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
