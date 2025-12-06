@@ -6,6 +6,7 @@ import multer from "multer";
 import path from "path";
 import { storage, NotFoundError } from "./storage";
 import { openAIService } from "./services/openai";
+import { analyzeAndEnhanceAllPhotos, ImageAdjustments } from "./services/photoEnhancementService";
 import { setupAuth, isAuthenticated, requireRole, getSession, initializeSession } from "./replitAuth";
 import { requireResourceOwnership } from "./middleware/resourceOwnership";
 import { createGoogleMeetEvent, deleteGoogleMeetEvent, checkGoogleCalendarConnection, listEvents, createCalendarEvent } from "./googleCalendar";
@@ -30923,6 +30924,118 @@ ${{precio}}/mes
       res.status(500).json({ message: error.message || "Failed to delete photo" });
     }
   });
+
+  // POST /api/external-units/:id/photos/enhance - Enhance all photos with AI (optimized: analyze 1, apply to all)
+  app.post("/api/external-units/:id/photos/enhance", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { slot } = req.body;
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const photos = await storage.getUnitPhotosBySlot(id);
+      let photosToEnhance: { id: string; url: string }[] = [];
+      
+      if (slot === 'primary') {
+        photosToEnhance = photos.primary.map(p => ({ id: p.id, url: p.storageUrl || p.thumbnailUrl || '' }));
+      } else if (slot === 'secondary') {
+        photosToEnhance = photos.secondary.map(p => ({ id: p.id, url: p.storageUrl || p.thumbnailUrl || '' }));
+      } else {
+        photosToEnhance = [...photos.primary, ...photos.secondary]
+          .map(p => ({ id: p.id, url: p.storageUrl || p.thumbnailUrl || '' }));
+      }
+
+      photosToEnhance = photosToEnhance.filter(p => p.url);
+
+      if (photosToEnhance.length === 0) {
+        return res.status(400).json({ message: "No photos to enhance" });
+      }
+
+      console.log(`[AI Enhance] Starting enhancement for ${photosToEnhance.length} photos`);
+      
+      const batchResult = await analyzeAndEnhanceAllPhotos(photosToEnhance);
+      
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const [photoId, result] of batchResult.results) {
+        if (result.success && result.imageBuffer) {
+          try {
+            const photo = await storage.getUnitPhoto(photoId);
+            if (photo) {
+              const { uploadToObjectStorage } = await import("./objectStorage");
+              const enhancedPath = `enhanced/${id}/${photoId}.jpg`;
+              const enhancedUrl = await uploadToObjectStorage(result.imageBuffer, enhancedPath, 'image/jpeg');
+              
+              await storage.markPhotoAsEnhanced(photoId, photo.storageUrl || photo.thumbnailUrl || '', enhancedUrl);
+              successCount++;
+            }
+          } catch (uploadError) {
+            console.error(`Failed to save enhanced photo ${photoId}:`, uploadError);
+            failCount++;
+          }
+        } else {
+          failCount++;
+        }
+      }
+
+      await createAuditLog(req, "ai_enhance", "external_unit_photos", id, 
+        `Enhanced ${successCount} photos (1 AI call + Sharp processing), ${failCount} failed`);
+
+      res.json({ 
+        success: true, 
+        enhanced: successCount, 
+        failed: failCount,
+        total: photosToEnhance.length,
+        adjustments: batchResult.adjustments,
+        description: batchResult.description,
+        errors: batchResult.errors,
+        usedFallback: batchResult.usedFallback
+      });
+    } catch (error: any) {
+      console.error("Error enhancing photos:", error);
+      res.status(500).json({ message: error.message || "Failed to enhance photos" });
+    }
+  });
+  // POST /api/external-units/:id/photos/:photoId/revert - Revert enhanced photo to original
+  app.post("/api/external-units/:id/photos/:photoId/revert", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, photoId } = req.params;
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const photo = await storage.getUnitPhoto(photoId);
+      if (!photo || photo.unitId !== id) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+
+      if (!photo.isAiEnhanced || !photo.originalStorageUrl) {
+        return res.status(400).json({ message: "Photo is not enhanced or original not available" });
+      }
+
+      await storage.revertEnhancedPhoto(photoId);
+
+      await createAuditLog(req, "revert_enhance", "external_unit_photo", photoId, "Reverted to original photo");
+
+      res.json({ success: true, message: "Photo reverted to original" });
+    } catch (error: any) {
+      console.error("Error reverting photo:", error);
+      res.status(500).json({ message: error.message || "Failed to revert photo" });
+    }
+  });
+
   // GET /api/external/photos/migration-stats - Get migration statistics
   app.get("/api/external/photos/migration-stats", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {

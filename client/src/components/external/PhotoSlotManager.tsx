@@ -28,7 +28,9 @@ import {
   MoreVertical,
   ArrowUp,
   ArrowDown,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  RotateCcw
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -83,7 +85,14 @@ const LABELS = {
     slotFull: "Sección llena",
     dragToReorder: "Arrastra para reordenar",
     photoOf: "de",
-    cover: "Portada"
+    cover: "Portada",
+    enhanceWithAI: "Embellecer con IA",
+    enhancing: "Embelleciendo...",
+    enhanceSuccess: "Fotos embellecidas",
+    enhanced: "Embellecida",
+    revertToOriginal: "Volver a original",
+    enhanceAllTitle: "Embellecer fotos con IA",
+    enhanceAllDescription: "Esta acción usará inteligencia artificial para mejorar automáticamente todas las fotos (brillo, contraste, colores). Las fotos originales se guardarán y podrás revertir los cambios en cualquier momento."
   },
   en: {
     primaryPhotos: "Primary Photos",
@@ -105,7 +114,14 @@ const LABELS = {
     slotFull: "Section full",
     dragToReorder: "Drag to reorder",
     photoOf: "of",
-    cover: "Cover"
+    cover: "Cover",
+    enhanceWithAI: "Enhance with AI",
+    enhancing: "Enhancing...",
+    enhanceSuccess: "Photos enhanced",
+    enhanced: "Enhanced",
+    revertToOriginal: "Revert to original",
+    enhanceAllTitle: "Enhance photos with AI",
+    enhanceAllDescription: "This action will use artificial intelligence to automatically improve all photos (brightness, contrast, colors). Original photos will be saved and you can revert changes at any time."
   }
 };
 
@@ -381,6 +397,7 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [slotToDeleteAll, setSlotToDeleteAll] = useState<'primary' | 'secondary' | null>(null);
+  const [enhanceDialogOpen, setEnhanceDialogOpen] = useState(false);
 
   const { data, isLoading, refetch } = useQuery<{ primary: SlotData; secondary: SlotData }>({
     queryKey: ['/api/external-units', unitId, 'photos', 'slots'],
@@ -504,6 +521,30 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
     }
   });
 
+  const enhanceMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', `/api/external-units/${unitId}/photos/enhance`, {});
+    },
+    onSuccess: (result: any) => {
+      refetch();
+      onPhotoChange?.();
+      setEnhanceDialogOpen(false);
+      toast({
+        title: t.enhanceSuccess,
+        description: language === 'es' 
+          ? `${result.enhanced} fotos embellecidas, ${result.failed} fallidas`
+          : `${result.enhanced} photos enhanced, ${result.failed} failed`
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleUpload = useCallback(async (slot: 'primary' | 'secondary', files: FileList) => {
     setUploadingSlot(slot);
     
@@ -601,8 +642,30 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
     );
   }
 
+  const totalPhotos = (data?.primary?.count || 0) + (data?.secondary?.count || 0);
+
   return (
     <div className="space-y-4">
+      {/* Header with AI Enhancement Button */}
+      {!readOnly && totalPhotos > 0 && (
+        <div className="flex items-center justify-end">
+          <Button
+            variant="outline"
+            onClick={() => setEnhanceDialogOpen(true)}
+            disabled={enhanceMutation.isPending}
+            className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-300 dark:border-purple-700 hover:from-purple-500/20 hover:to-pink-500/20"
+            data-testid="button-enhance-all"
+          >
+            {enhanceMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2 text-purple-500" />
+            )}
+            {enhanceMutation.isPending ? t.enhancing : t.enhanceWithAI}
+          </Button>
+        </div>
+      )}
+
       <PhotoSlotSection
         slot="primary"
         data={data.primary}
@@ -688,6 +751,51 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               {language === 'es' ? 'Eliminar todas' : 'Delete all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Enhancement Dialog */}
+      <Dialog open={enhanceDialogOpen} onOpenChange={setEnhanceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              {t.enhanceAllTitle}
+            </DialogTitle>
+            <DialogDescription>
+              {t.enhanceAllDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+              <div>
+                <p className="font-medium">{totalPhotos} {language === 'es' ? 'fotos' : 'photos'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {language === 'es' 
+                    ? 'Se procesarán todas las fotos de esta unidad' 
+                    : 'All photos from this unit will be processed'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnhanceDialogOpen(false)}>
+              {t.cancel}
+            </Button>
+            <Button 
+              onClick={() => enhanceMutation.mutate()}
+              disabled={enhanceMutation.isPending}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+            >
+              {enhanceMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              {enhanceMutation.isPending ? t.enhancing : t.enhanceWithAI}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -14847,6 +14847,44 @@ export class DatabaseStorage implements IStorage {
     return result || null;
   }
 
+  async markPhotoAsEnhanced(photoId: string, originalUrl: string, enhancedUrl: string): Promise<void> {
+    const existingPhoto = await this.getUnitPhoto(photoId);
+    
+    const updateData: any = {
+      storageUrl: enhancedUrl,
+      isAiEnhanced: true,
+      enhancedAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    if (!existingPhoto?.originalStorageUrl) {
+      updateData.originalStorageUrl = originalUrl;
+    }
+    
+    await db
+      .update(externalUnitMedia)
+      .set(updateData)
+      .where(eq(externalUnitMedia.id, photoId));
+  }
+
+  async revertEnhancedPhoto(photoId: string): Promise<void> {
+    const photo = await this.getUnitPhoto(photoId);
+    if (!photo || !photo.originalStorageUrl) {
+      throw new Error('Original photo not available');
+    }
+    
+    await db
+      .update(externalUnitMedia)
+      .set({
+        storageUrl: photo.originalStorageUrl,
+        originalStorageUrl: null,
+        isAiEnhanced: false,
+        enhancedAt: null,
+        updatedAt: new Date()
+      })
+      .where(eq(externalUnitMedia.id, photoId));
+  }
+
   async updatePhotoMigrationStatus(
     photoId: string, 
     status: 'none' | 'pending' | 'processing' | 'done' | 'error',
