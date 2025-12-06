@@ -31047,6 +31047,136 @@ ${{precio}}/mes
     }
   });
 
+
+  // ============================================================================
+  // HD PHOTO MIGRATION TRACKING API
+  // For tracking progress of 48,000 photo migration from Google Drive
+  // ============================================================================
+
+  // GET /api/photo-migration/status - Get HD migration status for admin panel polling
+  app.get("/api/photo-migration/status", isAuthenticated, requireRole(["master", "admin", "external_agency_admin"]), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const agencyId = user.externalAgencyId;
+      
+      const photoMigrationService = await import("./services/photoMigrationService");
+      const status = await photoMigrationService.getMigrationStatus(agencyId);
+      
+      res.json({
+        ...status,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Error fetching migration status:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch migration status" });
+    }
+  });
+
+  // POST /api/photo-migration/start - Start HD migration process
+  app.post("/api/photo-migration/start", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const agencyId = user.externalAgencyId;
+      const { batchSize, concurrency, targetQuality, maxWidth } = req.body;
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency associated with user" });
+      }
+
+      const photoMigrationService = await import("./services/photoMigrationService");
+      
+      // Queue all photos for migration
+      const queuedCount = await photoMigrationService.queueAllPhotosForMigration(agencyId);
+      
+      // Start migration
+      const meta = await photoMigrationService.startMigration(agencyId, {
+        batchSize: batchSize || 100,
+        concurrency: concurrency || 3,
+        targetQuality: targetQuality || 70,
+        maxWidth: maxWidth || 1600,
+      });
+
+      res.json({ 
+        success: true, 
+        message: `Migration started with ${queuedCount} photos queued`,
+        migrationId: meta.id,
+        queuedCount,
+      });
+    } catch (error: any) {
+      console.error("Error starting migration:", error);
+      res.status(500).json({ message: error.message || "Failed to start migration" });
+    }
+  });
+
+  // POST /api/photo-migration/pause - Pause HD migration
+  app.post("/api/photo-migration/pause", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const agencyId = user.externalAgencyId;
+      
+      if (!agencyId) {
+        return res.status(400).json({ message: "No agency associated with user" });
+      }
+
+      const photoMigrationService = await import("./services/photoMigrationService");
+      await photoMigrationService.pauseMigration(agencyId);
+
+      res.json({ success: true, message: "Migration paused" });
+    } catch (error: any) {
+      console.error("Error pausing migration:", error);
+      res.status(500).json({ message: error.message || "Failed to pause migration" });
+    }
+  });
+
+  // POST /api/photo-migration/retry-errors - Retry photos that had errors
+  app.post("/api/photo-migration/retry-errors", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const agencyId = user.externalAgencyId;
+
+      const photoMigrationService = await import("./services/photoMigrationService");
+      const resetCount = await photoMigrationService.resetErrorPhotos(agencyId);
+
+      res.json({ 
+        success: true, 
+        message: `${resetCount} photos reset for retry`,
+        resetCount,
+      });
+    } catch (error: any) {
+      console.error("Error resetting error photos:", error);
+      res.status(500).json({ message: error.message || "Failed to reset error photos" });
+    }
+  });
+
+  // GET /api/photo-migration/errors - Get photos with errors for debugging
+  app.get("/api/photo-migration/errors", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const photoMigrationService = await import("./services/photoMigrationService");
+      const errors = await photoMigrationService.getPhotosWithErrors(limit);
+
+      res.json({ errors, count: errors.length });
+    } catch (error: any) {
+      console.error("Error fetching error photos:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch error photos" });
+    }
+  });
+
+  // GET /api/photo-migration/logs - Get recent migration logs
+  app.get("/api/photo-migration/logs", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      const photoMigrationService = await import("./services/photoMigrationService");
+      const logs = await photoMigrationService.getRecentMigrationLogs(limit);
+
+      res.json({ logs, count: logs.length });
+    } catch (error: any) {
+      console.error("Error fetching migration logs:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch migration logs" });
+    }
+  });
   // POST /api/external-units/:id/photos/mark-for-migration - Mark unit photos for migration
   app.post("/api/external-units/:id/photos/mark-for-migration", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {

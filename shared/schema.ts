@@ -11880,3 +11880,90 @@ export const insertAppNotificationPreferencesSchema = createInsertSchema(appNoti
 });
 export type InsertAppNotificationPreferences = z.infer<typeof insertAppNotificationPreferencesSchema>;
 export type AppNotificationPreferences = typeof appNotificationPreferences.$inferSelect;
+
+// ============================================================================
+// PHOTO MIGRATION TRACKING
+// Global tracking for HD photo reimport progress
+// ============================================================================
+
+export const photoMigrationStatusGlobalEnum = pgEnum("photo_migration_status_global", [
+  "idle",        // No migration in progress
+  "running",     // Migration currently active
+  "paused",      // Migration paused
+  "completed",   // Migration finished
+  "error",       // Migration stopped due to error
+]);
+
+export const photoMigrationMeta = pgTable("photo_migration_meta", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agencyId: varchar("agency_id").references(() => externalAgencies.id, { onDelete: "cascade" }),
+  
+  // Progress tracking
+  totalPhotos: integer("total_photos").notNull().default(0),
+  processedPhotos: integer("processed_photos").notNull().default(0),
+  pendingPhotos: integer("pending_photos").notNull().default(0),
+  errorPhotos: integer("error_photos").notNull().default(0),
+  
+  // Batch tracking
+  lastBatchSize: integer("last_batch_size").default(0),
+  currentBatchId: varchar("current_batch_id", { length: 100 }),
+  
+  // Status
+  status: photoMigrationStatusGlobalEnum("status").notNull().default("idle"),
+  errorMessage: text("error_message"),
+  
+  // Settings
+  batchSize: integer("batch_size").notNull().default(100),
+  concurrency: integer("concurrency").notNull().default(3),
+  targetQuality: integer("target_quality").notNull().default(70), // WebP quality
+  maxWidth: integer("max_width").notNull().default(1600), // Max width in pixels
+  
+  // Timing
+  startedAt: timestamp("started_at"),
+  pausedAt: timestamp("paused_at"),
+  completedAt: timestamp("completed_at"),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_photo_migration_meta_agency").on(table.agencyId),
+  index("idx_photo_migration_meta_status").on(table.status),
+]);
+
+export const insertPhotoMigrationMetaSchema = createInsertSchema(photoMigrationMeta).omit({
+  id: true, createdAt: true, lastUpdatedAt: true,
+});
+export type InsertPhotoMigrationMeta = z.infer<typeof insertPhotoMigrationMetaSchema>;
+export type PhotoMigrationMeta = typeof photoMigrationMeta.$inferSelect;
+
+// Photo Migration Log - Individual photo processing logs
+export const photoMigrationLogs = pgTable("photo_migration_logs", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  migrationMetaId: varchar("migration_meta_id").references(() => photoMigrationMeta.id, { onDelete: "cascade" }),
+  photoId: varchar("photo_id").notNull().references(() => externalUnitMedia.id, { onDelete: "cascade" }),
+  
+  // Processing info
+  status: photoMigrationStatusEnum("status").notNull(),
+  errorMessage: text("error_message"),
+  
+  // File info
+  originalSize: integer("original_size"), // bytes
+  processedSize: integer("processed_size"), // bytes
+  originalWidth: integer("original_width"),
+  originalHeight: integer("original_height"),
+  processedWidth: integer("processed_width"),
+  processedHeight: integer("processed_height"),
+  
+  // Timing
+  processingTimeMs: integer("processing_time_ms"),
+  processedAt: timestamp("processed_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_photo_migration_logs_meta").on(table.migrationMetaId),
+  index("idx_photo_migration_logs_photo").on(table.photoId),
+  index("idx_photo_migration_logs_status").on(table.status),
+]);
+
+export const insertPhotoMigrationLogSchema = createInsertSchema(photoMigrationLogs).omit({
+  id: true, processedAt: true,
+});
+export type InsertPhotoMigrationLog = z.infer<typeof insertPhotoMigrationLogSchema>;
+export type PhotoMigrationLog = typeof photoMigrationLogs.$inferSelect;
