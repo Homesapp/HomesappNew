@@ -326,8 +326,8 @@ function AuthenticatedApp() {
           )}
         </Route>
         <Route path="/:agencySlug/:unitSlug" component={PublicUnitDetail} />
-        <Route path="/" component={PublicDashboard} />
-        <Route component={PublicDashboard} />
+        <Route path="/" component={Landing} />
+        <Route component={Landing} />
       </Switch>
     );
   }
