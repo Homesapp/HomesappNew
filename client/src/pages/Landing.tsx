@@ -55,6 +55,11 @@ interface ZoneProperties {
   properties: LandingProperty[];
 }
 
+interface ZoneApiResponse {
+  data: Record<string, any[]>;
+  zones: string[];
+}
+
 function PropertyRailCard({ property }: { property: LandingProperty }) {
   const formatPrice = (price: number | null, currency: string) => {
     if (!price) return null;
@@ -297,9 +302,37 @@ export default function Landing() {
     queryKey: ['/api/public/landing/featured'],
   });
 
-  const { data: zoneProperties, isLoading: loadingZones } = useQuery<ZoneProperties[]>({
+  const { data: zoneApiResponse, isLoading: loadingZones } = useQuery<ZoneApiResponse>({
     queryKey: ['/api/public/landing/by-zone'],
   });
+
+  // Transform API response to ZoneProperties array
+  const zoneProperties: ZoneProperties[] = zoneApiResponse?.zones?.map(zoneName => {
+    const zoneSlug = zoneName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+    const properties = (zoneApiResponse.data[zoneName] || []).map((prop: any) => ({
+      id: prop.id,
+      name: prop.name,
+      condoName: prop.condominiumName || null,
+      zone: zoneName,
+      zoneSlug: zoneSlug,
+      bedrooms: prop.bedrooms,
+      bathrooms: prop.bathrooms,
+      area: prop.area,
+      rentPrice: prop.rentPrice,
+      salePrice: prop.salePrice,
+      currency: prop.currency || 'MXN',
+      listingType: prop.listingType || 'rent',
+      image: prop.primaryImages?.[0] || null,
+      isFeatured: prop.isFeatured || false,
+      slug: prop.slug,
+      shortId: prop.shortId,
+    }));
+    return {
+      zone: zoneName,
+      zoneSlug,
+      properties,
+    };
+  }).filter(z => z.properties.length > 0) || [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,18 +421,18 @@ export default function Landing() {
               </form>
               
               <div className="flex flex-wrap justify-center gap-2 pt-4">
-                <Badge variant="outline" className="cursor-pointer hover-elevate" asChild>
-                  <Link href="/propiedades?zone=aldea-zama">Aldea Zama</Link>
-                </Badge>
-                <Badge variant="outline" className="cursor-pointer hover-elevate" asChild>
-                  <Link href="/propiedades?zone=la-veleta">La Veleta</Link>
-                </Badge>
-                <Badge variant="outline" className="cursor-pointer hover-elevate" asChild>
-                  <Link href="/propiedades?zone=region-15">Región 15</Link>
-                </Badge>
-                <Badge variant="outline" className="cursor-pointer hover-elevate" asChild>
-                  <Link href="/propiedades?zone=centro">Centro</Link>
-                </Badge>
+                <Link href="/propiedades?zone=aldea-zama">
+                  <Badge variant="outline" className="cursor-pointer">Aldea Zama</Badge>
+                </Link>
+                <Link href="/propiedades?zone=la-veleta">
+                  <Badge variant="outline" className="cursor-pointer">La Veleta</Badge>
+                </Link>
+                <Link href="/propiedades?zone=region-15">
+                  <Badge variant="outline" className="cursor-pointer">Región 15</Badge>
+                </Link>
+                <Link href="/propiedades?zone=centro">
+                  <Badge variant="outline" className="cursor-pointer">Centro</Badge>
+                </Link>
               </div>
             </div>
           </div>
