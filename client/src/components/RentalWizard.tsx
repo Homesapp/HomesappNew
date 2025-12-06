@@ -169,7 +169,9 @@ export default function RentalWizard({ open, onOpenChange }: RentalWizardProps) 
         if (response.status === 404) return null;
         throw new Error('Failed to fetch owner');
       }
-      return response.json();
+      const owners = await response.json();
+      // API returns an array, get the first active owner
+      return Array.isArray(owners) && owners.length > 0 ? owners[0] : null;
     },
     enabled: !!selectedUnitId,
     staleTime: 5 * 60 * 1000,
