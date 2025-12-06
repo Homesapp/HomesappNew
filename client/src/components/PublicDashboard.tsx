@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense, memo } from "react";
 import { useLocation } from "wouter";
-import { Search, MapPin, Map, SlidersHorizontal, Building2, Star, ChevronRight, Home, Calendar, Laptop, Award, Users, CheckCircle2, ChevronDown, Quote, User, Briefcase } from "lucide-react";
+import { Search, MapPin, Map, SlidersHorizontal, Building2, Star, ChevronRight, Home, Calendar, Laptop, Award, Users, CheckCircle2, ChevronDown, Quote, User, Briefcase, Key, DollarSign, PawPrint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -267,27 +267,39 @@ export default function PublicDashboard() {
             <div className="mt-4 flex justify-center gap-3 flex-wrap">
               <Button
                 variant="outline"
-                className="rounded-full px-6 min-h-[44px]"
+                className="rounded-full px-6 min-h-[44px] gap-2"
                 onClick={() => setLocation("/buscar-propiedades?status=rent")}
                 data-testid="button-filter-rent"
               >
+                <Key className="h-4 w-4" />
                 {language === 'en' ? 'Rent' : 'Renta'}
               </Button>
               <Button
                 variant="outline"
-                className="rounded-full px-6 min-h-[44px]"
+                className="rounded-full px-6 min-h-[44px] gap-2"
                 onClick={() => setLocation("/buscar-propiedades?status=sale")}
                 data-testid="button-filter-sale"
               >
+                <DollarSign className="h-4 w-4" />
                 {language === 'en' ? 'Sale' : 'Venta'}
               </Button>
               <Button
                 variant="outline"
-                className="rounded-full px-6 min-h-[44px]"
+                className="rounded-full px-6 min-h-[44px] gap-2"
                 onClick={() => setLocation("/buscar-propiedades?petFriendly=true")}
                 data-testid="button-filter-pet-friendly"
               >
+                <PawPrint className="h-4 w-4" />
                 Pet-friendly
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-full px-6 min-h-[44px] gap-2"
+                onClick={() => setLocation("/buscar-propiedades?featured=true")}
+                data-testid="button-filter-featured"
+              >
+                <Star className="h-4 w-4" />
+                {language === 'en' ? 'Featured' : 'Destacados'}
               </Button>
             </div>
           </div>
