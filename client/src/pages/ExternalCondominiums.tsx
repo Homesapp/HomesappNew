@@ -41,6 +41,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 type CondominiumFormData = z.infer<typeof insertExternalCondominiumSchema>;
 type UnitFormData = z.infer<typeof insertExternalUnitSchema>;
@@ -3144,18 +3145,21 @@ export default function ExternalCondominiums() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{language === "es" ? "Condominio" : "Condominium"} *</FormLabel>
-                    <Select value={field.value || ""} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-unit-condo">
-                          <SelectValue placeholder={language === "es" ? "Selecciona un condominio" : "Select a condominium"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {condominiums?.map(condo => (
-                          <SelectItem key={condo.id} value={condo.id}>{condo.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                        options={(condominiums || []).map(condo => ({
+                          value: condo.id,
+                          label: condo.name,
+                          description: condo.zone || undefined,
+                        }))}
+                        placeholder={language === "es" ? "Selecciona un condominio" : "Select a condominium"}
+                        searchPlaceholder={language === "es" ? "Buscar condominio..." : "Search condominium..."}
+                        emptyMessage={language === "es" ? "No se encontraron condominios" : "No condominiums found"}
+                        data-testid="select-unit-condo"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
