@@ -22,9 +22,20 @@ interface FeaturedProperty {
   sortOrder: number;
   addedBy: string | null;
   createdAt: string;
-  unit?: ExternalUnit & {
-    condominiumName?: string;
-  };
+  unitNumber?: string | null;
+  title?: string | null;
+  propertyType?: string | null;
+  zone?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  condominiumName?: string | null;
+}
+
+interface FeaturedPropertiesResponse {
+  data: FeaturedProperty[];
+  count: number;
+  maxLimit: number;
+  remainingSlots: number;
 }
 
 interface AvailableUnit extends ExternalUnit {
@@ -100,9 +111,11 @@ export function FeaturedPropertiesTab({ language }: FeaturedPropertiesTabProps) 
     },
   }[language];
 
-  const { data: featuredProperties, isLoading } = useQuery<FeaturedProperty[]>({
+  const { data: featuredResponse, isLoading } = useQuery<FeaturedPropertiesResponse>({
     queryKey: ['/api/featured-properties'],
   });
+
+  const featuredProperties = featuredResponse?.data || [];
 
   const { data: availableUnits, isLoading: unitsLoading } = useQuery<AvailableUnit[]>({
     queryKey: ['/api/featured-properties/available-units', debouncedSearch],
@@ -164,7 +177,7 @@ export function FeaturedPropertiesTab({ language }: FeaturedPropertiesTabProps) 
     reorderMutation.mutate({ id: item.id, newOrder: item.sortOrder + 1 });
   };
 
-  const currentCount = featuredProperties?.length || 0;
+  const currentCount = featuredProperties.length;
   const canAddMore = currentCount < MAX_FEATURED;
 
   const filteredUnits = availableUnits?.filter(unit => {
@@ -259,11 +272,11 @@ export function FeaturedPropertiesTab({ language }: FeaturedPropertiesTabProps) 
                       <div className="flex items-center gap-2">
                         <Home className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
-                          {item.unit?.unitNumber || item.unitId.slice(0, 8)}
+                          {item.unitNumber || item.unitId.slice(0, 8)}
                         </span>
-                        {item.unit?.bedrooms && (
+                        {item.bedrooms && (
                           <Badge variant="secondary" className="text-xs">
-                            {item.unit.bedrooms} {t.bedrooms}
+                            {item.bedrooms} {t.bedrooms}
                           </Badge>
                         )}
                       </div>
@@ -271,11 +284,11 @@ export function FeaturedPropertiesTab({ language }: FeaturedPropertiesTabProps) 
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
-                        {item.unit?.condominiumName || "-"}
+                        {item.condominiumName || "-"}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {item.unit?.zone || "-"}
+                      {item.zone || "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

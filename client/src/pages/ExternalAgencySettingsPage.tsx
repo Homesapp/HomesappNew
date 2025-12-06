@@ -55,6 +55,8 @@ import {
   Palette,
 } from "lucide-react";
 import type { ExternalAgency, ExternalAgencySettings, ExternalAgencyMessageTemplate, ExternalAgencyDocument, ExternalAgencyInvitation } from "@shared/schema";
+import { FeedbackList } from "@/components/FeedbackList";
+import { PhotoMigrationWidget } from "@/components/PhotoMigrationWidget";
 
 interface SettingsSection {
   id: string;
@@ -129,6 +131,22 @@ const sections: SettingsSection[] = [
     icon: Target,
     description: "Tasas y objetivos mensuales",
     descriptionEn: "Rates and monthly targets",
+  },
+  {
+    id: "feedback",
+    title: "Feedback de Usuarios",
+    titleEn: "User Feedback",
+    icon: Mail,
+    description: "Ver comentarios y sugerencias de usuarios",
+    descriptionEn: "View user comments and suggestions",
+  },
+  {
+    id: "migration",
+    title: "Migración de Fotos HD",
+    titleEn: "HD Photo Migration",
+    icon: RefreshCw,
+    description: "Progreso de migración de fotos de alta resolución",
+    descriptionEn: "HD photo migration progress",
   },
 ];
 
@@ -1981,6 +1999,48 @@ export default function ExternalAgencySettingsPage() {
     </Form>
   );
 
+  const renderFeedbackSection = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            {language === "es" ? "Feedback de Usuarios" : "User Feedback"}
+          </CardTitle>
+          <CardDescription>
+            {language === "es" 
+              ? "Comentarios, sugerencias y reportes enviados por usuarios de la plataforma"
+              : "Comments, suggestions and reports sent by platform users"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FeedbackList language={language} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const renderMigrationSection = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5" />
+            {language === "es" ? "Migración de Fotos HD" : "HD Photo Migration"}
+          </CardTitle>
+          <CardDescription>
+            {language === "es" 
+              ? "Monitorea el progreso de la migración de fotos de alta resolución desde Google Drive"
+              : "Monitor the progress of HD photo migration from Google Drive"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PhotoMigrationWidget language={language} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderSection = () => {
     switch (activeSection) {
       case "profile":
@@ -1999,6 +2059,10 @@ export default function ExternalAgencySettingsPage() {
         return renderTemplatesSection();
       case "commissions":
         return renderCommissionsSection();
+      case "feedback":
+        return renderFeedbackSection();
+      case "migration":
+        return renderMigrationSection();
       default:
         return null;
     }
