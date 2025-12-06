@@ -58,6 +58,23 @@ export default function PublicDashboard() {
   });
   const externalProperties = externalPropertiesResponse?.data || [];
 
+  // Query for zone-based properties
+  const { data: zonePropertiesData, isLoading: zonesLoading } = useQuery<{ data: Record<string, any[]>; zones: string[] }>({
+    queryKey: ["/api/public/landing/by-zone"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  // Filter to only 3 zones
+  const targetZones = ["Aldea Zama", "La Veleta", "Centro"];
+  const zoneProperties = targetZones
+    .filter(zone => zonePropertiesData?.data?.[zone]?.length > 0)
+    .map(zone => ({
+      name: zone,
+      slug: zone.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-'),
+      properties: zonePropertiesData?.data?.[zone] || []
+    }));
+
   const { data: colonies = [] } = useQuery<Colony[]>({
     queryKey: ["/api/colonies/approved"],
     enabled: showFilters,
@@ -342,6 +359,64 @@ export default function PublicDashboard() {
             )}
           </div>
         </div>
+
+        {/* Zone-based Property Sections */}
+        {zoneProperties.map((zone) => (
+          <div key={zone.slug} className="mb-10 sm:mb-14">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-semibold">
+                {language === 'en' ? `Properties in ${zone.name}` : `Propiedades en ${zone.name}`}
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground gap-1"
+                onClick={() => setLocation(`/buscar-propiedades?zone=${zone.slug}`)}
+                data-testid={`button-view-all-${zone.slug}`}
+              >
+                {language === 'en' ? 'View all' : 'Ver todas'} <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {zonesLoading ? (
+                <>
+                  <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
+                </>
+              ) : zone.properties.length > 0 ? (
+                zone.properties.slice(0, 4).map((property: any) => {
+                  const propertyUrl = property.agencySlug && property.slug 
+                    ? `/${property.agencySlug}/${property.slug}`
+                    : `/propiedad-externa/${property.id}`;
+                  return (
+                    <UnifiedPropertyCard
+                      key={property.id}
+                      id={property.id}
+                      title={property.condominiumName || property.name || "Propiedad"}
+                      unitNumber={property.unitLabel || property.unitNumber}
+                      location={zone.name}
+                      zone={zone.name}
+                      condominiumName={property.condominiumName}
+                      rentPrice={property.rentPrice}
+                      salePrice={property.salePrice}
+                      currency={property.currency || "MXN"}
+                      bedrooms={property.bedrooms || 0}
+                      bathrooms={property.bathrooms || 0}
+                      area={property.constructionSize || property.area}
+                      status="available"
+                      images={property.primaryImages || []}
+                      petFriendly={property.petFriendly}
+                      context="public"
+                      onClick={() => setLocation(propertyUrl)}
+                    />
+                  );
+                })
+              ) : null}
+            </div>
+          </div>
+        ))}
 
         {/* 3. Sección para tipos de usuario - 3 tarjetas */}
         <div className="mb-10 sm:mb-14">
