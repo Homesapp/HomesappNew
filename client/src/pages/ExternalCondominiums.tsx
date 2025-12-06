@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, ArrowUpDown, FileSpreadsheet, Target, UserCheck, Clock, Phone, Mail, MapPin, Calendar, Globe, Clock4, MoreHorizontal, Eye } from "lucide-react";
+import { Building2, Plus, AlertCircle, AlertTriangle, Home, Edit, Trash2, Search, Filter, CheckCircle2, XCircle, DoorOpen, DoorClosed, Key, Power, PowerOff, ChevronDown, ChevronUp, LayoutGrid, Table as TableIcon, ArrowUpDown, FileSpreadsheet, Target, UserCheck, Clock, Phone, Mail, MapPin, Calendar, Globe, Clock4, MoreHorizontal, Eye, Star, GripVertical } from "lucide-react";
 import { logError, getErrorMessage } from "@/lib/errorHandling";
 import {
   DropdownMenu,
@@ -35,6 +35,7 @@ import { insertExternalCondominiumSchema, insertExternalUnitSchema, externalUnit
 import { z } from "zod";
 import { floorOptions, formatFloor } from "@/lib/unitHelpers";
 import ExternalGoogleSheetsImportDialog from "@/components/ExternalGoogleSheetsImportDialog";
+import { FeaturedPropertiesTab } from "@/components/FeaturedPropertiesTab";
 import {
   Popover,
   PopoverContent,
@@ -56,7 +57,7 @@ export default function ExternalCondominiums() {
   const [editingUnit, setEditingUnit] = useState<ExternalUnit | null>(null);
   const [deletingCondo, setDeletingCondo] = useState<ExternalCondominium | null>(null);
   const [selectedCondoId, setSelectedCondoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"condominiums" | "units" | "recruitment">("condominiums");
+  const [activeTab, setActiveTab] = useState<"condominiums" | "units" | "recruitment" | "featured">("condominiums");
   
   // Agency selector state for admin/master users
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>("");
@@ -1004,7 +1005,7 @@ export default function ExternalCondominiums() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => {
-        setActiveTab(value as "condominiums" | "units" | "recruitment");
+        setActiveTab(value as "condominiums" | "units" | "recruitment" | "featured");
         // Close filters when switching tabs
         if (value === "condominiums") {
           setFiltersExpanded(false);
@@ -1012,7 +1013,7 @@ export default function ExternalCondominiums() {
           setCondoFiltersExpanded(false);
         }
       }} className="w-full">
-        <TabsList className="grid w-full sm:max-w-lg grid-cols-3 mb-4">
+        <TabsList className="grid w-full sm:max-w-2xl grid-cols-4 mb-4">
           <TabsTrigger value="condominiums" data-testid="tab-condominiums">
             <Building2 className="mr-2 h-4 w-4" />
             {language === "es" ? "Condominios" : "Condominiums"}
@@ -1024,6 +1025,10 @@ export default function ExternalCondominiums() {
           <TabsTrigger value="recruitment" data-testid="tab-recruitment">
             <Target className="mr-2 h-4 w-4" />
             {language === "es" ? "Reclutamiento" : "Recruitment"}
+          </TabsTrigger>
+          <TabsTrigger value="featured" data-testid="tab-featured">
+            <Star className="mr-2 h-4 w-4" />
+            {language === "es" ? "Destacados" : "Featured"}
           </TabsTrigger>
         </TabsList>
 
@@ -2560,6 +2565,10 @@ export default function ExternalCondominiums() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="featured" className="space-y-6">
+          <FeaturedPropertiesTab language={language} />
         </TabsContent>
       </Tabs>
 
