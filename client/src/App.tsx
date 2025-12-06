@@ -204,6 +204,7 @@ import ExternalContracts from "@/pages/ExternalContracts";
 import ExternalAgencyUsers from "@/pages/ExternalAgencyUsers";
 import AdminExternalAgencies from "@/pages/AdminExternalAgencies";
 import AdminExternalPublicationRequests from "@/pages/AdminExternalPublicationRequests";
+import PhotoMigrationPanel from "@/pages/admin/PhotoMigrationPanel";
 import AdminFeaturedProperties from "@/pages/AdminFeaturedProperties";
 import PortalLogin from "@/pages/PortalLogin";
 import TenantPortal from "@/pages/TenantPortal";
@@ -577,6 +578,7 @@ function AuthenticatedApp() {
                 )}
               </Route>
               <Route path="/admin/external-publication-requests" component={AdminExternalPublicationRequests} />
+              <Route path="/admin/photo-migration" component={PhotoMigrationPanel} />
               <Route path="/admin/featured-properties">
                 {() => (
                   <ProtectedRoute allowedRoles={ROLE_GROUPS.mainAdmins}>

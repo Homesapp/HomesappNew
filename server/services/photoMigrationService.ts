@@ -202,7 +202,7 @@ export async function markPhotoAsError(photoId: string, errorMessage: string) {
     .where(eq(externalUnitMedia.id, photoId));
 }
 
-// Update migration meta progress
+// Update migration meta progress (with safe non-negative values)
 export async function updateMigrationProgress(
   metaId: string,
   processedCount: number,
@@ -211,7 +211,7 @@ export async function updateMigrationProgress(
   await db.update(photoMigrationMeta)
     .set({
       processedPhotos: sql`${photoMigrationMeta.processedPhotos} + ${processedCount}`,
-      pendingPhotos: sql`${photoMigrationMeta.pendingPhotos} - ${processedCount}`,
+      pendingPhotos: sql`GREATEST(0, ${photoMigrationMeta.pendingPhotos} - ${processedCount})`,
       errorPhotos: sql`${photoMigrationMeta.errorPhotos} + ${errorCount}`,
       lastBatchSize: processedCount,
       lastUpdatedAt: new Date(),
