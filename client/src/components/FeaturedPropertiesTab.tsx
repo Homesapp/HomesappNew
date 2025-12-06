@@ -118,7 +118,15 @@ export function FeaturedPropertiesTab({ language }: FeaturedPropertiesTabProps) 
   const featuredProperties = featuredResponse?.data || [];
 
   const { data: availableUnits, isLoading: unitsLoading } = useQuery<AvailableUnit[]>({
-    queryKey: ['/api/featured-properties/available-units', debouncedSearch],
+    queryKey: ['/api/featured-properties/available-units', { search: debouncedSearch }],
+    queryFn: async () => {
+      const url = debouncedSearch 
+        ? `/api/featured-properties/available-units?search=${encodeURIComponent(debouncedSearch)}&limit=50`
+        : `/api/featured-properties/available-units?limit=50`;
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch available units');
+      return response.json();
+    },
     enabled: showAddDialog,
   });
 
