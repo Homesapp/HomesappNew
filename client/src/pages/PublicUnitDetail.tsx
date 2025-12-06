@@ -649,106 +649,74 @@ export default function PublicUnitDetail() {
               </TabsContent>
 
               {/* Services Tab */}
-              <TabsContent value="services" className="mt-6">
-                <div className="space-y-6">
+              <TabsContent value="services" className="mt-4">
+                <div className="space-y-4">
+                  {/* Included */}
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">{language === "es" ? "Servicios y Costos" : "Services & Costs"}</h3>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      {language === "es" 
-                        ? "Detalle de servicios incluidos en la renta y costos aproximados de los servicios adicionales."
-                        : "Detail of services included in the rent and approximate costs of additional services."}
-                    </p>
-                  </div>
-                  
-                  {/* Included Services */}
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-green-600">{language === "es" ? "Incluido en la renta" : "Included in rent"}</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <p className="text-xs font-medium text-green-600 mb-2">{language === "es" ? "Incluido" : "Included"}</p>
+                    <div className="flex flex-wrap gap-1.5">
                       {unit.includedServices?.hoaMaintenance && (
-                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
-                          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                          <span className="text-xs">{language === "es" ? "HOA" : "HOA"}</span>
-                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Building2 className="h-3 w-3 mr-1" />HOA
+                        </Badge>
                       )}
                       {unit.includedServices?.internet && (
-                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
-                          <Wifi className="h-4 w-4 text-green-600 shrink-0" />
-                          <span className="text-xs">Internet</span>
-                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Wifi className="h-3 w-3 mr-1" />Internet
+                        </Badge>
                       )}
                       {unit.includedServices?.water && (
-                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
-                          <Droplets className="h-4 w-4 text-green-600 shrink-0" />
-                          <span className="text-xs">{language === "es" ? "Agua" : "Water"}</span>
-                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Droplets className="h-3 w-3 mr-1" />{language === "es" ? "Agua" : "Water"}
+                        </Badge>
                       )}
                       {unit.includedServices?.electricity && (
-                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
-                          <Zap className="h-4 w-4 text-green-600 shrink-0" />
-                          <span className="text-xs">{language === "es" ? "Luz" : "Electricity"}</span>
-                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Zap className="h-3 w-3 mr-1" />{language === "es" ? "Luz" : "Electricity"}
+                        </Badge>
                       )}
                       {unit.includedServices?.gas && (
-                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
-                          <Flame className="h-4 w-4 text-green-600 shrink-0" />
-                          <span className="text-xs">Gas</span>
-                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Flame className="h-3 w-3 mr-1" />Gas
+                        </Badge>
+                      )}
+                      {!unit.includedServices?.hoaMaintenance && !unit.includedServices?.internet && !unit.includedServices?.water && !unit.includedServices?.electricity && !unit.includedServices?.gas && (
+                        <span className="text-xs text-muted-foreground">{language === "es" ? "Ninguno" : "None"}</span>
                       )}
                     </div>
                   </div>
 
-                  {/* Not Included Services with approximate costs */}
-                  <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-muted-foreground">{language === "es" ? "No incluido (costos aprox.)" : "Not included (approx. costs)"}</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {/* Not Included */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{language === "es" ? "No incluido (estimado mensual)" : "Not included (monthly estimate)"}</p>
+                    <div className="flex flex-wrap gap-1.5">
                       {!unit.includedServices?.hoaMaintenance && (
-                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
-                          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <span className="text-xs block truncate">HOA</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {(unit as any).hoaCost 
-                                ? `$${(unit as any).hoaCost.toLocaleString()}`
-                                : language === "es" ? "Variable" : "Variable"}
-                            </span>
-                          </div>
-                        </div>
+                        <Badge variant="secondary" className="text-[10px]">
+                          <Building2 className="h-3 w-3 mr-1" />HOA {(unit as any).hoaCost ? `$${(unit as any).hoaCost.toLocaleString()}` : "~var"}
+                        </Badge>
                       )}
                       {!unit.includedServices?.internet && (
-                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
-                          <Wifi className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <span className="text-xs block truncate">Internet</span>
-                            <span className="text-[10px] text-muted-foreground">~$500-800</span>
-                          </div>
-                        </div>
+                        <Badge variant="secondary" className="text-[10px]">
+                          <Wifi className="h-3 w-3 mr-1" />Internet ~$500-800
+                        </Badge>
                       )}
                       {!unit.includedServices?.water && (
-                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
-                          <Droplets className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <span className="text-xs block truncate">{language === "es" ? "Agua" : "Water"}</span>
-                            <span className="text-[10px] text-muted-foreground">~$200-500</span>
-                          </div>
-                        </div>
+                        <Badge variant="secondary" className="text-[10px]">
+                          <Droplets className="h-3 w-3 mr-1" />{language === "es" ? "Agua" : "Water"} ~$200-500
+                        </Badge>
                       )}
                       {!unit.includedServices?.electricity && (
-                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
-                          <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <span className="text-xs block truncate">{language === "es" ? "Luz" : "Electricity"}</span>
-                            <span className="text-[10px] text-muted-foreground">~$800-2,000</span>
-                          </div>
-                        </div>
+                        <Badge variant="secondary" className="text-[10px]">
+                          <Zap className="h-3 w-3 mr-1" />{language === "es" ? "Luz" : "Elec"} ~$800-2k
+                        </Badge>
                       )}
                       {!unit.includedServices?.gas && (
-                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
-                          <Flame className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <span className="text-xs block truncate">Gas</span>
-                            <span className="text-[10px] text-muted-foreground">~$300-600</span>
-                          </div>
-                        </div>
+                        <Badge variant="secondary" className="text-[10px]">
+                          <Flame className="h-3 w-3 mr-1" />Gas ~$300-600
+                        </Badge>
+                      )}
+                      {unit.includedServices?.hoaMaintenance && unit.includedServices?.internet && unit.includedServices?.water && unit.includedServices?.electricity && unit.includedServices?.gas && (
+                        <span className="text-xs text-muted-foreground">{language === "es" ? "Todo incluido" : "All included"}</span>
                       )}
                     </div>
                   </div>
