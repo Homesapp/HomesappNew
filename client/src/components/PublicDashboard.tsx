@@ -521,20 +521,20 @@ export default function PublicDashboard() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {/* Card: Quiero rentar */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center">
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center flex flex-col h-full">
               <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Home className="h-7 w-7 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">
                 {language === 'en' ? 'I want to rent' : 'Quiero rentar'}
               </h3>
-              <p className="text-muted-foreground mb-6 text-sm">
+              <p className="text-muted-foreground text-sm flex-1">
                 {language === 'en' 
                   ? 'Find your ideal home in Tulum with personalized advice' 
                   : 'Encuentra tu hogar ideal en Tulum con asesoría personalizada'}
               </p>
               <Button 
-                className="rounded-full w-full" 
+                className="rounded-full w-full mt-6" 
                 onClick={() => setLocation("/buscar-propiedades")}
                 data-testid="button-user-renter"
               >
@@ -543,20 +543,20 @@ export default function PublicDashboard() {
             </div>
 
             {/* Card: Soy propietario */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center">
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center flex flex-col h-full">
               <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Building2 className="h-7 w-7 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">
                 {language === 'en' ? "I'm an owner" : 'Soy propietario'}
               </h3>
-              <p className="text-muted-foreground mb-6 text-sm">
+              <p className="text-muted-foreground text-sm flex-1">
                 {language === 'en' 
                   ? 'List your property and let us manage the rental process' 
                   : 'Enlista tu propiedad y déjanos gestionar el proceso de renta'}
               </p>
               <Button 
-                className="rounded-full w-full" 
+                className="rounded-full w-full mt-6" 
                 onClick={() => setLocation("/enlistar-propiedad")}
                 data-testid="button-user-owner"
               >
@@ -565,20 +565,20 @@ export default function PublicDashboard() {
             </div>
 
             {/* Card: Soy agente */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center">
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center flex flex-col h-full">
               <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Briefcase className="h-7 w-7 text-primary" />
               </div>
               <h3 className="text-xl font-semibold mb-2">
                 {language === 'en' ? "I'm an agent" : 'Soy agente'}
               </h3>
-              <p className="text-muted-foreground mb-6 text-sm">
+              <p className="text-muted-foreground text-sm flex-1">
                 {language === 'en' 
                   ? 'Join our team and access verified properties and leads' 
                   : 'Únete a nuestro equipo y accede a propiedades y leads verificados'}
               </p>
               <Button 
-                className="rounded-full w-full" 
+                className="rounded-full w-full mt-6" 
                 onClick={() => setLocation("/aplicar")}
                 data-testid="button-user-agent"
               >
@@ -596,10 +596,10 @@ export default function PublicDashboard() {
               {language === 'en' ? 'Everything you need to know about renting in Tulum' : 'Todo lo que necesitas saber sobre rentar en Tulum'}
             </p>
           </div>
-          <div className="max-w-4xl mx-auto">
-            <div className="grid sm:grid-cols-2 gap-4">
-              {content.faq.items.map((item, i) => (
-                <div key={i} className="p-5 rounded-2xl bg-muted/30 border">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {content.faq.items.slice(0, 6).map((item, i) => (
+                <div key={i} className="p-5 rounded-2xl bg-muted/30 border h-full">
                   <h4 className="font-semibold text-sm sm:text-base mb-3 flex items-start gap-3">
                     <span className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
                       {i + 1}

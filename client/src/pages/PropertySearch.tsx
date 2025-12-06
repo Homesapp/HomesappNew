@@ -551,24 +551,16 @@ export default function PropertySearch() {
                   location={property.location}
                   zone={property.zone}
                   condominiumName={property.condominiumName || property.condoName}
-                  rentPrice={property.rentPrice || property.price}
-                  salePrice={property.salePrice}
-                  currency={property.currency || "MXN"}
                   bedrooms={property.bedrooms}
                   bathrooms={property.bathrooms}
                   area={property.area}
                   status={getPropertyStatus()}
                   images={property.primaryImages || []}
                   petFriendly={property.petsAllowed}
-                  furnished={property.hasFurniture}
-                  hasParking={property.hasParking}
-                  hasAC={property.hasAC}
-                  includedServices={property.includedServices}
+                  variant="landing"
                   context="public"
                   isFavorite={favoriteIds.has(property.id)}
                   onClick={() => setLocation(propertyUrl)}
-                  onContact={() => setLocation(propertyUrl + "?contact=true")}
-                  onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
                   onFavorite={() => {
                     const syntheticEvent = { stopPropagation: () => {} } as React.MouseEvent;
                     handleToggleFavorite(syntheticEvent, property.id);
