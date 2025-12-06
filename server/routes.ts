@@ -30856,6 +30856,73 @@ ${{precio}}/mes
     }
   });
 
+
+  // DELETE /api/external-units/:id/photos/slots/:slot - Delete all photos from a specific slot (primary/secondary)
+  app.delete("/api/external-units/:id/photos/slots/:slot", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, slot } = req.params;
+
+      if (slot !== "primary" && slot !== "secondary") {
+        return res.status(400).json({ message: "Invalid slot. Must be primary or secondary" });
+      }
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const deletedCount = await storage.deleteUnitPhotosBySlot(id, slot);
+
+      await createAuditLog(req, "delete", "external_unit_photos", id, `Deleted ${deletedCount} ${slot} photos`);
+
+      res.json({ 
+        success: true, 
+        message: `Deleted ${deletedCount} ${slot} photos`,
+        deletedCount 
+      });
+    } catch (error: any) {
+      console.error("Error deleting photos by slot:", error);
+      res.status(500).json({ message: error.message || "Failed to delete photos" });
+    }
+  });
+
+  // DELETE /api/external-units/:id/photos/:photoId - Delete individual photo
+  app.delete("/api/external-units/:id/photos/:photoId", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
+    try {
+      const { id, photoId } = req.params;
+
+      const unit = await storage.getExternalUnit(id);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      const hasAccess = await verifyExternalAgencyOwnership(req, res, unit.agencyId);
+      if (!hasAccess) return;
+
+      const photo = await storage.getUnitPhoto(photoId);
+      if (!photo || photo.unitId !== id) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+
+      const deleted = await storage.deleteUnitPhoto(photoId);
+
+      if (deleted) {
+        await createAuditLog(req, "delete", "external_unit_photo", photoId, "Deleted individual photo");
+        res.json({ success: true, message: "Photo deleted" });
+      } else {
+        res.status(500).json({ message: "Failed to delete photo" });
+      }
+    } catch (error: any) {
+      console.error("Error deleting photo:", error);
+      if (error.message?.includes("Can only delete photos")) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: error.message || "Failed to delete photo" });
+    }
+  });
   // GET /api/external/photos/migration-stats - Get migration statistics
   app.get("/api/external/photos/migration-stats", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
     try {

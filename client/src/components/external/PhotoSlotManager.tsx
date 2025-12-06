@@ -223,6 +223,7 @@ function PhotoSlotSection({
   onReorder,
   onMove,
   onDelete,
+  onDeleteAll,
   uploading
 }: {
   slot: 'primary' | 'secondary';
@@ -234,6 +235,7 @@ function PhotoSlotSection({
   onReorder: (slot: 'primary' | 'secondary', photoIds: string[]) => void;
   onMove: (photoId: string, newSlot: 'primary' | 'secondary') => void;
   onDelete: (photoId: string) => void;
+  onDeleteAll: (slot: 'primary' | 'secondary') => void;
   uploading: boolean;
 }) {
   const t = LABELS[language];
@@ -282,22 +284,36 @@ function PhotoSlotSection({
             </CardTitle>
             <CardDescription className="text-sm mt-1">{description}</CardDescription>
           </div>
-          {!readOnly && !isFull && (
-            <Button
-              size="sm"
-              variant={slot === 'primary' ? 'default' : 'outline'}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || isFull}
-              data-testid={`upload-${slot}`}
-            >
-              {uploading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <Plus className="h-4 w-4 mr-1" />
-              )}
-              {t.addPhoto}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {!readOnly && data.count > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => onDeleteAll(slot)}
+                data-testid={`delete-all-${slot}`}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {t.deleteAll}
+              </Button>
+            )}
+            {!readOnly && !isFull && (
+              <Button
+                size="sm"
+                variant={slot === 'primary' ? 'default' : 'outline'}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || isFull}
+                data-testid={`upload-${slot}`}
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-1" />
+                )}
+                {t.addPhoto}
+              </Button>
+            )}
+          </div>
         </div>
         <Progress value={progress} className={`h-1.5 mt-2 ${isFull ? 'bg-destructive/20' : ''}`} />
         <input
@@ -363,6 +379,8 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
   const [uploadingSlot, setUploadingSlot] = useState<'primary' | 'secondary' | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [slotToDeleteAll, setSlotToDeleteAll] = useState<'primary' | 'secondary' | null>(null);
 
   const { data, isLoading, refetch } = useQuery<{ primary: SlotData; secondary: SlotData }>({
     queryKey: ['/api/external-units', unitId, 'photos', 'slots'],
@@ -440,7 +458,7 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
 
   const deleteMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      return apiRequest('DELETE', `/api/external-units/${unitId}/media/${photoId}`);
+      return apiRequest('DELETE', `/api/external-units/${unitId}/photos/${photoId}`);
     },
     onSuccess: () => {
       refetch();
@@ -450,6 +468,31 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
       toast({
         title: language === 'es' ? "Foto eliminada" : "Photo deleted",
         description: language === 'es' ? "La foto fue eliminada correctamente" : "Photo deleted successfully"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: async (slot: 'primary' | 'secondary') => {
+      return apiRequest('DELETE', `/api/external-units/${unitId}/photos/slots/${slot}`);
+    },
+    onSuccess: (_, slot) => {
+      refetch();
+      onPhotoChange?.();
+      setDeleteAllDialogOpen(false);
+      setSlotToDeleteAll(null);
+      toast({
+        title: language === 'es' ? "Fotos eliminadas" : "Photos deleted",
+        description: language === 'es' 
+          ? `Todas las fotos ${slot === 'primary' ? 'principales' : 'secundarias'} fueron eliminadas`
+          : `All ${slot} photos have been deleted`
       });
     },
     onError: (error: Error) => {
@@ -499,6 +542,17 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
       deleteMutation.mutate(photoToDelete);
     }
   }, [photoToDelete, deleteMutation]);
+
+  const handleDeleteAllClick = useCallback((slot: 'primary' | 'secondary') => {
+    setSlotToDeleteAll(slot);
+    setDeleteAllDialogOpen(true);
+  }, []);
+
+  const handleDeleteAllConfirm = useCallback(() => {
+    if (slotToDeleteAll) {
+      deleteAllMutation.mutate(slotToDeleteAll);
+    }
+  }, [slotToDeleteAll, deleteAllMutation]);
 
   if (isLoading) {
     return (
@@ -559,6 +613,7 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
         onReorder={handleReorder}
         onMove={handleMove}
         onDelete={handleDeleteClick}
+        onDeleteAll={handleDeleteAllClick}
         uploading={uploadingSlot === 'primary'}
       />
       
@@ -572,9 +627,11 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
         onReorder={handleReorder}
         onMove={handleMove}
         onDelete={handleDeleteClick}
+        onDeleteAll={handleDeleteAllClick}
         uploading={uploadingSlot === 'secondary'}
       />
 
+      {/* Delete Single Photo Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -596,6 +653,41 @@ export function PhotoSlotManager({ unitId, language = "es", readOnly = false, on
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               {t.confirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete All Photos in Slot Dialog */}
+      <Dialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {language === 'es' 
+                ? `Eliminar todas las fotos ${slotToDeleteAll === 'primary' ? 'principales' : 'secundarias'}`
+                : `Delete all ${slotToDeleteAll} photos`}
+            </DialogTitle>
+            <DialogDescription>
+              {language === 'es'
+                ? `¿Estás seguro de que quieres eliminar todas las fotos ${slotToDeleteAll === 'primary' ? 'principales' : 'secundarias'} de esta unidad? Esta acción no se puede deshacer.`
+                : `Are you sure you want to delete all ${slotToDeleteAll} photos from this unit? This action cannot be undone.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAllDialogOpen(false)}>
+              {t.cancel}
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteAllConfirm}
+              disabled={deleteAllMutation.isPending}
+            >
+              {deleteAllMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              {language === 'es' ? 'Eliminar todas' : 'Delete all'}
             </Button>
           </DialogFooter>
         </DialogContent>

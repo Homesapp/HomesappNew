@@ -14800,6 +14800,53 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
+  async deleteUnitPhotosBySlot(unitId: string, slot: 'primary' | 'secondary'): Promise<number> {
+    const result = await db
+      .delete(externalUnitMedia)
+      .where(and(
+        eq(externalUnitMedia.unitId, unitId),
+        eq(externalUnitMedia.mediaType, 'photo'),
+        eq(externalUnitMedia.photoSlot, slot)
+      ))
+      .returning();
+    return result.length;
+  }
+
+  async deleteUnitPhoto(photoId: string): Promise<boolean> {
+    const photo = await db
+      .select()
+      .from(externalUnitMedia)
+      .where(eq(externalUnitMedia.id, photoId))
+      .limit(1);
+    
+    if (!photo[0]) return false;
+    
+    // Only allow deleting photos, not videos or other media types
+    if (photo[0].mediaType !== 'photo') {
+      throw new Error('Can only delete photos with this method');
+    }
+    
+    const result = await db
+      .delete(externalUnitMedia)
+      .where(eq(externalUnitMedia.id, photoId))
+      .returning();
+    
+    if (result.length > 0 && photo[0].unitId && photo[0].photoSlot) {
+      await this.compactPhotoPositions(photo[0].unitId, photo[0].photoSlot as 'primary' | 'secondary');
+    }
+    
+    return result.length > 0;
+  }
+
+  async getUnitPhoto(photoId: string): Promise<ExternalUnitMedia | null> {
+    const [result] = await db
+      .select()
+      .from(externalUnitMedia)
+      .where(eq(externalUnitMedia.id, photoId))
+      .limit(1);
+    return result || null;
+  }
+
   async updatePhotoMigrationStatus(
     photoId: string, 
     status: 'none' | 'pending' | 'processing' | 'done' | 'error',
