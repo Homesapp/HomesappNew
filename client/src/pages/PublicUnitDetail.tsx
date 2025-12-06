@@ -653,70 +653,70 @@ export default function PublicUnitDetail() {
                 <div className="space-y-4">
                   {/* Included */}
                   <div>
-                    <p className="text-xs font-medium text-green-600 mb-2">{language === "es" ? "Incluido" : "Included"}</p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <p className="text-sm font-medium text-green-600 mb-2">{language === "es" ? "Incluido" : "Included"}</p>
+                    <div className="flex flex-wrap gap-2">
                       {unit.includedServices?.hoaMaintenance && (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
-                          <Building2 className="h-3 w-3 mr-1" />HOA
+                        <Badge variant="outline" className="text-xs py-1 px-2 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Building2 className="h-3.5 w-3.5 mr-1.5" />HOA
                         </Badge>
                       )}
                       {unit.includedServices?.internet && (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
-                          <Wifi className="h-3 w-3 mr-1" />Internet
+                        <Badge variant="outline" className="text-xs py-1 px-2 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Wifi className="h-3.5 w-3.5 mr-1.5" />Internet
                         </Badge>
                       )}
                       {unit.includedServices?.water && (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
-                          <Droplets className="h-3 w-3 mr-1" />{language === "es" ? "Agua" : "Water"}
+                        <Badge variant="outline" className="text-xs py-1 px-2 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Droplets className="h-3.5 w-3.5 mr-1.5" />{language === "es" ? "Agua" : "Water"}
                         </Badge>
                       )}
                       {unit.includedServices?.electricity && (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
-                          <Zap className="h-3 w-3 mr-1" />{language === "es" ? "Luz" : "Electricity"}
+                        <Badge variant="outline" className="text-xs py-1 px-2 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Zap className="h-3.5 w-3.5 mr-1.5" />{language === "es" ? "Luz" : "Electricity"}
                         </Badge>
                       )}
                       {unit.includedServices?.gas && (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
-                          <Flame className="h-3 w-3 mr-1" />Gas
+                        <Badge variant="outline" className="text-xs py-1 px-2 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                          <Flame className="h-3.5 w-3.5 mr-1.5" />Gas
                         </Badge>
                       )}
                       {!unit.includedServices?.hoaMaintenance && !unit.includedServices?.internet && !unit.includedServices?.water && !unit.includedServices?.electricity && !unit.includedServices?.gas && (
-                        <span className="text-xs text-muted-foreground">{language === "es" ? "Ninguno" : "None"}</span>
+                        <span className="text-sm text-muted-foreground">{language === "es" ? "Ninguno" : "None"}</span>
                       )}
                     </div>
                   </div>
 
                   {/* Not Included */}
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">{language === "es" ? "No incluido (estimado mensual)" : "Not included (monthly estimate)"}</p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">{language === "es" ? "No incluido (estimado mensual)" : "Not included (monthly estimate)"}</p>
+                    <div className="flex flex-wrap gap-2">
                       {!unit.includedServices?.hoaMaintenance && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          <Building2 className="h-3 w-3 mr-1" />HOA {(unit as any).hoaCost ? `$${(unit as any).hoaCost.toLocaleString()}` : "~var"}
+                        <Badge variant="secondary" className="text-xs py-1 px-2">
+                          <Building2 className="h-3.5 w-3.5 mr-1.5" />HOA {(unit as any).hoaCost ? `$${(unit as any).hoaCost.toLocaleString()}` : "~var"}
                         </Badge>
                       )}
                       {!unit.includedServices?.internet && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          <Wifi className="h-3 w-3 mr-1" />Internet ~$500-800
+                        <Badge variant="secondary" className="text-xs py-1 px-2">
+                          <Wifi className="h-3.5 w-3.5 mr-1.5" />Internet ~$500-800
                         </Badge>
                       )}
                       {!unit.includedServices?.water && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          <Droplets className="h-3 w-3 mr-1" />{language === "es" ? "Agua" : "Water"} ~$200-500
+                        <Badge variant="secondary" className="text-xs py-1 px-2">
+                          <Droplets className="h-3.5 w-3.5 mr-1.5" />{language === "es" ? "Agua" : "Water"} ~$200-500
                         </Badge>
                       )}
                       {!unit.includedServices?.electricity && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          <Zap className="h-3 w-3 mr-1" />{language === "es" ? "Luz" : "Elec"} ~$800-2k
+                        <Badge variant="secondary" className="text-xs py-1 px-2">
+                          <Zap className="h-3.5 w-3.5 mr-1.5" />{language === "es" ? "Luz" : "Elec"} ~$800-2k
                         </Badge>
                       )}
                       {!unit.includedServices?.gas && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          <Flame className="h-3 w-3 mr-1" />Gas ~$300-600
+                        <Badge variant="secondary" className="text-xs py-1 px-2">
+                          <Flame className="h-3.5 w-3.5 mr-1.5" />Gas ~$300-600
                         </Badge>
                       )}
                       {unit.includedServices?.hoaMaintenance && unit.includedServices?.internet && unit.includedServices?.water && unit.includedServices?.electricity && unit.includedServices?.gas && (
-                        <span className="text-xs text-muted-foreground">{language === "es" ? "Todo incluido" : "All included"}</span>
+                        <span className="text-sm text-muted-foreground">{language === "es" ? "Todo incluido" : "All included"}</span>
                       )}
                     </div>
                   </div>

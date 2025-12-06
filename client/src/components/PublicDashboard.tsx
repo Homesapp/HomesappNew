@@ -390,13 +390,13 @@ export default function PublicDashboard() {
         {/* 4. Explorar en el mapa - Banner */}
         <div className="py-8 sm:py-12">
           <div 
-            className="relative rounded-2xl overflow-hidden border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover-elevate"
+            className="relative rounded-2xl overflow-hidden border bg-muted/30 cursor-pointer hover-elevate"
             onClick={() => setLocation("/mapa-interactivo")}
             data-testid="banner-interactive-map"
           >
             <div className="flex items-center justify-between p-6 sm:p-8">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-muted flex items-center justify-center">
                   <Map className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
                 </div>
                 <div>
