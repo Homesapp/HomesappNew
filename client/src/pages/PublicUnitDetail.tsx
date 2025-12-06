@@ -1492,55 +1492,55 @@ export default function PublicUnitDetail() {
 
       {/* Expanded Image Dialog - Fullscreen Gallery */}
       <Dialog open={expandedImageIndex !== null} onOpenChange={() => setExpandedImageIndex(null)}>
-        <DialogContent hideCloseButton className="max-w-[95vw] max-h-[95vh] p-0 bg-background border shadow-xl">
-          {/* Close button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute right-4 top-4 z-50 min-h-[44px] min-w-[44px] bg-background/80 hover:bg-muted rounded-full"
-            onClick={() => setExpandedImageIndex(null)}
-            data-testid="button-close-lightbox"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-          
-          {/* Left navigation button */}
-          {expandedImageIndex !== null && images.length > 1 && (
-            <Button
-              variant="secondary"
-              size="icon"
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-50 min-h-[52px] min-w-[52px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
-              onClick={() => setExpandedImageIndex((prev) => (prev! - 1 + images.length) % images.length)}
-              data-testid="button-prev-image"
-            >
-              <ChevronLeft className="h-7 w-7" />
-            </Button>
-          )}
-          
-          {/* Right navigation button */}
-          {expandedImageIndex !== null && images.length > 1 && (
-            <Button
-              variant="secondary"
-              size="icon"
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-50 min-h-[52px] min-w-[52px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
-              onClick={() => setExpandedImageIndex((prev) => (prev! + 1) % images.length)}
-              data-testid="button-next-image"
-            >
-              <ChevronRight className="h-7 w-7" />
-            </Button>
-          )}
-          
+        <DialogContent hideCloseButton className="max-w-fit max-h-[95vh] p-0 bg-background border shadow-xl">
           {expandedImageIndex !== null && (
             <div 
-              className="flex items-center justify-center h-[90vh] py-8 px-16 relative select-none"
+              className="relative select-none"
               onContextMenu={(e) => e.preventDefault()}
             >
+              {/* Close button - top right of image container */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute -right-2 -top-2 z-50 min-h-[40px] min-w-[40px] bg-background hover:bg-muted rounded-full shadow-lg border"
+                onClick={() => setExpandedImageIndex(null)}
+                data-testid="button-close-lightbox"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              
+              {/* Left navigation button - centered vertically on left side */}
+              {images.length > 1 && (
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 min-h-[48px] min-w-[48px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
+                  onClick={() => setExpandedImageIndex((prev) => (prev! - 1 + images.length) % images.length)}
+                  data-testid="button-prev-image"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+              )}
+              
+              {/* Right navigation button - centered vertically on right side */}
+              {images.length > 1 && (
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 min-h-[48px] min-w-[48px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
+                  onClick={() => setExpandedImageIndex((prev) => (prev! + 1) % images.length)}
+                  data-testid="button-next-image"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              )}
+              
               {/* Image with protection overlay */}
-              <div className="relative max-h-full max-w-full">
+              <div className="p-4">
                 <img
                   src={getFullSizeUrl(expandedImageIndex)}
                   alt={`${propertyTitle} - ${expandedImageIndex + 1}`}
-                  className="max-w-full max-h-[85vh] object-contain rounded-lg select-none"
+                  className="max-w-[85vw] max-h-[80vh] object-contain rounded-lg select-none"
                   draggable={false}
                   onContextMenu={(e) => e.preventDefault()}
                   style={{ 
@@ -1550,15 +1550,15 @@ export default function PublicUnitDetail() {
                   } as React.CSSProperties}
                 />
                 {/* Transparent overlay to prevent direct image interaction */}
-                <div className="absolute inset-0 bg-transparent pointer-events-none" />
+                <div className="absolute inset-4 bg-transparent pointer-events-none" />
               </div>
-            </div>
-          )}
-          
-          {/* Image counter */}
-          {expandedImageIndex !== null && images.length > 1 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 bg-foreground/90 text-background px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-              {expandedImageIndex + 1} / {images.length}
+              
+              {/* Image counter - bottom center */}
+              {images.length > 1 && (
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 bg-foreground/90 text-background px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+                  {expandedImageIndex + 1} / {images.length}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
