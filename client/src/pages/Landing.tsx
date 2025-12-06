@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -195,12 +195,12 @@ function PropertyRail({
   isLoading: boolean;
   viewAllLink?: string;
 }) {
-  const scrollRef = useState<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   
   const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef[0]) {
+    if (scrollRef.current) {
       const scrollAmount = 320;
-      scrollRef[0].scrollBy({
+      scrollRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
       });
@@ -241,7 +241,7 @@ function PropertyRail({
       </div>
       
       <div 
-        ref={(el) => { scrollRef[0] = el; }}
+        ref={scrollRef}
         className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
