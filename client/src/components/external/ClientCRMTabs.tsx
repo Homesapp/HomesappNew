@@ -245,6 +245,7 @@ export default function ClientCRMTabs({ client, onClientUpdate }: ClientCRMTabsP
         {language === "es" ? "Sin Problemas" : "No Issues"}
       </Badge>
     );
+  };
 
   const getRatingBadge = () => {
     const rating = (client as any).cumulativeRating || 0;
@@ -259,7 +260,6 @@ export default function ClientCRMTabs({ client, onClientUpdate }: ClientCRMTabsP
         {rating > 0 ? `+${rating}` : rating}
       </Badge>
     );
-  };
   };
 
   return (
