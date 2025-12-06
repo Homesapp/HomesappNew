@@ -406,6 +406,130 @@ export async function getPhotosWithErrors(limit: number = 50) {
   .limit(limit);
 }
 
+// Scan Google Sheets for Drive links and queue photos for migration
+export async function scanDriveLinksFromSheet(): Promise<{
+  scannedRows: number;
+  newPhotosQueued: number;
+  errors: string[];
+}> {
+  const { getGoogleSheetsClient } = await import("../googleSheets");
+  const { extractFolderIdFromUrl, listImagesInFolder } = await import("../googleDrive");
+  
+  const SPREADSHEET_ID = '1fmViiKjC07TFzR71p19y7tN36430FkpJ8MF0DRlKQg4';
+  const SHEET_NAME = 'Renta/Long Term';
+  
+  const sheets = await getGoogleSheetsClient();
+  
+  // Read values and notes
+  const valuesResponse = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `'${SHEET_NAME}'!A2:AA`,
+  });
+  
+  const notesResponse = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    ranges: [`'${SHEET_NAME}'!T2:T1500`],
+    fields: 'sheets.data.rowData.values.note'
+  });
+  
+  const valueRows = valuesResponse.data.values || [];
+  const noteRows = notesResponse.data.sheets?.[0]?.data?.[0]?.rowData || [];
+  
+  const errors: string[] = [];
+  let scannedRows = 0;
+  let newPhotosQueued = 0;
+  
+  function extractDriveLinkFromText(text: string): string | null {
+    if (!text) return null;
+    const driveMatch = text.match(/https?:\/\/[^\s]*drive\.google\.com[^\s\n]*/);
+    if (driveMatch) {
+      let url = driveMatch[0];
+      url = url.replace(/[)\]}>.,;:!?'"]+$/, '');
+      return url;
+    }
+    return null;
+  }
+  
+  for (let i = 0; i < valueRows.length; i++) {
+    const row = valueRows[i];
+    const sheetRowId = row[0] || '';
+    
+    if (!sheetRowId) continue;
+    scannedRows++;
+    
+    const driveColumnUrl = row[26] || ''; // Column AA
+    const note = noteRows[i]?.values?.[0]?.note || '';
+    const fichaLink = extractDriveLinkFromText(note);
+    
+    let driveFolderUrl = '';
+    if (driveColumnUrl && driveColumnUrl.includes('drive.google.com')) {
+      driveFolderUrl = driveColumnUrl;
+    } else if (fichaLink) {
+      driveFolderUrl = fichaLink;
+    }
+    
+    if (!driveFolderUrl) continue;
+    
+    try {
+      // Find unit in database
+      const unit = await db.query.externalUnits.findFirst({
+        where: eq(sql`sheet_row_id`, sheetRowId),
+      });
+      
+      if (!unit) continue;
+      
+      // Check if unit already has photos with driveFileId
+      const existingPhotos = await db.select({ id: externalUnitMedia.id })
+        .from(externalUnitMedia)
+        .where(
+          and(
+            eq(externalUnitMedia.unitId, unit.id),
+            isNotNull(externalUnitMedia.driveFileId)
+          )
+        )
+        .limit(1);
+      
+      if (existingPhotos.length > 0) continue; // Already has drive photos
+      
+      // Extract folder ID and list images
+      const folderId = extractFolderIdFromUrl(driveFolderUrl);
+      if (!folderId) {
+        errors.push(`Row ${sheetRowId}: Invalid Drive URL format`);
+        continue;
+      }
+      
+      const images = await listImagesInFolder(folderId);
+      
+      for (let j = 0; j < Math.min(images.length, 25); j++) {
+        const image = images[j];
+        if (!image.id) continue;
+        
+        // Insert new photo entry with driveFileId for HD migration
+        await db.insert(externalUnitMedia)
+          .values({
+            id: crypto.randomUUID(),
+            unitId: unit.id,
+            type: 'image',
+            fileName: image.name || `photo_${j + 1}.jpg`,
+            driveFileId: image.id,
+            photoSlot: j < 5 ? 'primary' : 'secondary',
+            position: j < 5 ? j : j - 5,
+            migrationStatus: 'pending',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .onConflictDoNothing();
+        
+        newPhotosQueued++;
+      }
+    } catch (error: any) {
+      errors.push(`Row ${sheetRowId}: ${error.message}`);
+    }
+  }
+  
+  return { scannedRows, newPhotosQueued, errors };
+}
+
 export default {
   getMigrationStatus,
   getPendingPhotos,
@@ -424,4 +548,5 @@ export default {
   processImage,
   getPhotosWithErrors,
   getOrCreateMigrationMeta,
+  scanDriveLinksFromSheet,
 };

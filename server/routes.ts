@@ -31176,6 +31176,25 @@ ${{precio}}/mes
       console.error("Error fetching migration logs:", error);
       res.status(500).json({ message: error.message || "Failed to fetch migration logs" });
     }
+
+  // POST /api/photo-migration/scan-drive-links - Scan Google Sheets for Drive links
+  app.post("/api/photo-migration/scan-drive-links", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {
+    try {
+      const photoMigrationService = await import("./services/photoMigrationService");
+      const result = await photoMigrationService.scanDriveLinksFromSheet();
+
+      res.json({
+        success: true,
+        scannedRows: result.scannedRows,
+        newPhotosQueued: result.newPhotosQueued,
+        errors: result.errors.slice(0, 10),
+        totalErrors: result.errors.length,
+      });
+    } catch (error: any) {
+      console.error("Error scanning Drive links:", error);
+      res.status(500).json({ message: error.message || "Failed to scan Drive links" });
+    }
+  });
   });
   // POST /api/external-units/:id/photos/mark-for-migration - Mark unit photos for migration
   app.post("/api/external-units/:id/photos/mark-for-migration", isAuthenticated, requireRole(["master", "admin"]), async (req: any, res) => {

@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatDistanceToNow } from "date-fns";
 import { es as esLocale, enUS as enLocale } from "date-fns/locale";
-import { Play, Pause, RotateCcw, CheckCircle, AlertCircle, Clock, Activity, Image as ImageIcon } from "lucide-react";
+import { Play, Pause, RotateCcw, CheckCircle, AlertCircle, Clock, Activity, Image as ImageIcon, Search } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -58,6 +58,10 @@ export function PhotoMigrationWidget({ language }: PhotoMigrationWidgetProps) {
       autoRefresh: "Auto-actualización",
       on: "Activado",
       off: "Desactivado",
+      scanDriveLinks: "Escanear Links de Drive",
+      scanningDrive: "Escaneando...",
+      scanComplete: "Escaneo completado",
+      photosQueued: "fotos en cola para migración",
     },
     en: {
       loading: "Loading status...",
@@ -77,6 +81,10 @@ export function PhotoMigrationWidget({ language }: PhotoMigrationWidgetProps) {
       lastUpdate: "Last update",
       startedAt: "Started",
       noPhotos: "No photos pending migration",
+      scanDriveLinks: "Scan Drive Links",
+      scanningDrive: "Scanning...",
+      scanComplete: "Scan complete",
+      photosQueued: "photos queued for migration",
       migrationStarted: "Migration started",
       migrationPaused: "Migration paused",
       errorsReset: "Errors reset for retry",
@@ -124,6 +132,20 @@ export function PhotoMigrationWidget({ language }: PhotoMigrationWidgetProps) {
     },
   });
 
+  const scanMutation = useMutation({
+    mutationFn: () => apiRequest('/api/photo-migration/scan-drive-links', { method: 'POST' }),
+    onSuccess: (data: any) => {
+      toast({ 
+        title: t.scanComplete, 
+        description: `${data.newPhotosQueued} ${t.photosQueued}` 
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/photo-migration/status'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const getStatusBadge = (s: string) => {
     switch (s) {
       case 'idle': return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />{t.statusIdle}</Badge>;
@@ -149,12 +171,22 @@ export function PhotoMigrationWidget({ language }: PhotoMigrationWidgetProps) {
     );
   }
 
-  if (!status) {
+  if (!status || status.totalPhotos === 0) {
     return (
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{t.noPhotos}</AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{t.noPhotos}</AlertDescription>
+        </Alert>
+        <Button
+          onClick={() => scanMutation.mutate()}
+          disabled={scanMutation.isPending}
+          data-testid="button-scan-drive-links"
+        >
+          <Search className="h-4 w-4 mr-2" />
+          {scanMutation.isPending ? t.scanningDrive : t.scanDriveLinks}
+        </Button>
+      </div>
     );
   }
 
