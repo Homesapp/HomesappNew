@@ -2836,18 +2836,19 @@ export default function ExternalCondominiums() {
                       <FormItem>
                         <FormLabel>{language === "es" ? "Condominio" : "Condominium"} *</FormLabel>
                         <FormControl>
-                          <select
-                            {...field}
+                          <SearchableSelect
                             value={field.value || ""}
-                            onChange={e => field.onChange(e.target.value || undefined)}
-                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            onValueChange={field.onChange}
+                            options={(condominiums || []).map(condo => ({
+                              value: condo.id,
+                              label: condo.name,
+                              description: condo.zone || undefined,
+                            }))}
+                            placeholder={language === "es" ? "Selecciona un condominio" : "Select a condominium"}
+                            searchPlaceholder={language === "es" ? "Buscar condominio..." : "Search condominium..."}
+                            emptyMessage={language === "es" ? "No se encontraron condominios" : "No condominiums found"}
                             data-testid="select-unified-unit-condo"
-                          >
-                            <option value="">{language === "es" ? "Selecciona un condominio" : "Select a condominium"}</option>
-                            {condominiums?.map(condo => (
-                              <option key={condo.id} value={condo.id}>{condo.name}</option>
-                            ))}
-                          </select>
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
