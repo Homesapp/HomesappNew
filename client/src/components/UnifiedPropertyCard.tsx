@@ -509,19 +509,17 @@ export function UnifiedPropertyCard({
           <div className="min-w-0 flex-1">
             <h3 
               className="font-semibold text-base line-clamp-1" 
-              title={displayTitle}
+              title={unitNumber ? `${displayTitle} #${unitNumber}` : displayTitle}
               data-testid={`text-title-${id}`}
             >
               {displayTitle}
-            </h3>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {unitNumber && (
-                <span className="font-medium text-foreground">#{unitNumber}</span>
+                <span className="text-muted-foreground font-normal"> #{unitNumber}</span>
               )}
-              <span className="flex items-center gap-1 truncate">
-                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="truncate">{displayLocation}</span>
-              </span>
+            </h3>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="truncate">{displayLocation}</span>
             </div>
           </div>
         </div>
