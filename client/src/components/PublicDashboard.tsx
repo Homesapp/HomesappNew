@@ -331,24 +331,15 @@ export default function PublicDashboard() {
                     location={property.location}
                     zone={property.zone}
                     condominiumName={property.condominiumName || property.condoName}
-                    rentPrice={property.rentPrice || property.price}
-                    salePrice={property.salePrice}
-                    currency={property.currency || "MXN"}
                     bedrooms={property.bedrooms}
                     bathrooms={property.bathrooms}
                     area={property.area}
                     status={getPropertyStatus(property)}
                     images={property.primaryImages || []}
                     petFriendly={property.petsAllowed}
-                    furnished={property.hasFurniture}
-                    hasParking={property.hasParking}
-                    hasAC={property.hasAC}
-                    includedServices={property.includedServices}
+                    variant="landing"
                     context="public"
                     onClick={() => setLocation(propertyUrl)}
-                    onView={() => setLocation(propertyUrl)}
-                    onContact={() => setLocation(propertyUrl + "?contact=true")}
-                    onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
                   />
                 );
               })
@@ -377,16 +368,17 @@ export default function PublicDashboard() {
                 {language === 'en' ? 'View all' : 'Ver todas'} <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {zonesLoading ? (
                 <>
                   <PropertyCardSkeleton />
                   <PropertyCardSkeleton />
                   <PropertyCardSkeleton />
                   <PropertyCardSkeleton />
+                  <PropertyCardSkeleton />
                 </>
               ) : zone.properties.length > 0 ? (
-                zone.properties.slice(0, 4).map((property: any) => {
+                zone.properties.slice(0, 5).map((property: any) => {
                   const propertyUrl = property.agencySlug && property.slug 
                     ? `/${property.agencySlug}/${property.slug}`
                     : `/propiedad-externa/${property.id}`;
@@ -399,15 +391,13 @@ export default function PublicDashboard() {
                       location={zone.name}
                       zone={zone.name}
                       condominiumName={property.condominiumName}
-                      rentPrice={property.rentPrice}
-                      salePrice={property.salePrice}
-                      currency={property.currency || "MXN"}
                       bedrooms={property.bedrooms || 0}
                       bathrooms={property.bathrooms || 0}
                       area={property.constructionSize || property.area}
                       status="available"
                       images={property.primaryImages || []}
                       petFriendly={property.petFriendly}
+                      variant="landing"
                       context="public"
                       onClick={() => setLocation(propertyUrl)}
                     />

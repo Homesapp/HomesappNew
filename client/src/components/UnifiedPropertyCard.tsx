@@ -64,6 +64,8 @@ export type MatchInfo = {
   reasons: string[];
 };
 
+export type CardVariant = "default" | "landing";
+
 export interface UnifiedPropertyCardProps {
   id: string;
   title: string;
@@ -71,6 +73,7 @@ export interface UnifiedPropertyCardProps {
   location: string;
   zone?: string | null;
   condominiumName?: string | null;
+  variant?: CardVariant;
   
   rentPrice?: number | null;
   salePrice?: number | null;
@@ -328,6 +331,7 @@ export function UnifiedPropertyCard({
   location,
   zone,
   condominiumName,
+  variant = "default",
   rentPrice,
   salePrice,
   currency = "MXN",
@@ -373,6 +377,7 @@ export function UnifiedPropertyCard({
   amenities,
   className = "",
 }: UnifiedPropertyCardProps) {
+  const isLanding = variant === "landing";
   const statusInfo = statusConfig[status] || statusConfig.available;
   const imageCount = images?.length || 0;
   const primaryImage = images?.[0];
@@ -519,79 +524,110 @@ export function UnifiedPropertyCard({
           </div>
         </div>
         
-        <div className="space-y-1">
-          {rentPrice && rentPrice > 0 && (
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-primary">
-                ${rentPrice.toLocaleString()}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {currency}/mes
-              </span>
-            </div>
-          )}
-          {salePrice && salePrice > 0 && (
-            <div className="flex items-baseline gap-1">
-              <span className={`font-bold ${rentPrice ? 'text-base text-muted-foreground' : 'text-xl text-primary'}`}>
-                ${salePrice.toLocaleString()}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {currency}
-              </span>
-            </div>
-          )}
-        </div>
-        
-        {/* Specs row with amenities aligned right */}
-        <div className="flex flex-col gap-1.5">
-          {/* Desktop: specs left, amenities right on same row */}
-          {/* Mobile: specs on first line, amenities on second line right-aligned */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {/* Left: Specs */}
-            <div className="flex items-center gap-2 text-sm">
-              <div className="flex items-center gap-1">
-                <Bed className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{bedrooms}</span>
-                <span className="text-muted-foreground text-xs">rec</span>
+        {/* Price section - hidden in landing variant */}
+        {!isLanding && (
+          <div className="space-y-1">
+            {rentPrice && rentPrice > 0 && (
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-primary">
+                  ${rentPrice.toLocaleString()}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {currency}/mes
+                </span>
               </div>
-              <Separator orientation="vertical" className="h-4" />
+            )}
+            {salePrice && salePrice > 0 && (
+              <div className="flex items-baseline gap-1">
+                <span className={`font-bold ${rentPrice ? 'text-base text-muted-foreground' : 'text-xl text-primary'}`}>
+                  ${salePrice.toLocaleString()}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {currency}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Landing variant: Subtle divider and continuous specs */}
+        {isLanding ? (
+          <div className="flex flex-col gap-2">
+            <Separator className="opacity-50" />
+            <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
               <div className="flex items-center gap-1">
-                <Bath className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{bathrooms}</span>
-                <span className="text-muted-foreground text-xs">baños</span>
+                <Bed className="h-4 w-4" />
+                <span>{bedrooms} rec</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Bath className="h-4 w-4" />
+                <span>{bathrooms} baños</span>
               </div>
               {area && area > 0 && (
-                <>
-                  <Separator orientation="vertical" className="h-4" />
-                  <div className="flex items-center gap-1">
-                    <Square className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{area}</span>
-                    <span className="text-muted-foreground text-xs">m²</span>
-                  </div>
-                </>
+                <div className="flex items-center gap-1">
+                  <Square className="h-4 w-4" />
+                  <span>{area} m²</span>
+                </div>
+              )}
+              {petFriendly && (
+                <div className="flex items-center gap-1">
+                  <PawPrint className="h-4 w-4 text-foreground" />
+                </div>
               )}
             </div>
-            
-            {/* Right: Compact amenities icons */}
-            <AmenitiesIcons 
-              includedServices={includedServices}
-              petFriendly={petFriendly}
-              furnished={furnished}
-              hasParking={hasParking}
-              hasAC={hasAC}
-              amenities={amenities}
-            />
           </div>
-          
-          {/* Property type badge if applicable */}
-          {propertyType && (
-            <div className="flex items-center">
-              <Badge variant="secondary" className="text-xs">
-                {propertyType}
-              </Badge>
+        ) : (
+          /* Default variant: Specs row with amenities aligned right */
+          <div className="flex flex-col gap-1.5">
+            {/* Desktop: specs left, amenities right on same row */}
+            {/* Mobile: specs on first line, amenities on second line right-aligned */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Left: Specs */}
+              <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <Bed className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{bedrooms}</span>
+                  <span className="text-muted-foreground text-xs">rec</span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-1">
+                  <Bath className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{bathrooms}</span>
+                  <span className="text-muted-foreground text-xs">baños</span>
+                </div>
+                {area && area > 0 && (
+                  <>
+                    <Separator orientation="vertical" className="h-4" />
+                    <div className="flex items-center gap-1">
+                      <Square className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{area}</span>
+                      <span className="text-muted-foreground text-xs">m²</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Right: Compact amenities icons */}
+              <AmenitiesIcons 
+                includedServices={includedServices}
+                petFriendly={petFriendly}
+                furnished={furnished}
+                hasParking={hasParking}
+                hasAC={hasAC}
+                amenities={amenities}
+              />
             </div>
-          )}
-        </div>
+            
+            {/* Property type badge if applicable */}
+            {propertyType && (
+              <div className="flex items-center">
+                <Badge variant="secondary" className="text-xs">
+                  {propertyType}
+                </Badge>
+              </div>
+            )}
+          </div>
+        )}
         
         {context === "seller" && metrics && (
           <div className="flex items-center gap-3 pt-2 border-t text-xs text-muted-foreground">
@@ -671,6 +707,8 @@ export function UnifiedPropertyCard({
         )}
       </CardContent>
 
+      {/* Hide footer in landing variant */}
+      {!isLanding && (
       <CardFooter className="p-3 pt-0 flex gap-2 flex-wrap mt-auto">
         {context === "seller" && (
           <>
@@ -884,6 +922,7 @@ export function UnifiedPropertyCard({
           </>
         )}
       </CardFooter>
+      )}
     </Card>
   );
 }
