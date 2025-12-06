@@ -353,7 +353,75 @@ export default function PublicDashboard() {
           </div>
         </div>
 
-        {/* Zone-based Property Sections */}
+        {/* 3. Cómo funciona HomesApp */}
+        <div className="py-10 sm:py-14 border-t border-b" id="como-funciona">
+          <div className="text-center mb-8 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.howItWorks.title}</h2>
+            <p className="text-muted-foreground">{content.howItWorks.subtitle}</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
+            {content.howItWorks.steps.map((step, i) => (
+              <div key={i} className="relative">
+                <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg flex-shrink-0">
+                    {step.number}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">{step.title}</h3>
+                    <p className="text-sm text-muted-foreground">{step.description}</p>
+                  </div>
+                </div>
+                {i < 2 && (
+                  <div className="hidden md:block absolute top-5 left-[calc(100%-2rem)] w-8 border-t border-dashed border-muted-foreground/30" />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-center gap-4 mt-8">
+            <Button className="rounded-full" onClick={() => setLocation("/buscar-propiedades")} data-testid="button-how-properties">
+              {content.howItWorks.cta.properties}
+            </Button>
+            <Button variant="outline" className="rounded-full" onClick={() => setLocation("/login")} data-testid="button-how-portal">
+              {language === 'en' ? 'Enter portal' : 'Entrar al portal'}
+            </Button>
+          </div>
+        </div>
+
+        {/* 4. Explorar en el mapa - Banner */}
+        <div className="py-8 sm:py-12">
+          <div 
+            className="relative rounded-2xl overflow-hidden border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover-elevate"
+            onClick={() => setLocation("/mapa-interactivo")}
+            data-testid="banner-interactive-map"
+          >
+            <div className="flex items-center justify-between p-6 sm:p-8">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Map className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold mb-1">
+                    {language === 'en' ? 'Explore on the map' : 'Explora en el mapa'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {language === 'en' ? 'Find properties by location in Tulum' : 'Encuentra propiedades por ubicación en Tulum'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="default"
+                size="sm"
+                className="rounded-full gap-1 hidden sm:flex"
+                data-testid="button-view-map"
+              >
+                {language === 'en' ? 'View Map' : 'Ver Mapa'} <ChevronRight className="h-4 w-4" />
+              </Button>
+              <ChevronRight className="h-5 w-5 text-muted-foreground sm:hidden" />
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Zone-based Property Sections */}
         {zoneProperties.map((zone) => (
           <div key={zone.slug} className="mb-10 sm:mb-14">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -410,147 +478,7 @@ export default function PublicDashboard() {
           </div>
         ))}
 
-        {/* 3. Sección para tipos de usuario - 3 tarjetas */}
-        <div className="mb-10 sm:mb-14">
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Card: Quiero rentar */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border hover-elevate">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Home className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">
-                {language === 'en' ? 'I want to rent' : 'Quiero rentar'}
-              </h3>
-              <p className="text-muted-foreground mb-4 text-sm">
-                {language === 'en' 
-                  ? 'Find your ideal home in Tulum with personalized advice' 
-                  : 'Encuentra tu hogar ideal en Tulum con asesoría personalizada'}
-              </p>
-              <Button 
-                className="rounded-full w-full" 
-                onClick={() => setLocation("/buscar-propiedades")}
-                data-testid="button-user-renter"
-              >
-                {language === 'en' ? 'Search properties' : 'Buscar propiedades'}
-              </Button>
-            </div>
-
-            {/* Card: Soy propietario */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border hover-elevate">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Building2 className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">
-                {language === 'en' ? "I'm an owner" : 'Soy propietario'}
-              </h3>
-              <p className="text-muted-foreground mb-4 text-sm">
-                {language === 'en' 
-                  ? 'List your property and let us manage the rental process' 
-                  : 'Enlista tu propiedad y déjanos gestionar el proceso de renta'}
-              </p>
-              <Button 
-                className="rounded-full w-full" 
-                onClick={() => setLocation("/enlistar-propiedad")}
-                data-testid="button-user-owner"
-              >
-                {language === 'en' ? 'List my property' : 'Enlistar mi propiedad'}
-              </Button>
-            </div>
-
-            {/* Card: Soy agente */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-muted/50 border hover-elevate">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Briefcase className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">
-                {language === 'en' ? "I'm an agent" : 'Soy agente'}
-              </h3>
-              <p className="text-muted-foreground mb-4 text-sm">
-                {language === 'en' 
-                  ? 'Join our team and access verified properties and leads' 
-                  : 'Únete a nuestro equipo y accede a propiedades y leads verificados'}
-              </p>
-              <Button 
-                variant="outline"
-                className="rounded-full w-full" 
-                onClick={() => setLocation("/aplicar")}
-                data-testid="button-user-agent"
-              >
-                {language === 'en' ? 'Work with HomesApp' : 'Trabajar con HomesApp'}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. Cómo funciona HomesApp */}
-        <div className="py-12 sm:py-16 border-t border-b" id="como-funciona">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.howItWorks.title}</h2>
-            <p className="text-muted-foreground">{content.howItWorks.subtitle}</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
-            {content.howItWorks.steps.map((step, i) => (
-              <div key={i} className="relative">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg flex-shrink-0">
-                    {step.number}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">{step.title}</h3>
-                    <p className="text-sm text-muted-foreground">{step.description}</p>
-                  </div>
-                </div>
-                {i < 2 && (
-                  <div className="hidden md:block absolute top-5 left-[calc(100%-2rem)] w-8 border-t border-dashed border-muted-foreground/30" />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap justify-center gap-4 mt-10">
-            <Button className="rounded-full" onClick={() => setLocation("/buscar-propiedades")} data-testid="button-how-properties">
-              {content.howItWorks.cta.properties}
-            </Button>
-            <Button variant="outline" className="rounded-full" onClick={() => setLocation("/login")} data-testid="button-how-portal">
-              {language === 'en' ? 'Enter portal' : 'Entrar al portal'}
-            </Button>
-          </div>
-        </div>
-
-        {/* 5. Explorar en el mapa - Banner */}
-        <div className="py-10 sm:py-14">
-          <div 
-            className="relative rounded-2xl overflow-hidden border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover-elevate"
-            onClick={() => setLocation("/mapa-interactivo")}
-            data-testid="banner-interactive-map"
-          >
-            <div className="flex items-center justify-between p-6 sm:p-8">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Map className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-semibold mb-1">
-                    {language === 'en' ? 'Explore on the map' : 'Explora en el mapa'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {language === 'en' ? 'Find properties by location in Tulum' : 'Encuentra propiedades por ubicación en Tulum'}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="default"
-                size="sm"
-                className="rounded-full gap-1 hidden sm:flex"
-                data-testid="button-view-map"
-              >
-                {language === 'en' ? 'View Map' : 'Ver Mapa'} <ChevronRight className="h-4 w-4" />
-              </Button>
-              <ChevronRight className="h-5 w-5 text-muted-foreground sm:hidden" />
-            </div>
-          </div>
-        </div>
-
-        {/* 6. Quiénes somos + Confían en nosotros */}
+        {/* 6. Quiénes somos */}
         <div className="py-12 sm:py-16 border-t" id="quienes-somos">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.aboutUs.title}</h2>
@@ -559,7 +487,7 @@ export default function PublicDashboard() {
               {content.aboutUs.description}
             </p>
           </div>
-          <div className="grid sm:grid-cols-3 gap-6 mb-12">
+          <div className="grid sm:grid-cols-3 gap-6">
             <div className="text-center p-6 rounded-2xl bg-muted/30 border">
               <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Calendar className="h-7 w-7 text-primary" />
@@ -582,59 +510,108 @@ export default function PublicDashboard() {
               <p className="text-sm text-muted-foreground">{language === 'en' ? 'Professional advisors' : 'Asesores profesionales'}</p>
             </div>
           </div>
+        </div>
 
-          {/* Testimonios integrados (parte de la sección Quiénes somos) */}
-          <div className="mt-4">
-            <div className="text-center mb-8">
-              <h3 className="text-xl sm:text-2xl font-bold mb-2">{content.testimonials.title}</h3>
-              <p className="text-muted-foreground text-sm">{content.testimonials.subtitle}</p>
+        {/* 7. Sección para tipos de usuario - 3 tarjetas unificadas */}
+        <div className="py-10 sm:py-14 border-t">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">
+              {language === 'en' ? 'How can we help you?' : '¿Cómo podemos ayudarte?'}
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Card: Quiero rentar */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Home className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                {language === 'en' ? 'I want to rent' : 'Quiero rentar'}
+              </h3>
+              <p className="text-muted-foreground mb-6 text-sm">
+                {language === 'en' 
+                  ? 'Find your ideal home in Tulum with personalized advice' 
+                  : 'Encuentra tu hogar ideal en Tulum con asesoría personalizada'}
+              </p>
+              <Button 
+                className="rounded-full w-full" 
+                onClick={() => setLocation("/buscar-propiedades")}
+                data-testid="button-user-renter"
+              >
+                {language === 'en' ? 'Search properties' : 'Buscar propiedades'}
+              </Button>
             </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {content.testimonials.items.map((testimonial, i) => (
-                <div key={i} className="p-6 rounded-2xl bg-muted/30 border">
-                  <Quote className="h-8 w-8 text-primary/30 mb-4" />
-                  <p className="text-sm mb-6 italic">"{testimonial.quote}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm">{testimonial.name}</p>
-                      <p className="text-xs text-muted-foreground">{testimonial.role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+
+            {/* Card: Soy propietario */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Building2 className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                {language === 'en' ? "I'm an owner" : 'Soy propietario'}
+              </h3>
+              <p className="text-muted-foreground mb-6 text-sm">
+                {language === 'en' 
+                  ? 'List your property and let us manage the rental process' 
+                  : 'Enlista tu propiedad y déjanos gestionar el proceso de renta'}
+              </p>
+              <Button 
+                className="rounded-full w-full" 
+                onClick={() => setLocation("/enlistar-propiedad")}
+                data-testid="button-user-owner"
+              >
+                {language === 'en' ? 'List my property' : 'Enlistar mi propiedad'}
+              </Button>
             </div>
-            <div className="mt-8 flex flex-wrap justify-center gap-4 sm:gap-8 text-sm text-muted-foreground">
-              {content.testimonials.trust.map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span>{item}</span>
-                </div>
-              ))}
+
+            {/* Card: Soy agente */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-muted/30 border hover-elevate text-center">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Briefcase className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                {language === 'en' ? "I'm an agent" : 'Soy agente'}
+              </h3>
+              <p className="text-muted-foreground mb-6 text-sm">
+                {language === 'en' 
+                  ? 'Join our team and access verified properties and leads' 
+                  : 'Únete a nuestro equipo y accede a propiedades y leads verificados'}
+              </p>
+              <Button 
+                className="rounded-full w-full" 
+                onClick={() => setLocation("/aplicar")}
+                data-testid="button-user-agent"
+              >
+                {language === 'en' ? 'Work with HomesApp' : 'Trabajar con HomesApp'}
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* 7. Preguntas frecuentes */}
+        {/* 8. Preguntas frecuentes - Diseño con Cards */}
         <div className="py-12 sm:py-16 border-t" id="faq">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">{content.faq.title}</h2>
+            <p className="text-muted-foreground">
+              {language === 'en' ? 'Everything you need to know about renting in Tulum' : 'Todo lo que necesitas saber sobre rentar en Tulum'}
+            </p>
           </div>
-          <div className="max-w-3xl mx-auto">
-            <Accordion type="single" collapsible className="space-y-2">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid sm:grid-cols-2 gap-4">
               {content.faq.items.map((item, i) => (
-                <AccordionItem key={i} value={`faq-${i}`} className="border rounded-xl px-4">
-                  <AccordionTrigger className="text-left text-sm sm:text-base font-medium py-4 hover:no-underline">
-                    {item.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-sm text-muted-foreground pb-4">
+                <div key={i} className="p-5 rounded-2xl bg-muted/30 border">
+                  <h4 className="font-semibold text-sm sm:text-base mb-3 flex items-start gap-3">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                      {i + 1}
+                    </span>
+                    <span>{item.question}</span>
+                  </h4>
+                  <p className="text-sm text-muted-foreground pl-9">
                     {item.answer}
-                  </AccordionContent>
-                </AccordionItem>
+                  </p>
+                </div>
               ))}
-            </Accordion>
+            </div>
           </div>
         </div>
       </div>
@@ -645,7 +622,7 @@ export default function PublicDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10">
             {/* Columna 1: Logo + Frase */}
             <div className="col-span-2 md:col-span-1">
-              <img src={logoIcon} alt="HomesApp" className="h-10 w-auto mb-4" loading="lazy" />
+              <img src={logoIcon} alt="HomesApp" className="h-20 sm:h-24 w-auto mb-4" loading="lazy" />
               <p className="text-sm text-muted-foreground mb-4">
                 {language === 'en' ? 'Your real estate partner in Tulum' : 'Tu socio inmobiliario en Tulum'}
               </p>
