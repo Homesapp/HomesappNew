@@ -39416,9 +39416,63 @@ const generateSlug = (str: string) => str.toLowerCase().normalize("NFD").replace
         `Created rental contract with ${result.schedules.length} payment schedule(s) (rent + ${serviceCount} additional service(s))`
       );
       
+      // Auto-create portal credentials for tenant and owner
+      let portalCredentials: {
+        tenant?: { accessCode: string; password: string; portalUrl: string };
+        owner?: { accessCode: string; password: string; portalUrl: string };
+      } | null = null;
+      
+      try {
+        const tenantInfo = result.contract.tenantName ? {
+          name: result.contract.tenantName,
+          email: result.contract.tenantEmail || undefined,
+          phone: result.contract.tenantPhone || undefined,
+        } : undefined;
+        
+        const ownerInfo = result.contract.ownerName ? {
+          name: result.contract.ownerName,
+          email: result.contract.ownerEmail || undefined,
+          phone: result.contract.ownerPhone || undefined,
+        } : undefined;
+        
+        const tokens = await createPortalTokensForContract(
+          result.contract.id,
+          unit.agencyId,
+          req.user.id,
+          tenantInfo,
+          ownerInfo
+        );
+        
+        if (tokens.tenantToken || tokens.ownerToken) {
+          portalCredentials = {
+            tenant: tokens.tenantToken ? {
+              accessCode: tokens.tenantToken.accessCode,
+              password: tokens.tenantToken.password,
+              portalUrl: '/portal/tenant',
+            } : undefined,
+            owner: tokens.ownerToken ? {
+              accessCode: tokens.ownerToken.accessCode,
+              password: tokens.ownerToken.password,
+              portalUrl: '/portal/owner',
+            } : undefined,
+          };
+          
+          await createAuditLog(
+            req, 
+            "create", 
+            "external_portal_access_token", 
+            result.contract.id, 
+            `Auto-created portal access tokens on contract creation`
+          );
+        }
+      } catch (tokenError: any) {
+        console.error("Error auto-creating portal tokens:", tokenError);
+      }
+      
       res.status(201).json({
         contract: result.contract,
         schedules: result.schedules,
+        _portalCredentials: portalCredentials,
       });
     } catch (error: any) {
       console.error("Error creating rental contract:", error);

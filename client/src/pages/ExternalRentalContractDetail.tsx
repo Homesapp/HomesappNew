@@ -583,6 +583,36 @@ export default function ExternalRentalContractDetail() {
             </CardContent>
           </Card>
 
+          {/* Owner Information */}
+          {(contract as any).ownerName && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+                  {language === "es" ? "Propietario" : "Owner"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">{language === "es" ? "Nombre" : "Name"}</p>
+                  <p className="text-sm font-medium" data-testid="text-owner-name">{(contract as any).ownerName}</p>
+                </div>
+                {(contract as any).ownerEmail && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{language === "es" ? "Email" : "Email"}</p>
+                    <p className="text-sm" data-testid="text-owner-email">{(contract as any).ownerEmail}</p>
+                  </div>
+                )}
+                {(contract as any).ownerPhone && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{language === "es" ? "Teléfono" : "Phone"}</p>
+                    <p className="text-sm" data-testid="text-owner-phone">{(contract as any).ownerPhone}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Pet Information */}
           {contract.hasPet && (
             <Card>
