@@ -1420,17 +1420,17 @@ export default function PublicUnitDetail() {
 
       {/* Expanded Image Dialog - Fullscreen Gallery */}
       <Dialog open={expandedImageIndex !== null} onOpenChange={() => setExpandedImageIndex(null)}>
-        <DialogContent hideCloseButton className="max-w-fit max-h-[95vh] p-0 bg-background border shadow-xl">
+        <DialogContent hideCloseButton className="max-w-[90vw] max-h-[95vh] p-0 bg-background border shadow-xl">
           {expandedImageIndex !== null && (
             <div 
               className="relative select-none"
               onContextMenu={(e) => e.preventDefault()}
             >
-              {/* Close button - top right of image container */}
+              {/* Close button - top right corner inside container */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute -right-2 -top-2 z-50 min-h-[40px] min-w-[40px] bg-background hover:bg-muted rounded-full shadow-lg border"
+                className="absolute right-2 top-2 z-50 min-h-[40px] min-w-[40px] bg-background/90 hover:bg-muted rounded-full shadow-lg border"
                 onClick={() => setExpandedImageIndex(null)}
                 data-testid="button-close-lightbox"
               >
@@ -1442,11 +1442,11 @@ export default function PublicUnitDetail() {
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 min-h-[48px] min-w-[48px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-50 min-h-[44px] min-w-[44px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
                   onClick={() => setExpandedImageIndex((prev) => (prev! - 1 + images.length) % images.length)}
                   data-testid="button-prev-image"
                 >
-                  <ChevronLeft className="h-6 w-6" />
+                  <ChevronLeft className="h-5 w-5" />
                 </Button>
               )}
               
@@ -1455,20 +1455,20 @@ export default function PublicUnitDetail() {
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 min-h-[48px] min-w-[48px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-50 min-h-[44px] min-w-[44px] rounded-full shadow-lg border bg-background/90 hover:bg-background"
                   onClick={() => setExpandedImageIndex((prev) => (prev! + 1) % images.length)}
                   data-testid="button-next-image"
                 >
-                  <ChevronRight className="h-6 w-6" />
+                  <ChevronRight className="h-5 w-5" />
                 </Button>
               )}
               
               {/* Image with protection overlay */}
-              <div className="p-4">
+              <div className="flex items-center justify-center p-8 min-h-[60vh]">
                 <img
                   src={getFullSizeUrl(expandedImageIndex)}
                   alt={`${propertyTitle} - ${expandedImageIndex + 1}`}
-                  className="max-w-[85vw] max-h-[80vh] object-contain rounded-lg select-none"
+                  className="max-w-full max-h-[80vh] object-contain rounded-lg select-none"
                   draggable={false}
                   onContextMenu={(e) => e.preventDefault()}
                   style={{ 
@@ -1477,13 +1477,11 @@ export default function PublicUnitDetail() {
                     WebkitTouchCallout: 'none',
                   } as React.CSSProperties}
                 />
-                {/* Transparent overlay to prevent direct image interaction */}
-                <div className="absolute inset-4 bg-transparent pointer-events-none" />
               </div>
               
               {/* Image counter - bottom center */}
               {images.length > 1 && (
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 bg-foreground/90 text-background px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 bg-foreground/90 text-background px-4 py-2 rounded-full text-sm font-medium shadow-lg">
                   {expandedImageIndex + 1} / {images.length}
                 </div>
               )}
