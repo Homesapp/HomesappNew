@@ -661,136 +661,96 @@ export default function PublicUnitDetail() {
                   </div>
                   
                   {/* Included Services */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-green-600">{language === "es" ? "Incluido en la renta" : "Included in rent"}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-green-600">{language === "es" ? "Incluido en la renta" : "Included in rent"}</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {unit.includedServices?.hoaMaintenance && (
-                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                          <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Mantenimiento HOA" : "HOA Maintenance"}</span>
-                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
-                          </div>
+                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
+                          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                          <span className="text-xs">{language === "es" ? "HOA" : "HOA"}</span>
                         </div>
                       )}
                       {unit.includedServices?.internet && (
-                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                          <Wifi className="h-5 w-5 text-green-600 shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Internet" : "Internet"}</span>
-                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
-                          </div>
+                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
+                          <Wifi className="h-4 w-4 text-green-600 shrink-0" />
+                          <span className="text-xs">Internet</span>
                         </div>
                       )}
                       {unit.includedServices?.water && (
-                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                          <Droplets className="h-5 w-5 text-green-600 shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Agua" : "Water"}</span>
-                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
-                          </div>
+                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
+                          <Droplets className="h-4 w-4 text-green-600 shrink-0" />
+                          <span className="text-xs">{language === "es" ? "Agua" : "Water"}</span>
                         </div>
                       )}
                       {unit.includedServices?.electricity && (
-                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                          <Zap className="h-5 w-5 text-green-600 shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Electricidad" : "Electricity"}</span>
-                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
-                          </div>
+                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
+                          <Zap className="h-4 w-4 text-green-600 shrink-0" />
+                          <span className="text-xs">{language === "es" ? "Luz" : "Electricity"}</span>
                         </div>
                       )}
                       {unit.includedServices?.gas && (
-                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                          <Flame className="h-5 w-5 text-green-600 shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Gas" : "Gas"}</span>
-                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
-                          </div>
+                        <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
+                          <Flame className="h-4 w-4 text-green-600 shrink-0" />
+                          <span className="text-xs">Gas</span>
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* Not Included Services with approximate costs */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-muted-foreground">{language === "es" ? "No incluido (costos aproximados)" : "Not included (approximate costs)"}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-muted-foreground">{language === "es" ? "No incluido (costos aprox.)" : "Not included (approx. costs)"}</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {!unit.includedServices?.hoaMaintenance && (
-                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
-                          <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Mantenimiento HOA" : "HOA Maintenance"}</span>
-                            <p className="text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <span className="text-xs block truncate">HOA</span>
+                            <span className="text-[10px] text-muted-foreground">
                               {(unit as any).hoaCost 
-                                ? `$${(unit as any).hoaCost.toLocaleString()} ${unit.currency || 'MXN'}/mes`
-                                : language === "es" ? "Costo variable" : "Variable cost"}
-                            </p>
+                                ? `$${(unit as any).hoaCost.toLocaleString()}`
+                                : language === "es" ? "Variable" : "Variable"}
+                            </span>
                           </div>
                         </div>
                       )}
                       {!unit.includedServices?.internet && (
-                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
-                          <Wifi className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Internet" : "Internet"}</span>
-                            <p className="text-xs text-muted-foreground">~$500-800 MXN/mes</p>
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                          <Wifi className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <span className="text-xs block truncate">Internet</span>
+                            <span className="text-[10px] text-muted-foreground">~$500-800</span>
                           </div>
                         </div>
                       )}
                       {!unit.includedServices?.water && (
-                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
-                          <Droplets className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Agua" : "Water"}</span>
-                            <p className="text-xs text-muted-foreground">~$200-500 MXN/mes</p>
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                          <Droplets className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <span className="text-xs block truncate">{language === "es" ? "Agua" : "Water"}</span>
+                            <span className="text-[10px] text-muted-foreground">~$200-500</span>
                           </div>
                         </div>
                       )}
                       {!unit.includedServices?.electricity && (
-                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
-                          <Zap className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Electricidad" : "Electricity"}</span>
-                            <p className="text-xs text-muted-foreground">~$800-2,000 MXN/mes</p>
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                          <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <span className="text-xs block truncate">{language === "es" ? "Luz" : "Electricity"}</span>
+                            <span className="text-[10px] text-muted-foreground">~$800-2,000</span>
                           </div>
                         </div>
                       )}
                       {!unit.includedServices?.gas && (
-                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
-                          <Flame className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <div>
-                            <span className="font-medium">{language === "es" ? "Gas" : "Gas"}</span>
-                            <p className="text-xs text-muted-foreground">~$300-600 MXN/mes</p>
+                        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border">
+                          <Flame className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <span className="text-xs block truncate">Gas</span>
+                            <span className="text-[10px] text-muted-foreground">~$300-600</span>
                           </div>
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* Location Info */}
-                  <div className="pt-4 border-t">
-                    <h4 className="font-medium mb-3">{language === "es" ? "Ubicación" : "Location"}</h4>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-5 w-5" />
-                      <span>{propertyLocation}</span>
-                    </div>
-                    {unit.zone && (
-                      <Badge variant="outline" className="mt-2">
-                        {language === "es" ? "Zona:" : "Zone:"} {unit.zone}
-                      </Badge>
-                    )}
-                    {unit.latitude && unit.longitude && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="mt-3"
-                        onClick={() => window.open(`https://www.google.com/maps?q=${unit.latitude},${unit.longitude}`, '_blank')}
-                      >
-                        <Map className="h-4 w-4 mr-2" />
-                        {language === "es" ? "Ver en mapa" : "View on map"}
-                      </Button>
-                    )}
                   </div>
                 </div>
               </TabsContent>

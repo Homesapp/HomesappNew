@@ -147,7 +147,7 @@ export const homepageContent = {
         },
         {
           question: "¿Cuánto cobran de comisión?",
-          answer: "Nuestras comisiones son competitivas y varían según el tipo de operación. Para rentas, generalmente cobramos el equivalente a un mes de renta. Para ventas, la comisión estándar es del 5% del valor de la propiedad. Contáctanos para más detalles.",
+          answer: "Nuestras comisiones son competitivas y varían según el tipo de operación. Para rentas, generalmente cobramos el equivalente a un mes de renta por 1 año de contrato y el equivalente a medio mes de renta por 6 meses de contrato. Para ventas, la comisión estándar es del 6% del valor de la propiedad. Contáctanos para más detalles.",
         },
         {
           question: "¿Cómo puedo ver mis pagos y contratos?",
@@ -304,7 +304,7 @@ export const homepageContent = {
         },
         {
           question: "How much commission do you charge?",
-          answer: "Our commissions are competitive and vary by operation type. For rentals, we generally charge the equivalent of one month's rent. For sales, the standard commission is 5% of the property value. Contact us for more details.",
+          answer: "Our commissions are competitive and vary by operation type. For rentals, we generally charge the equivalent of one month's rent for 1-year contracts and half a month's rent for 6-month contracts. For sales, the standard commission is 6% of the property value. Contact us for more details.",
         },
         {
           question: "How can I see my payments and contracts?",

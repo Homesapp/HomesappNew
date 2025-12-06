@@ -1227,7 +1227,7 @@ ${language === "es" ? "ACCESOS" : "ACCESSES"}:
             <PhotoSlotManager
               unitId={id}
               language={language}
-              readOnly={!user}
+              readOnly={!user || user.role !== 'external_agency_admin'}
               onPhotoChange={() => {
                 queryClient.invalidateQueries({ queryKey: ['/api/external-units', id] });
               }}
