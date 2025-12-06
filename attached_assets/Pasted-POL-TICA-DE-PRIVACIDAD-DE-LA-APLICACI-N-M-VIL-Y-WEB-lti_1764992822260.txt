@@ -1,0 +1,305 @@
+POLÍTICA DE PRIVACIDAD DE LA APLICACIÓN MÓVIL Y WEB
+
+Última actualización: [●]
+
+1. Identidad y datos de contacto del Responsable
+
+Esta Política de Privacidad regula el tratamiento de los datos personales recopilados a través de la aplicación [Nombre de la App] (en adelante, la “App”) y del sitio web asociado [●] (en adelante, el “Sitio”).
+
+El responsable del tratamiento de los datos personales es:
+
+Razón social: [●]
+
+Nombre comercial: [●]
+
+Domicilio: [●, Ciudad, Estado, País]
+
+Correo electrónico de contacto: [●]
+
+Teléfono: [●]
+
+(En adelante, el “Responsable” o “nosotros”).
+
+El Responsable lleva a cabo el tratamiento de los datos personales conforme a la legislación aplicable en materia de protección de datos, incluyendo, de ser aplicable, la Ley Federal de Protección de Datos Personales en Posesión de los Particulares y su Reglamento.
+
+2. Ámbito de aplicación
+
+Esta Política de Privacidad aplica a:
+
+Usuarios propietarios que utilizan la App para administrar sus propiedades.
+
+Usuarios inquilinos o prospectos de inquilinos que utilizan la App/Sitio para gestionar rentas, pagos o consultas.
+
+Agencias externas, colaboradores o terceros registrados en la App.
+
+Cualquier otra persona que interactúe con la App, el Sitio o nuestros servicios digitales.
+
+El uso de la App implica que el usuario ha leído y acepta los términos de esta Política de Privacidad.
+
+3. Datos personales que recopilamos
+
+Podemos recopilar las siguientes categorías de datos personales:
+
+3.1. Datos de identificación
+
+Nombre(s) y apellidos.
+
+Número de identificación oficial (INE, pasaporte u otro documento similar) (solo si lo cargas o lo proporcionas tú explícitamente).
+
+Firma autógrafa o electrónica/digital (en caso de contratos firmados a través de la App o Sitio).
+
+3.2. Datos de contacto
+
+Correo electrónico.
+
+Número de teléfono fijo y/o móvil (incluyendo WhatsApp).
+
+Domicilio (particular, laboral y/o de la propiedad).
+
+3.3. Datos relacionados con la propiedad y la relación contractual
+
+Datos de la propiedad (dirección, características, número de unidad, fotografías, planos, inventario, etc.).
+
+Datos de contrato de renta, compra o administración (fechas, montos, condiciones).
+
+Historial de pagos, adeudos, depósitos en garantía y facturación.
+
+Información sobre mantenimientos, reportes de incidencias, entregas y devoluciones.
+
+3.4. Datos de uso de la App y del Sitio
+
+Datos técnicos del dispositivo (modelo, sistema operativo, identificadores de dispositivo, versión de la App).
+
+Dirección IP, tipo de navegador, idioma, fechas y horas de acceso.
+
+Secciones visitadas, acciones realizadas dentro de la App, clics, tiempo de sesión.
+
+3.5. Datos de geolocalización (cuando aplique)
+
+Datos de ubicación aproximada o precisa, solo si otorgas el permiso desde tu dispositivo.
+
+3.6. Datos financieros y de pago (si corresponde)
+
+Información parcial de tarjetas de crédito/débito (nunca almacenamos el CVV).
+
+Datos de cuentas bancarias o CLABE para depósitos o transferencias.
+
+Identificadores y comprobantes de pago emitidos por pasarelas de pago externas (PayPal, Stripe, Conekta u otras).
+
+En caso de que recopilemos categorías especiales de datos personales (por ejemplo, datos sensibles), lo haremos siempre de forma justificada y solicitando tu consentimiento expreso.
+
+4. Formas en que obtenemos tus datos
+
+Recopilamos tus datos personales de las siguientes formas:
+
+Directamente de ti, cuando:
+
+Te registras en la App o en el Sitio.
+
+Completas formularios, subes documentos o actualizas tu perfil.
+
+Te comunicas con nosotros por correo, teléfono, WhatsApp o dentro de la App.
+
+Indirectamente, cuando:
+
+Otra persona (por ejemplo, un propietario, una agencia o un administrador) te registra como inquilino o contacto en la App.
+
+Obtenemos información de fuentes públicas, directorios o registros oficiales, dentro de lo permitido por la ley.
+
+Automáticamente, cuando:
+
+Navegas en el Sitio o utilizas la App, mediante cookies, píxeles, SDKs y tecnologías similares.
+
+5. Finalidades del tratamiento
+
+Tratamos tus datos personales para las siguientes finalidades primarias (necesarias para la prestación del servicio):
+
+Creación y gestión de tu cuenta de usuario en la App y el Sitio.
+
+Administración de propiedades y contratos:
+
+Registrar propiedades, propietarios, inquilinos y agencias externas.
+
+Generar, almacenar y gestionar contratos de arrendamiento, administración o servicios.
+
+Gestionar check-in, check-out, reportes de incidencias y mantenimientos.
+
+Gestión de pagos y facturación:
+
+Registrar y dar seguimiento a rentas, depósitos, cargos y abonos.
+
+Emitir comprobantes de pago o facturas, en su caso.
+
+Comunicación y atención al cliente:
+
+Enviar notificaciones sobre vencimientos, citas, recordatorios o cambios en contratos.
+
+Atender dudas, aclaraciones, quejas o solicitudes de soporte.
+
+Seguridad y cumplimiento legal:
+
+Cumplir obligaciones legales, fiscales o regulatorias.
+
+Atender requerimientos de autoridades competentes.
+
+Prevenir fraudes, usos indebidos o actividades ilícitas relacionadas con las propiedades o con la App.
+
+Asimismo, utilizaremos tus datos para las siguientes finalidades secundarias (opcionales):
+
+Envío de información comercial y promocional relacionada con:
+
+Nuevas propiedades, servicios o características de la App.
+
+Promociones, descuentos o campañas especiales.
+
+Mejora de la App y del Sitio:
+
+Realizar análisis estadísticos y métricas de uso.
+
+Realizar encuestas de satisfacción para mejorar nuestros servicios.
+
+Si no deseas que tus datos se utilicen para finalidades secundarias (por ejemplo, publicidad o encuestas), puedes manifestarlo en cualquier momento escribiendo a: [●], indicando tu nombre completo y el correo con el que estás registrado.
+
+6. Base legal / fundamento del tratamiento
+
+Dependiendo del caso, el tratamiento de tus datos personales se realiza con base en:
+
+Tu consentimiento expreso o tácito al registrarte y utilizar la App/Sitio.
+
+La relación contractual que exista contigo (por ejemplo, como propietario, inquilino, agencia o colaborador).
+
+Intereses legítimos del Responsable, relacionados con la administración de propiedades, mejora de servicios y seguridad.
+
+Obligaciones legales aplicables (por ejemplo, fiscales o regulatorias).
+
+7. Compartición y transferencia de datos personales
+
+Podemos compartir tus datos personales con las siguientes categorías de terceros, siempre bajo compromiso de confidencialidad y, en su caso, con las medidas contractuales de protección de datos:
+
+Proveedores de servicios tecnológicos
+
+Servicios de hosting, almacenamiento en la nube y mantenimiento de servidores.
+
+Proveedores de servicios de mensajería (correo, SMS, WhatsApp Business, notificaciones push).
+
+Proveedores de herramientas de análisis y monitoreo de uso (analytics).
+
+Pasarelas de pago y entidades financieras
+
+Proveedores de procesamiento de pago (Stripe, PayPal, bancos, etc.) para gestionar cobros, depósitos y reembolsos.
+
+Despachos legales, contables y de auditoría
+
+Cuando sea necesario para la gestión de contratos, reclamaciones, litigios o cumplimiento de obligaciones legales.
+
+Autoridades competentes
+
+Cuando sea requerido por ley, por mandato judicial o administrativo.
+
+Otros usuarios de la plataforma
+
+En la medida necesaria para la operación del servicio, por ejemplo:
+
+Mostrar datos de contacto de un propietario a un inquilino (y viceversa) cuando exista una relación contractual en la App.
+
+Compartir cierta información de una propiedad con agencias externas autorizadas.
+
+En caso de que se realicen transferencias internacionales de datos (por ejemplo, a servidores en otro país), estas se llevarán a cabo conforme a los requisitos legales aplicables, procurando que el país receptor cuente con un nivel adecuado de protección de datos o usando cláusulas contractuales apropiadas.
+
+8. Cookies, SDKs y tecnologías similares
+
+Cuando utilizas la App o el Sitio, podemos usar cookies y tecnologías similares para:
+
+Recordar tus preferencias, sesión iniciada y configuraciones.
+
+Obtener información estadística y de rendimiento de la App/Sitio.
+
+Mejorar la experiencia de usuario y mostrar contenido relevante.
+
+Puedes configurar tu navegador o dispositivo para rechazar o eliminar cookies; sin embargo, algunas funciones pueden no estar disponibles o no funcionar correctamente si lo haces.
+
+9. Plazo de conservación de los datos
+
+Conservaremos tus datos personales durante el tiempo que sea necesario para:
+
+Cumplir con las finalidades del tratamiento descritas en esta Política.
+
+Mantener tu cuenta activa y prestar los servicios.
+
+Dar cumplimiento a obligaciones legales, contractuales o fiscales aplicables.
+
+Una vez que los datos ya no sean necesarios, serán eliminados o anonimizados de forma segura.
+
+10. Medidas de seguridad
+
+El Responsable implementa medidas de seguridad administrativas, técnicas y físicas razonables para proteger tus datos personales contra daño, pérdida, alteración, destrucción o uso, acceso o tratamiento no autorizado.
+
+Entre estas medidas se incluyen, en la medida de lo posible:
+
+Control de acceso a sistemas y bases de datos.
+
+Contraseñas cifradas y políticas de autenticación.
+
+Respaldos periódicos de información.
+
+Uso de conexiones seguras (por ejemplo, HTTPS).
+
+No obstante, ningún sistema es completamente infalible; el usuario también es responsable de mantener la confidencialidad de sus credenciales de acceso y de su dispositivo.
+
+11. Derechos de los titulares (ARCO y otros)
+
+Como titular de datos personales, puedes ejercer los siguientes derechos, conforme a la legislación aplicable:
+
+Acceso: conocer qué datos personales tenemos y cómo los utilizamos.
+
+Rectificación: solicitar la corrección de datos inexactos, incompletos o desactualizados.
+
+Cancelación: solicitar la supresión de tus datos cuando consideres que no están siendo utilizados adecuadamente o ya no son necesarios.
+
+Oposición: oponerte al tratamiento de tus datos para fines específicos (por ejemplo, fines de mercadotecnia).
+
+Asimismo, puedes:
+
+Revocar tu consentimiento para el tratamiento de tus datos, en los casos en que el tratamiento se base en el consentimiento.
+
+Limitar el uso o divulgación de tus datos personales, especialmente para fines de publicidad o mercadotecnia.
+
+11.1. Procedimiento para ejercer tus derechos
+
+Para ejercer tus derechos, deberás presentar una solicitud por escrito al correo [●] con al menos la siguiente información:
+
+Nombre completo del titular y, en su caso, de su representante legal.
+
+Copia de un documento que acredite tu identidad (INE, pasaporte) o, en su caso, el poder del representante.
+
+Descripción clara y precisa de los datos personales respecto de los cuales deseas ejercer tus derechos y el derecho específico que deseas ejercer.
+
+Cualquier elemento o documento que facilite la localización de tus datos (por ejemplo, correo con el que te registraste, número de teléfono).
+
+Te responderemos en los plazos y términos establecidos por la legislación aplicable, indicándote si tu solicitud es procedente y cómo será atendida.
+
+12. Tratamiento de datos de menores de edad
+
+Nuestros servicios no están dirigidos a menores de edad. No recopilamos de forma intencional datos personales de menores de [●] años. Si consideras que un menor nos ha proporcionado datos personales sin el consentimiento correspondiente, por favor contáctanos de inmediato para proceder a su eliminación.
+
+13. Enlaces a sitios de terceros
+
+La App y el Sitio pueden incluir enlaces a sitios web de terceros (por ejemplo, pasarelas de pago, redes sociales, servicios de mensajería). Esta Política de Privacidad no cubre dichos sitios; te recomendamos revisar las políticas de privacidad de cada tercero antes de proporcionarles tus datos.
+
+14. Actualizaciones de la Política de Privacidad
+
+Podremos actualizar esta Política de Privacidad en cualquier momento para reflejar cambios en la App, en nuestras prácticas de tratamiento de datos o en la normativa aplicable.
+
+Cuando hagamos cambios relevantes, notificaremos a los usuarios a través de la App, del Sitio o por correo electrónico. La fecha de la última actualización se indicará al inicio del documento.
+
+El uso continuado de la App o del Sitio después de tales cambios implicará la aceptación de la Política modificada.
+
+15. Datos de contacto para consultas de privacidad
+
+Si tienes alguna duda, comentario o inquietud relacionada con esta Política de Privacidad o con el tratamiento de tus datos personales, puedes contactarnos en:
+
+Correo electrónico: [●]
+
+Teléfono: [●]
+
+Domicilio: [●]

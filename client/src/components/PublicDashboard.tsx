@@ -765,13 +765,20 @@ export default function PublicDashboard() {
             <p className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} Tulum Rental Homes. {language === 'en' ? 'All rights reserved.' : 'Todos los derechos reservados.'}
             </p>
-            <div className="flex items-center gap-6 text-xs">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs">
               <button 
-                onClick={() => setLocation("/terminos")}
+                onClick={() => setLocation("/terminos/inquilinos")}
                 className="text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="footer-link-terms"
+                data-testid="footer-link-terms-tenants"
               >
-                {language === 'en' ? 'Terms' : 'Términos'}
+                {language === 'en' ? 'Tenant Terms' : 'Términos Inquilinos'}
+              </button>
+              <button 
+                onClick={() => setLocation("/terminos/propietarios")}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="footer-link-terms-owners"
+              >
+                {language === 'en' ? 'Owner Terms' : 'Términos Propietarios'}
               </button>
               <button 
                 onClick={() => setLocation("/privacidad")}

@@ -126,6 +126,7 @@ import Contracts from "@/pages/Contracts";
 import RoleRequests from "@/pages/RoleRequests";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
+import PublicTerms from "@/pages/PublicTerms";
 import SellerApplicationPage from "@/pages/SellerApplicationPage";
 import OwnerApplicationPage from "@/pages/OwnerApplicationPage";
 import Help from "@/pages/Help";
@@ -286,6 +287,8 @@ function AuthenticatedApp() {
         <Route path="/propiedad/:id" component={PropertyDetails} />
         <Route path="/favoritos" component={Favorites} />
         <Route path="/terminos" component={Terms} />
+        <Route path="/terminos/inquilinos">{() => <PublicTerms type="tenant" />}</Route>
+        <Route path="/terminos/propietarios">{() => <PublicTerms type="owner" />}</Route>
         <Route path="/privacidad" component={Privacy} />
         <Route path="/aplicar-vendedor" component={SellerApplicationPage} />
         <Route path="/aplicar-propietario" component={OwnerApplicationPage} />
@@ -646,6 +649,8 @@ function AuthenticatedApp() {
               <Route path="/help/:role/:module" component={RoleModuleHelp} />
               <Route path="/ayuda" component={HelpPage} />
               <Route path="/terminos" component={Terms} />
+              <Route path="/terminos/inquilinos">{() => <PublicTerms type="tenant" />}</Route>
+              <Route path="/terminos/propietarios">{() => <PublicTerms type="owner" />}</Route>
               <Route path="/privacidad" component={Privacy} />
               <Route path="/:agencySlug/:unitSlug" component={PublicUnitDetail} />
               <Route component={NotFound} />
