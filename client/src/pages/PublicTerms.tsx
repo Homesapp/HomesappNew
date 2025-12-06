@@ -32,36 +32,56 @@ const defaultTenantTerms = {
     subtitle: "Condiciones de arrendamiento y responsabilidades del inquilino",
     sections: [
       {
-        title: "1. Proceso de Arrendamiento",
-        content: "El proceso de arrendamiento inicia con la solicitud formal a través de nuestra plataforma. Una vez aprobada su solicitud, se procederá a la firma del contrato de arrendamiento. El inquilino deberá proporcionar documentación que acredite su identidad y capacidad de pago."
+        title: "1. Tiempo de Pagos por Plataformas",
+        content: "Entendemos que cada plataforma tiene su tiempo de espera o de transferencia, pero sólo se considera una transferencia como completada, una vez que el dinero efectivamente se ve reflejado en la cuenta destino y el destinatario confirma la recepción. Para bancos y/plataformas nacionales e internacionales, los recibos sólo se usan como referencia pero no tienen validez ni aceptación como prueba para presentar antes de las fechas acordadas. Pasando 5 días de la fecha estipulada, los presentes contratos caducarán y se perderá el depósito del apartado. Esto aplica para transferencias nacionales e internacionales desde plataformas móviles como Wise, Venmo, Zelle, PayPal o cualquier tipo de aplicación de transferencia de dinero nacional o internacional."
       },
       {
-        title: "2. Depósito de Garantía",
-        content: "Se requiere un depósito de garantía equivalente a un mes de renta, el cual será devuelto al término del contrato siempre que la propiedad se entregue en las mismas condiciones en que fue recibida, descontando el desgaste normal por uso."
+        title: "2. Prórrogas de Tiempos de Pago",
+        content: "Solamente es válida una prórroga de tiempo mediante un acuerdo mutuo entre las partes y modificando el presente contrato, con al menos 48 hs de anticipación a la fecha designada."
       },
       {
-        title: "3. Pago de Renta",
-        content: "La renta mensual deberá pagarse dentro de los primeros 5 días de cada mes. El pago puede realizarse mediante transferencia bancaria o los métodos establecidos en el contrato. Los pagos tardíos pueden generar cargos por mora según lo estipulado."
+        title: "3. Costos Administrativos",
+        content: "Por la elaboración del contrato de arrendamiento los honorarios a cobrar serán: $2,500 MXN para contratos de uso de propiedad para vivienda personal, o $3,800 MXN para contratos de renta para subarrendamiento. La cantidad que corresponda deberá ser abonada en una sola exhibición junto con el monto correspondiente al depósito para el apartado de la unidad."
       },
       {
-        title: "4. Mantenimiento y Cuidado",
-        content: "El inquilino se compromete a mantener la propiedad en buen estado, reportando cualquier desperfecto de manera oportuna. Las reparaciones menores derivadas del uso cotidiano son responsabilidad del inquilino. Las reparaciones mayores estructurales corresponden al propietario."
+        title: "4. Reserva de Propiedades",
+        content: "Tanto para poder reservar, bloquear fechas y dejar de promocionar la unidad con nuevos clientes, así como para solicitar al estudio jurídico la elaboración del contrato correspondiente, podrá solicitarse depósito para el apartado de la propiedad antes de la fecha de la firma de contrato. Por lo que el promitente arrendatario acepta que para el caso de cancelación de la reservación por causa imputable a él, dicho depósito se constituirá como la penalización derivada de dicha cancelación, por lo que no se hará la devolución del depósito ni del pago del contrato."
       },
       {
-        title: "5. Uso de la Propiedad",
-        content: "La propiedad deberá utilizarse exclusivamente para fines habitacionales, a menos que se especifique lo contrario en el contrato. No se permiten subarrendamientos sin autorización expresa por escrito del propietario."
+        title: "5. Aviso de Privacidad",
+        content: "Toda la información recabada será de carácter confidencial y de no divulgación de acuerdo a los Artículos 15 y 16 de la Ley Federal de Protección de Datos Personales en Posesión de Particulares."
       },
       {
-        title: "6. Terminación del Contrato",
-        content: "La terminación anticipada del contrato debe notificarse con al menos 30 días de anticipación. El incumplimiento de las obligaciones contractuales puede resultar en la terminación inmediata del arrendamiento."
+        title: "6. Declaración Jurada de Información Fidedigna",
+        content: "Promitente arrendatario y garante, bajo protesta de decir verdad manifiestan que la información proporcionada es verídica, asumiendo así mismo todo tipo de responsabilidad derivada de cualquier declaración en falso sobre las mismas, asegurando que el dinero con el cual será pagado depósito y arrendamiento, no proviene de actividades ilícitas, por lo que autorizamos al propietario del inmueble materia de arrendamiento, a sus asesores inmobiliarios y abogado, a realizar las investigaciones correspondientes para corroborar que la información es fidedigna y a que realice la investigación de incidencias legales correspondiente."
       },
       {
-        title: "7. Servicios Incluidos",
-        content: "Los servicios incluidos en la renta varían según la propiedad y se especifican en cada listado. El inquilino es responsable de contratar y pagar los servicios no incluidos como electricidad, internet, gas, entre otros."
+        title: "7. Tolerancia Ambiental y Falla en los Servicios",
+        content: "El arrendatario reconoce que, debido a la ubicación geográfica y características naturales de la zona, pueden presentarse fenómenos como humedad excesiva (hongos), aparición de fauna local (insectos, geckos, etc.) o sargazo en zonas cercanas, así como la falla de los servicios básicos como luz, agua e internet, y que estas situaciones no serán consideradas causa de incumplimiento ni para solicitud de compensaciones ni rescisión del contrato."
       },
       {
-        title: "8. Mascotas",
-        content: "La política de mascotas varía según la propiedad. Consulte las condiciones específicas antes de solicitar el arrendamiento. En caso de aceptarse mascotas, puede requerirse un depósito adicional."
+        title: "8. Cancelación por Causa de Fuerza Comercial",
+        content: "En caso de que la propiedad sea puesta en venta y se concrete una oferta de compra formal, el arrendador podrá cancelar el contrato con 60 días de preaviso y sin penalización, reembolsando íntegramente el depósito y cualquier renta pagada por adelantado."
+      },
+      {
+        title: "9. Uso de Áreas Comunes",
+        content: "El arrendatario se compromete a cumplir el reglamento del condominio o interno del apartamento, incluyendo horarios de uso de amenidades, normas de convivencia, y uso responsable de áreas como alberca, gimnasio o roof garden. Cualquier multa impuesta por la administración y/o propietario será responsabilidad del arrendatario y posible rescisión del contrato en caso de que adquiera multas reiteradas."
+      },
+      {
+        title: "10. Cambio de Moneda",
+        content: "En contratos celebrados con personas de nacionalidad extranjera, los montos establecidos serán definidos en pesos mexicanos (MXN) y deberán ser pagados en la misma moneda en la que se firmó el contrato, utilizando el tipo de cambio vigente al día de la transacción."
+      },
+      {
+        title: "11. Declaración de Idioma y Entendimiento",
+        content: "En contratos con personas de nacionalidad extranjera o versiones bilingües se anexará la siguiente cláusula: \"Las partes declaran que han entendido íntegramente el contenido de este contrato en su idioma nativo o idioma de preferencia, y que en caso de discrepancia entre versiones, prevalecerá la versión en español.\""
+      },
+      {
+        title: "12. Tolerancia Acústica Urbana",
+        content: "El arrendatario reconoce que el inmueble se ubica en una zona urbana, turística o en desarrollo, por lo que acepta la posibilidad de ruidos ocasionales (tráfico, música, obras) y que estos no constituyen motivo de queja, rescisión ni solicitud de reembolso."
+      },
+      {
+        title: "13. Mantenimientos y Reparaciones",
+        content: "A partir de los 30 días posteriores al inicio del contrato de arrendamiento, el inquilino será responsable de realizar el mantenimiento preventivo de los aires acondicionados cada seis (6) meses y/o al momento de su salida (check-out) de la propiedad. Asimismo, será responsable de cubrir cualquier reparación de artículos, electrodomésticos o mobiliario que presente desperfectos no reportados dentro de los primeros 30 días de vigencia del contrato."
       }
     ]
   },
@@ -70,36 +90,56 @@ const defaultTenantTerms = {
     subtitle: "Lease conditions and tenant responsibilities",
     sections: [
       {
-        title: "1. Leasing Process",
-        content: "The leasing process begins with a formal application through our platform. Once your application is approved, the lease agreement will be signed. The tenant must provide documentation proving their identity and payment capacity."
+        title: "1. Payment Processing Times",
+        content: "We understand that each platform has its own waiting or transfer time, but a transfer is only considered complete once the money is effectively reflected in the destination account and the recipient confirms receipt. For national and international banks/platforms, receipts are only used as reference but have no validity or acceptance as proof before the agreed dates. After 5 days from the stipulated date, these contracts will expire and the reservation deposit will be forfeited. This applies to national and international transfers from mobile platforms such as Wise, Venmo, Zelle, PayPal, or any type of national or international money transfer application."
       },
       {
-        title: "2. Security Deposit",
-        content: "A security deposit equivalent to one month's rent is required, which will be returned at the end of the contract as long as the property is delivered in the same condition it was received, minus normal wear and tear."
+        title: "2. Payment Time Extensions",
+        content: "A time extension is only valid through a mutual agreement between the parties and by modifying this contract, with at least 48 hours in advance of the designated date."
       },
       {
-        title: "3. Rent Payment",
-        content: "Monthly rent must be paid within the first 5 days of each month. Payment can be made via bank transfer or the methods established in the contract. Late payments may incur late fees as stipulated."
+        title: "3. Administrative Costs",
+        content: "For the preparation of the lease agreement, the fees to be charged will be: $2,500 MXN for property use contracts for personal housing, or $3,800 MXN for sublease rental contracts. The corresponding amount must be paid in a single payment together with the deposit amount for the unit reservation."
       },
       {
-        title: "4. Maintenance and Care",
-        content: "The tenant agrees to maintain the property in good condition, reporting any damage promptly. Minor repairs resulting from daily use are the tenant's responsibility. Major structural repairs are the owner's responsibility."
+        title: "4. Property Reservation",
+        content: "In order to reserve, block dates, and stop promoting the unit to new clients, as well as to request the legal firm to prepare the corresponding contract, a deposit may be requested for the property reservation before the contract signing date. Therefore, the prospective tenant accepts that in case of cancellation of the reservation due to reasons attributable to them, said deposit will constitute the penalty derived from such cancellation, and neither the deposit nor the contract payment will be refunded."
       },
       {
-        title: "5. Property Use",
-        content: "The property must be used exclusively for residential purposes, unless otherwise specified in the contract. Subleasing is not permitted without express written authorization from the owner."
+        title: "5. Privacy Notice",
+        content: "All information collected will be confidential and non-disclosure in accordance with Articles 15 and 16 of the Federal Law on Protection of Personal Data Held by Private Parties."
       },
       {
-        title: "6. Contract Termination",
-        content: "Early termination of the contract must be notified at least 30 days in advance. Failure to comply with contractual obligations may result in immediate termination of the lease."
+        title: "6. Sworn Statement of Accurate Information",
+        content: "The prospective tenant and guarantor, under penalty of perjury, declare that the information provided is truthful, assuming all responsibility derived from any false statement, assuring that the money with which the deposit and rent will be paid does not come from illicit activities. Therefore, we authorize the property owner, their real estate advisors, and lawyer to conduct the corresponding investigations to corroborate that the information is accurate and to conduct the corresponding legal incident investigation."
       },
       {
-        title: "7. Included Services",
-        content: "Services included in the rent vary by property and are specified in each listing. The tenant is responsible for contracting and paying for services not included such as electricity, internet, gas, among others."
+        title: "7. Environmental Tolerance and Service Failures",
+        content: "The tenant acknowledges that, due to the geographic location and natural characteristics of the area, phenomena such as excessive humidity (mold), appearance of local fauna (insects, geckos, etc.) or sargassum in nearby areas may occur, as well as failures of basic services such as electricity, water, and internet, and that these situations will not be considered cause for breach nor for requesting compensation or contract termination."
       },
       {
-        title: "8. Pets",
-        content: "Pet policy varies by property. Check specific conditions before applying for the lease. If pets are accepted, an additional deposit may be required."
+        title: "8. Cancellation Due to Commercial Force Majeure",
+        content: "In the event that the property is put up for sale and a formal purchase offer is finalized, the landlord may cancel the contract with 60 days' notice and without penalty, fully reimbursing the deposit and any rent paid in advance."
+      },
+      {
+        title: "9. Use of Common Areas",
+        content: "The tenant agrees to comply with the condominium or apartment internal regulations, including schedules for use of amenities, coexistence rules, and responsible use of areas such as the pool, gym, or roof garden. Any fine imposed by the administration and/or owner will be the tenant's responsibility, and possible contract termination in case of repeated fines."
+      },
+      {
+        title: "10. Currency Exchange",
+        content: "In contracts entered into with foreign nationals, the established amounts will be defined in Mexican pesos (MXN) and must be paid in the same currency in which the contract was signed, using the exchange rate in effect on the day of the transaction."
+      },
+      {
+        title: "11. Language and Understanding Declaration",
+        content: "In contracts with foreign nationals or bilingual versions, the following clause will be attached: \"The parties declare that they have fully understood the content of this contract in their native language or language of preference, and that in case of discrepancy between versions, the Spanish version shall prevail.\""
+      },
+      {
+        title: "12. Urban Acoustic Tolerance",
+        content: "The tenant acknowledges that the property is located in an urban, tourist, or developing area, and therefore accepts the possibility of occasional noises (traffic, music, construction) and that these do not constitute grounds for complaint, termination, or refund request."
+      },
+      {
+        title: "13. Maintenance and Repairs",
+        content: "From 30 days after the start of the lease agreement, the tenant will be responsible for performing preventive maintenance on the air conditioning units every six (6) months and/or at the time of their departure (check-out) from the property. Likewise, they will be responsible for covering any repair of items, appliances, or furniture that shows defects not reported within the first 30 days of the contract's validity."
       }
     ]
   }
