@@ -546,17 +546,6 @@ export default function PublicTerms({ type }: PublicTermsProps) {
               {language === 'es' ? 'Términos Propietarios' : 'Owner Terms'}
             </Button>
           )}
-          {type !== 'general' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLocation("/terminos")}
-              data-testid="button-terms-general"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              {language === 'es' ? 'Términos Generales' : 'General Terms'}
-            </Button>
-          )}
         </div>
       </div>
     </div>

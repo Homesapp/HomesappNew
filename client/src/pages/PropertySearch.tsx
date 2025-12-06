@@ -655,10 +655,16 @@ export default function PropertySearch() {
               </p>
               <div className="flex items-center gap-4 text-[10px] sm:text-xs">
                 <button 
-                  onClick={() => setLocation("/terminos")}
+                  onClick={() => setLocation("/terminos/inquilinos")}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Términos
+                  Términos Inquilinos
+                </button>
+                <button 
+                  onClick={() => setLocation("/terminos/propietarios")}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Términos Propietarios
                 </button>
                 <button 
                   onClick={() => setLocation("/privacidad")}
