@@ -1,0 +1,164 @@
+1. Objetivo general
+
+HomesApp es un portal de propiedades.
+El home actual tiene muchas secciones de texto seguidas (“Cómo funciona”, “Quiénes somos”, testimonios, FAQs, etc.) y casi no se ven propiedades.
+
+Quiero que el Home sea property-first:
+que el usuario vea propiedades desde el principio, especialmente organizadas por zonas (Aldea Zama, La Veleta, Región 15, Centro) y con una fila opcional de destacadas.
+
+También quiero introducir la lógica de propiedades destacadas en el módulo de propiedades, para decidir qué aparece arriba y qué no.
+
+2. Nuevo layout del Home (estructura general)
+
+Orden de secciones, de arriba hacia abajo:
+
+Hero + buscador principal
+
+Título ejemplo:
+
+“Encuentra tu próxima propiedad en Tulum.”
+
+Subtítulo corto, una sola línea.
+
+Buscador inline con campos:
+
+Zona / colonia (select o autocomplete).
+
+Tipo de operación: Renta / Venta.
+
+(Opcional) Rango de precio.
+
+Botones:
+
+“Ver propiedades” → /propiedades.
+
+“Soy propietario” → /enlistar-propiedad o /como-funciona-propietarios.
+
+Fila 0 (opcional): Propiedades destacadas
+
+Título: “Propiedades destacadas”.
+
+Carrusel horizontal (scroll en eje X) con cards de propiedad.
+
+Se alimenta de propiedades con isFeatured = true y status = active.
+
+Máx. 10–12 propiedades.
+
+Botón al final de la fila:
+“Ver todas las propiedades → /propiedades”.
+
+Filas por zona (rails)
+Después de las destacadas, mostrar hasta 4 filas, cada una para una zona específica. Ejemplo:
+
+Fila 1: Aldea Zama
+
+Fila 2: La Veleta
+
+Fila 3: Región 15
+
+Fila 4: Centro
+
+Para cada fila:
+
+Título: “Aldea Zama”, “La Veleta”, etc.
+
+Carrusel horizontal de cards de propiedad más pequeñas.
+
+Máx. 10–12 propiedades por fila.
+
+Al final, un botón:
+“Ver más en Aldea Zama → /propiedades?zona=aldea-zama`.
+
+Lógica de contenido para cada fila:
+
+Primero, propiedades con isFeatured = true en esa zona.
+
+Si faltan para completar el límite, rellenar con otras propiedades activas de la misma zona (no destacadas).
+
+De esta forma, aunque haya pocas destacadas, la fila nunca se ve vacía.
+
+Explorar por zonas / categorías (opcional, compacto)
+Una banda sencilla por encima o por debajo de las filas de propiedades:
+
+Chips / botones:
+
+[Aldea Zama]
+
+[La Veleta]
+
+[Región 15]
+
+[Centro]
+
+[Ver todas]
+
+Cada chip linkea al catálogo filtrado.
+
+Sección “Cómo funciona” (resumida)
+En lugar del bloque gigante actual, dejar una franja corta:
+
+Título: “¿Cómo funciona HomesApp?”
+
+Tres pasos en horizontal:
+
+Descubre propiedades
+
+Conéctate con un asesor
+
+Gestiona todo en tu portal
+
+Debajo, un link:
+“Ver más detalles → /como-funciona”
+
+El contenido largo de “Cómo funciona” debe ir en una página aparte /como-funciona.
+
+Sección “Quiénes somos + confianza” (resumida)
+También más compacta que ahora:
+
+Título: “Quiénes somos”
+
+Un párrafo breve (2–3 líneas máximo).
+
+Debajo, 3 íconos / ventajas:
+
++10 años en Tulum
+
+Procesos digitales
+
+Equipo certificado
+
+Una fila con 2–3 testimonios cortos (no todo el muro actual).
+
+Link: “Conoce más sobre nosotros → /quienes-somos”.
+
+El contenido largo que hoy está en el home debe ir a /quienes-somos.
+
+Preguntas frecuentes (FAQ)
+
+Mantener la sección pero más ligera:
+
+Mostrar solo 3–4 preguntas clave.
+
+Abajo un link: “Ver todas las preguntas frecuentes → /preguntas-frecuentes”.
+
+El FAQ completo se puede mover a la página /preguntas-frecuentes.
+
+Footer
+
+Mantener enlaces a:
+
+Buscar propiedades
+
+Mapa interactivo
+
+En renta / En venta
+
+Portal inquilinos / propietarios
+
+Cómo funciona
+
+Quiénes somos
+
+Preguntas frecuentes
+
+Ya no es necesario repetir aquí arriba todo lo que está en el home.

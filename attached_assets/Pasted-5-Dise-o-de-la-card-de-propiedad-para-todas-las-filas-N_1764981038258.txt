@@ -1,0 +1,114 @@
+5. Diseño de la card de propiedad (para todas las filas)
+
+Necesitamos una card reutilizable para:
+
+Fila de destacadas.
+
+Filas por zona.
+
+5.1. Información mínima que debe mostrar
+
+En desktop:
+
+Imagen principal de la propiedad (aspect ratio tipo 4:3 o 3:2).
+
+Badge arriba a la izquierda:
+
+“En renta” / “En venta”.
+
+Badge opcional arriba a la derecha:
+
+“Destacada” (si isFeatured = true).
+
+Nombre de la unidad / condo:
+
+Ej: “Zona Nove - 1”, “Casa Imox 02A”.
+
+Zona:
+
+Ej: “La Veleta”, “Aldea Zama”.
+
+Resumen de características:
+
+<n> rec | <n> baños | <m²> m² (lo que tengamos disponible).
+
+Precio:
+
+Para renta: $20,000 MXN/mes.
+
+Para venta: $3,250,000 MXN.
+
+Botón o CTA discreto:
+
+“Ver detalles” (o que la card completa sea clickeable).
+
+En mobile:
+
+Card a ancho casi completo o carrusel horizontal de cards.
+
+Mantener la misma info pero con texto más compacto.
+
+5.2. Comportamiento
+
+Al hacer clic en la card:
+
+Navegar a la página de detalle de unidad usando la URL friendly (cuando esté lista), algo tipo:
+/tulum-rental-homes/renta/departamento/la-veleta/zona-nove-1-<shortid>.
+
+Responsive:
+
+Desktop:
+
+En cada fila, mostrar 4–5 cards visibles, con scroll horizontal para ver más.
+
+Tablet:
+
+3 cards visibles.
+
+Mobile:
+
+1–2 cards visibles, scroll horizontal.
+
+5.3. Estilo general
+
+Diseño limpio, coherente con el estilo actual de HomesApp (verde, blanco, sombras suaves).
+
+No recargar la card con demasiada info; lo importante es:
+
+Foto atractiva.
+
+Zona.
+
+Recámaras / baños.
+
+Precio.
+
+Tipo (renta/venta).
+
+6. Ajustes en secciones existentes del Home
+
+Importante: ya no queremos que el home se sienta como una landing larga de texto.
+
+Acciones específicas:
+
+Reducir la sección actual de “Cómo funciona”
+
+Dejar solo una versión simple de 3 pasos, con un botón a la página dedicada /como-funciona.
+
+Eliminar la cantidad de texto que hoy se repite.
+
+Reducir “Quiénes somos” y “Confían en nosotros”
+
+Comprimirlo en un solo bloque más corto en el home.
+
+Mantener solo CTA a página “/quienes-somos” donde sí puede estar todo el contenido completo.
+
+FAQ
+
+Quedarse con 3–4 preguntas principales en el home.
+
+El resto moverlas a /preguntas-frecuentes.
+
+Verificar que no se duplique información entre home y footer:
+
+El footer ya tiene links a todas esas secciones, así que arriba deben ser solo resúmenes + links, no bloques gigantes.

@@ -35494,6 +35494,200 @@ ${{precio}}/mes
   });
   });
 
+  // ============================================
+  // PUBLIC LANDING PAGE ENDPOINTS
+  // ============================================
+
+  // GET /api/public/landing/featured - Get featured properties for landing page
+  app.get("/api/public/landing/featured", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 12, 30);
+      
+      // Get featured properties ordered by sortOrder
+      const featured = await db
+        .select()
+        .from(featuredProperties)
+        .orderBy(asc(featuredProperties.sortOrder))
+        .limit(limit);
+      
+      // Fetch unit details for each featured property
+      const result = await Promise.all(featured.map(async (fp) => {
+        const unit = await storage.getExternalUnit(fp.unitId);
+        
+        // Only include published units
+        if (!unit || unit.publishStatus !== 'approved') {
+          return null;
+        }
+        
+        let condominiumName = null;
+        if (unit.condominiumId) {
+          const [condo] = await db.select({ name: externalCondominiums.name })
+            .from(externalCondominiums)
+            .where(eq(externalCondominiums.id, unit.condominiumId));
+          condominiumName = condo?.name || null;
+        }
+        
+        return {
+          id: unit.id,
+          unitNumber: unit.unitNumber,
+          title: unit.title,
+          propertyType: unit.propertyType,
+          zone: unit.zone,
+          zoneSlug: unit.zoneSlug,
+          price: unit.price,
+          salePrice: unit.salePrice,
+          currency: unit.currency,
+          listingType: unit.listingType,
+          bedrooms: unit.bedrooms,
+          bathrooms: unit.bathrooms,
+          area: unit.area,
+          primaryImages: unit.primaryImages,
+          condominiumName,
+          petFriendly: unit.petFriendly,
+          slug: unit.slug,
+        };
+      }));
+
+      // Filter out null values (unpublished units)
+      const validProperties = result.filter(Boolean);
+
+      res.json({ 
+        data: validProperties,
+        count: validProperties.length,
+      });
+    } catch (error: any) {
+      console.error("Error fetching landing featured properties:", error);
+      res.status(500).json({ message: "Error fetching featured properties" });
+    }
+  });
+
+  // GET /api/public/landing/by-zone - Get properties grouped by zone for landing page
+  app.get("/api/public/landing/by-zone", async (req, res) => {
+    try {
+      const limitPerZone = Math.min(parseInt(req.query.limit as string) || 12, 20);
+      
+      // Define the zones we want to show (in order)
+      const zones = [
+        { name: "Aldea Zama", slug: "aldea-zama" },
+        { name: "La Veleta", slug: "la-veleta" },
+        { name: "Región 15", slug: "region-15" },
+        { name: "Centro", slug: "centro" },
+      ];
+      
+      const result: Record<string, any[]> = {};
+      
+      for (const zone of zones) {
+        // Get featured properties in this zone first
+        const featuredInZone = await db
+          .select({ unitId: featuredProperties.unitId, sortOrder: featuredProperties.sortOrder })
+          .from(featuredProperties)
+          .orderBy(asc(featuredProperties.sortOrder));
+        
+        const featuredUnitIds = new Set(featuredInZone.map(f => f.unitId));
+        
+        // Get all approved units in this zone
+        const units = await db
+          .select()
+          .from(externalUnits)
+          .where(and(
+            eq(externalUnits.publishStatus, 'approved'),
+            eq(externalUnits.isActive, true),
+            or(
+              ilike(externalUnits.zone, `%${zone.name}%`),
+              eq(externalUnits.zoneSlug, zone.slug)
+            )
+          ))
+          .limit(limitPerZone * 2); // Get more than needed to allow for sorting
+        
+        // Sort: featured first, then by price
+        const sortedUnits = units.sort((a, b) => {
+          const aFeatured = featuredUnitIds.has(a.id);
+          const bFeatured = featuredUnitIds.has(b.id);
+          if (aFeatured && !bFeatured) return -1;
+          if (!aFeatured && bFeatured) return 1;
+          // If both featured, sort by featured sort order
+          if (aFeatured && bFeatured) {
+            const aOrder = featuredInZone.find(f => f.unitId === a.id)?.sortOrder || 999;
+            const bOrder = featuredInZone.find(f => f.unitId === b.id)?.sortOrder || 999;
+            return aOrder - bOrder;
+          }
+          return 0;
+        }).slice(0, limitPerZone);
+        
+        // Get condominium names for each unit
+        const zoneProperties = await Promise.all(sortedUnits.map(async (unit) => {
+          let condominiumName = null;
+          if (unit.condominiumId) {
+            const [condo] = await db.select({ name: externalCondominiums.name })
+              .from(externalCondominiums)
+              .where(eq(externalCondominiums.id, unit.condominiumId));
+            condominiumName = condo?.name || null;
+          }
+          
+          return {
+            id: unit.id,
+            unitNumber: unit.unitNumber,
+            title: unit.title,
+            propertyType: unit.propertyType,
+            zone: unit.zone,
+            zoneSlug: unit.zoneSlug,
+            price: unit.price,
+            salePrice: unit.salePrice,
+            currency: unit.currency,
+            listingType: unit.listingType,
+            bedrooms: unit.bedrooms,
+            bathrooms: unit.bathrooms,
+            area: unit.area,
+            primaryImages: unit.primaryImages,
+            condominiumName,
+            petFriendly: unit.petFriendly,
+            slug: unit.slug,
+            isFeatured: featuredUnitIds.has(unit.id),
+          };
+        }));
+        
+        if (zoneProperties.length > 0) {
+          result[zone.name] = zoneProperties;
+        }
+      }
+
+      res.json({ 
+        data: result,
+        zones: zones.map(z => z.name),
+      });
+    } catch (error: any) {
+      console.error("Error fetching landing properties by zone:", error);
+      res.status(500).json({ message: "Error fetching properties by zone" });
+    }
+  });
+
+  // GET /api/public/landing/zones - Get list of available zones with property counts
+  app.get("/api/public/landing/zones", async (req, res) => {
+    try {
+      // Get count of approved properties per zone
+      const zoneCounts = await db
+        .select({
+          zone: externalUnits.zone,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(externalUnits)
+        .where(and(
+          eq(externalUnits.publishStatus, 'approved'),
+          eq(externalUnits.isActive, true),
+          isNotNull(externalUnits.zone)
+        ))
+        .groupBy(externalUnits.zone)
+        .orderBy(desc(sql`count(*)`));
+      
+      res.json({ 
+        data: zoneCounts.filter(z => z.zone && z.count > 0),
+      });
+    } catch (error: any) {
+      console.error("Error fetching landing zones:", error);
+      res.status(500).json({ message: "Error fetching zones" });
+    }
+  });
+
   // POST /api/public/leads - Create a public lead from property inquiry
   app.post("/api/public/leads", async (req, res) => {
     try {
