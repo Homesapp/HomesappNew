@@ -1,0 +1,173 @@
+3. NUEVO TAB: “EDICIÓN DE FOTOS” EN MÓDULO DE PROPIEDAD
+
+👉 Acción (frontend):
+
+En el panel de edición de unidad/properties, agregar un nuevo tab:
+
+Tabs de la unidad:
+
+“Información general”
+
+“Precios y condiciones”
+
+“Documentos”
+
+“Fotos” ✅ (nuevo)
+
+3.1. Dentro del tab “Fotos”
+
+Dividir en dos secciones grandes:
+
+A) Sección “Fotos principales (máx 5)”
+
+Mostrar:
+
+Grid de hasta 5 tarjetas:
+
+Miniatura
+
+Número de orden (1–5)
+
+Iconos:
+
+✏️ Editar (abrir modal con la foto individual: ver, borrar, cambiar orden, marcar como portada).
+
+🗑 Borrar individual.
+
+Contador: 3 / 5 fotos.
+
+Acciones:
+
+Botón “Subir fotos principales”:
+
+Input drag & drop.
+
+Validar que el total no pase de 5.
+
+Botón “Eliminar TODAS las fotos principales”:
+
+Mostrar modal de confirmación:
+
+“¿Seguro que quieres eliminar todas las fotos principales de esta unidad?
+Esta acción no se puede deshacer.”
+
+Si confirma → backend borra todas las Photo con type='primary' para esa unitId.
+
+B) Sección “Fotos secundarias (máx 20)”
+
+Igual estructura que la de principales:
+
+Grid con miniaturas.
+
+Botón “Subir fotos secundarias”.
+
+Botón “Eliminar TODAS las fotos secundarias” con confirmación.
+
+Acciones individuales por foto (editar, borrar, reordenar).
+
+3.2. Edición individual de foto
+
+👉 Acción (frontend + backend):
+
+Al hacer clic en “Editar” (✏️) en una foto:
+
+Modal con:
+
+Vista ampliada de la foto.
+
+Campos:
+
+type (primary/secondary → opcional cambiar, pero respetar límites de cupos).
+
+position (orden).
+
+Texto alternativo / descripción corta (opcional).
+
+Botones:
+
+Guardar cambios
+
+Eliminar foto
+
+4. EDICIÓN BULK DE FOTOS (LO QUE YA TIENEN + MEJORAS)
+
+👉 Acción (frontend + backend):
+
+Agregar dentro del módulo de propiedades (quizás en un submenú del admin HomesApp / admin agencia):
+
+Menú: “Edición masiva de fotos” o “Fotos (Bulk)”.
+
+Vista:
+
+Tabla de unidades:
+
+Unidad
+
+Condominio / desarrollo
+
+Zona
+
+Fotos principales / # máximas
+Fotos secundarias / # máximas
+
+Estado de migración de fotos (low_res, high_res, mixed).
+
+Botones:
+
+“Abrir edición de fotos” → lleva al tab “Fotos” de esa unidad.
+
+“Reimportar desde Drive” (si la unidad tiene driveFileIds asociados) → encola la unidad para migración.
+
+5. LÓGICA DE BORRADO MASIVO (BACKEND)
+
+👉 Acción (backend):
+
+Crear endpoints:
+
+DELETE /api/units/:unitId/photos/primary
+
+Borra todas las fotos con type='primary' de esa unidad.
+
+DELETE /api/units/:unitId/photos/secondary
+
+Borra todas las fotos con type='secondary'.
+
+DELETE /api/photos/:photoId
+
+Borra una foto individual.
+
+Importante:
+
+Borrar tanto la fila en DB como el archivo en el storage.
+
+Manejar permisos según rol:
+
+Admin HomesApp, Admin Agencia → pueden borrar todas.
+
+Agente → según permisos de edición de unidad.
+
+6. ROLES Y ACCESO AL TAB DE FOTOS
+
+👉 Acción (autorización):
+
+Admin HomesApp:
+
+Puede editar fotos de todas las unidades.
+
+Puede ver y usar la edición bulk global.
+
+Admin Agencia:
+
+Puede editar fotos de unidades de su agencia.
+
+Puede usar edición bulk pero solo con sus unidades.
+
+Asesor / Agente:
+
+Puede editar fotos de unidades a su cargo (según reglas de permisos que ya tengan para propiedades).
+
+Propietario / Inquilino:
+
+Por ahora, no acceso al tab de fotos en panel interno.
+
+(En el futuro si quieren, se puede permitir al propietario sugerir fotos nuevas).

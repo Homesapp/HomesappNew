@@ -446,10 +446,26 @@ export default function PublicUnitDetail() {
                 </div>
               </div>
 
-              {/* Title */}
-              <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-property-title">
-                {propertyTitle}
-              </h1>
+              {/* Title and Rating */}
+              <div className="space-y-2">
+                <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-property-title">
+                  {propertyTitle}
+                </h1>
+                <div className="flex items-center gap-2" data-testid="container-property-rating">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star 
+                        key={star} 
+                        className={`h-4 w-4 ${star <= 4 ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm font-medium">4.0</span>
+                  <span className="text-sm text-muted-foreground">
+                    (0 {language === "es" ? "opiniones" : "reviews"})
+                  </span>
+                </div>
+              </div>
               
               {/* Location */}
               <div className="flex items-center gap-2 text-muted-foreground" data-testid="text-property-location">
@@ -550,18 +566,18 @@ export default function PublicUnitDetail() {
                   {language === "es" ? "Amenidades" : "Amenities"}
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="neighborhood" 
+                  value="services" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-4"
-                  data-testid="tab-neighborhood"
+                  data-testid="tab-services"
                 >
-                  {language === "es" ? "Zona" : "Neighborhood"}
+                  {language === "es" ? "Servicios" : "Services"}
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="map" 
+                  value="reviews" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-4"
-                  data-testid="tab-map"
+                  data-testid="tab-reviews"
                 >
-                  {language === "es" ? "Mapa" : "Map"}
+                  {language === "es" ? "Opiniones" : "Reviews"}
                 </TabsTrigger>
               </TabsList>
 
@@ -632,93 +648,187 @@ export default function PublicUnitDetail() {
                 )}
               </TabsContent>
 
-              {/* Neighborhood Tab */}
-              <TabsContent value="neighborhood" className="mt-6">
+              {/* Services Tab */}
+              <TabsContent value="services" className="mt-6">
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">{language === "es" ? "Ubicacion" : "Location"}</h3>
-                    <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                    <h3 className="text-lg font-semibold mb-4">{language === "es" ? "Servicios y Costos" : "Services & Costs"}</h3>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      {language === "es" 
+                        ? "Detalle de servicios incluidos en la renta y costos aproximados de los servicios adicionales."
+                        : "Detail of services included in the rent and approximate costs of additional services."}
+                    </p>
+                  </div>
+                  
+                  {/* Included Services */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-green-600">{language === "es" ? "Incluido en la renta" : "Included in rent"}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {unit.includedServices?.hoaMaintenance && (
+                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                          <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Mantenimiento HOA" : "HOA Maintenance"}</span>
+                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
+                          </div>
+                        </div>
+                      )}
+                      {unit.includedServices?.internet && (
+                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                          <Wifi className="h-5 w-5 text-green-600 shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Internet" : "Internet"}</span>
+                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
+                          </div>
+                        </div>
+                      )}
+                      {unit.includedServices?.water && (
+                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                          <Droplets className="h-5 w-5 text-green-600 shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Agua" : "Water"}</span>
+                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
+                          </div>
+                        </div>
+                      )}
+                      {unit.includedServices?.electricity && (
+                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                          <Zap className="h-5 w-5 text-green-600 shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Electricidad" : "Electricity"}</span>
+                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
+                          </div>
+                        </div>
+                      )}
+                      {unit.includedServices?.gas && (
+                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                          <Flame className="h-5 w-5 text-green-600 shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Gas" : "Gas"}</span>
+                            <p className="text-xs text-muted-foreground">{language === "es" ? "Incluido" : "Included"}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Not Included Services with approximate costs */}
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">{language === "es" ? "No incluido (costos aproximados)" : "Not included (approximate costs)"}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {!unit.includedServices?.hoaMaintenance && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                          <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Mantenimiento HOA" : "HOA Maintenance"}</span>
+                            <p className="text-xs text-muted-foreground">
+                              {(unit as any).hoaCost 
+                                ? `$${(unit as any).hoaCost.toLocaleString()} ${unit.currency || 'MXN'}/mes`
+                                : language === "es" ? "Costo variable" : "Variable cost"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {!unit.includedServices?.internet && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                          <Wifi className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Internet" : "Internet"}</span>
+                            <p className="text-xs text-muted-foreground">~$500-800 MXN/mes</p>
+                          </div>
+                        </div>
+                      )}
+                      {!unit.includedServices?.water && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                          <Droplets className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Agua" : "Water"}</span>
+                            <p className="text-xs text-muted-foreground">~$200-500 MXN/mes</p>
+                          </div>
+                        </div>
+                      )}
+                      {!unit.includedServices?.electricity && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                          <Zap className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Electricidad" : "Electricity"}</span>
+                            <p className="text-xs text-muted-foreground">~$800-2,000 MXN/mes</p>
+                          </div>
+                        </div>
+                      )}
+                      {!unit.includedServices?.gas && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+                          <Flame className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div>
+                            <span className="font-medium">{language === "es" ? "Gas" : "Gas"}</span>
+                            <p className="text-xs text-muted-foreground">~$300-600 MXN/mes</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Location Info */}
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-3">{language === "es" ? "Ubicación" : "Location"}</h4>
+                    <div className="flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-5 w-5" />
                       <span>{propertyLocation}</span>
                     </div>
                     {unit.zone && (
-                      <Badge variant="outline" className="mb-4">
+                      <Badge variant="outline" className="mt-2">
                         {language === "es" ? "Zona:" : "Zone:"} {unit.zone}
                       </Badge>
                     )}
+                    {unit.latitude && unit.longitude && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-3"
+                        onClick={() => window.open(`https://www.google.com/maps?q=${unit.latitude},${unit.longitude}`, '_blank')}
+                      >
+                        <Map className="h-4 w-4 mr-2" />
+                        {language === "es" ? "Ver en mapa" : "View on map"}
+                      </Button>
+                    )}
                   </div>
-                  
-                  {(unit as any).neighborhoodDescription && (
-                    <div>
-                      <h4 className="font-medium mb-2">{language === "es" ? "Sobre la zona" : "About the area"}</h4>
-                      <p className="text-muted-foreground">{(unit as any).neighborhoodDescription}</p>
-                    </div>
-                  )}
-
-                  {/* Nearby Points of Interest */}
-                  {(unit as any).nearbyPlaces && (unit as any).nearbyPlaces.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-3">{language === "es" ? "Lugares cercanos" : "Nearby places"}</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        {(unit as any).nearbyPlaces.map((place: string, idx: number) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <MapPin className="h-4 w-4" />
-                            <span>{place}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </TabsContent>
 
-              {/* Map Tab */}
-              <TabsContent value="map" className="mt-6">
-                {unit.latitude && unit.longitude ? (
-                  <div className="h-[400px] rounded-lg overflow-hidden border">
-                    {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
-                      <PropertyMap
-                        properties={[{
-                          id: unit.id || 'current-property',
-                          title: propertyTitle,
-                          unitNumber: unit.unitNumber || unit.id || 'N/A',
-                          condominiumName: (unit as any).condominiumName || propertyLocation,
-                          latitude: Number(unit.latitude),
-                          longitude: Number(unit.longitude),
-                          price: unit.price || undefined,
-                          currency: unit.currency || 'MXN',
-                          bedrooms: unit.bedrooms || undefined,
-                          bathrooms: unit.bathrooms || undefined,
-                          area: (unit as any).squareMeters || unit.area || undefined,
-                          propertyType: (unit as any).unitType || unit.propertyType || '',
-                          zone: unit.zone || '',
-                          primaryImages: images.slice(0, 1),
-                        }]}
-                        center={{ lat: Number(unit.latitude), lng: Number(unit.longitude) }}
-                        zoom={16}
-                        height="100%"
-                        language={language}
-                        showInfoWindow={true}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full gap-4 bg-muted/50">
-                        <MapPin className="h-12 w-12 text-muted-foreground" />
-                        <p className="text-muted-foreground">{language === "es" ? "Mapa no disponible" : "Map not available"}</p>
-                        {unit.googleMapsUrl && (
-                          <Button variant="outline" onClick={() => window.open(unit.googleMapsUrl!, '_blank')}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            {language === "es" ? "Ver en Google Maps" : "View on Google Maps"}
-                          </Button>
-                        )}
+              {/* Reviews Tab */}
+              <TabsContent value="reviews" className="mt-6">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">{language === "es" ? "Opiniones de inquilinos" : "Tenant Reviews"}</h3>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star 
+                            key={star} 
+                            className={`h-5 w-5 ${star <= 4 ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`} 
+                          />
+                        ))}
                       </div>
-                    )}
+                      <span className="font-semibold">4.0</span>
+                      <span className="text-sm text-muted-foreground">(0 {language === "es" ? "opiniones" : "reviews"})</span>
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-[300px] bg-muted/50 rounded-lg">
-                    <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">{language === "es" ? "Ubicacion no disponible" : "Location not available"}</p>
+
+                  {/* Empty state */}
+                  <div className="text-center py-12 bg-muted/30 rounded-lg">
+                    <Star className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <p className="text-muted-foreground mb-2">
+                      {language === "es" 
+                        ? "Aún no hay opiniones para esta propiedad" 
+                        : "No reviews yet for this property"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {language === "es" 
+                        ? "Las opiniones se agregan cuando un inquilino termina su contrato" 
+                        : "Reviews are added when a tenant completes their contract"}
+                    </p>
                   </div>
-                )}
+                </div>
               </TabsContent>
             </Tabs>
           </div>
