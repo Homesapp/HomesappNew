@@ -22209,7 +22209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/featured-properties - Add a property to featured (admin only)
-  app.post("/api/featured-properties", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+  app.post("/api/featured-properties", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { unitId } = req.body;
 
@@ -22278,7 +22278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/featured-properties/:id - Update sortOrder for a single featured property (admin only)
-  app.patch("/api/featured-properties/:id", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+  app.patch("/api/featured-properties/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
       const { sortOrder } = req.body;
@@ -22349,7 +22349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/featured-properties/reorder - Bulk reorder featured properties (admin only)
-  app.patch("/api/featured-properties/reorder", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+  app.patch("/api/featured-properties/reorder", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { order } = req.body; // Array of { id, sortOrder }
 
@@ -22398,7 +22398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DELETE /api/featured-properties/:id - Remove a property from featured (admin only)
-  app.delete("/api/featured-properties/:id", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+  app.delete("/api/featured-properties/:id", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { id } = req.params;
 
@@ -22429,7 +22429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/featured-properties/available-units - Get available units to add as featured
-  app.get("/api/featured-properties/available-units", isAuthenticated, requireRole(ADMIN_ONLY), async (req: any, res) => {
+  app.get("/api/featured-properties/available-units", isAuthenticated, requireRole(EXTERNAL_ADMIN_ROLES), async (req: any, res) => {
     try {
       const { search, limit = 20 } = req.query;
 
