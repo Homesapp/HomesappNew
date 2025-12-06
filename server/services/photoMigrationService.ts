@@ -96,33 +96,31 @@ export async function getMigrationStatus(agencyId?: string): Promise<MigrationSt
   .from(externalUnitMedia)
   .where(and(...conditions));
 
-  // Get migration meta for status info
-  let meta: PhotoMigrationMeta | undefined;
-  if (agencyId) {
-    meta = await db.query.photoMigrationMeta.findFirst({
-      where: eq(photoMigrationMeta.agencyId, agencyId),
-      orderBy: [desc(photoMigrationMeta.createdAt)],
-    });
-  } else {
-    meta = await db.query.photoMigrationMeta.findFirst({
-      orderBy: [desc(photoMigrationMeta.createdAt)],
-    });
-  }
-
   const totalPhotos = Number(stats?.total) || 0;
   const processedPhotos = Number(stats?.done) || 0;
   const pendingPhotos = Number(stats?.pending) || 0;
   const errorPhotos = Number(stats?.errors) || 0;
+  const processingPhotos = Number(stats?.processing) || 0;
+
+  // Determine status based on photo counts
+  let status: 'idle' | 'running' | 'paused' | 'completed' | 'error' = 'idle';
+  if (processingPhotos > 0) {
+    status = 'running';
+  } else if (errorPhotos > 0 && pendingPhotos === 0) {
+    status = 'error';
+  } else if (totalPhotos > 0 && pendingPhotos === 0 && processedPhotos === totalPhotos) {
+    status = 'completed';
+  }
 
   return {
     totalPhotos,
     processedPhotos,
     pendingPhotos,
     errorPhotos,
-    status: meta?.status || 'idle',
-    lastUpdatedAt: meta?.lastUpdatedAt || null,
-    startedAt: meta?.startedAt || null,
-    completedAt: meta?.completedAt || null,
+    status,
+    lastUpdatedAt: new Date(),
+    startedAt: null,
+    completedAt: status === 'completed' ? new Date() : null,
   };
 }
 
