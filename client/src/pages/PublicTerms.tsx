@@ -151,36 +151,52 @@ const defaultOwnerTerms = {
     subtitle: "Condiciones de servicio y responsabilidades del propietario",
     sections: [
       {
-        title: "1. Servicios de Administración",
-        content: "Tulum Rental Homes ofrece servicios integrales de administración de propiedades que incluyen: publicación y promoción de la propiedad, gestión de inquilinos, cobro de rentas, coordinación de mantenimiento y reportes mensuales."
+        title: "1. Aceptación del Pago de Comisión",
+        content: "Por medio de la presente, el propietario acepta pagar a la Agencia Tulum Rental Homes una comisión correspondiente a: 3 meses de renta en caso de firmarse contrato de 5 años; 2.5 meses de renta en caso de firmarse un contrato de 4 años; 2 meses de renta en caso de firmarse un contrato de 3 años; 1.5 meses de renta en caso de firmarse un contrato de 2 años; 1 mes completo de renta en caso de firmarse un contrato de 1 año; 1/2 mes de renta en caso de firmarse un contrato de 6 meses. En caso de que el contrato sea por un período menor a 6 meses, se aplicará la modalidad vacacional, con una comisión del 15% sobre el monto total de la reserva."
       },
       {
-        title: "2. Comisiones",
-        content: "La comisión por servicio de colocación es de 1 mes de renta para contratos anuales y medio mes para contratos de 6 meses. Para ventas, la comisión es del 6% del valor de la propiedad. Los términos específicos se detallan en el contrato de servicios."
+        title: "2. Entrega de la Propiedad al Inquilino",
+        content: "El propietario se compromete a realizar las reparaciones necesarias en la propiedad, garantizando que ésta se encuentre en condiciones habitables y adecuadas para el inquilino al momento del check-in. En caso de no cumplir con dichas reparaciones antes de la fecha de ingreso, el propietario acepta realizarlas dentro de un plazo máximo de 30 días naturales posteriores a la entrega. Tulum Rental Homes no se hace responsable de la devolución de la comisión en caso de que el inquilino alegue problemas de mantenimiento en la propiedad, ya sea desde el día del check-in o en cualquier momento durante el período de arrendamiento."
       },
       {
-        title: "3. Responsabilidades del Propietario",
-        content: "El propietario es responsable de: mantener la propiedad en condiciones habitables, realizar reparaciones estructurales y de sistemas principales, mantener vigentes los permisos necesarios y cumplir con las obligaciones fiscales correspondientes."
+        title: "3. Entrega de Administración y Reconocimiento de Gestión",
+        content: "El propietario declara que la Agencia Tulum Rental Homes ha actuado en todo momento con buena fe y que ha colaborado efectivamente en la localización del inquilino. Asimismo, manifiesta que no ha existido dolo, fraude o mala práctica por parte de la Agencia."
       },
       {
-        title: "4. Documentación Requerida",
-        content: "El propietario deberá proporcionar: identificación oficial, comprobante de propiedad, RFC (si aplica), contrato de servicios firmado y las llaves o accesos necesarios para la gestión de la propiedad."
+        title: "4. Aceptación de Promoción y Uso de Materiales",
+        content: "El propietario autoriza el uso del material promocional (fotografías, videos, tours 360, descripciones, etc.) generado por la Agencia Tulum Rental Homes para la promoción, renta y/o venta de su propiedad. Este material será de libre uso por parte de la Agencia en sus plataformas digitales y/o físicas."
       },
       {
-        title: "5. Pagos y Transferencias",
-        content: "Los pagos de renta se transferirán al propietario dentro de los 5 días hábiles posteriores a la recepción del pago del inquilino, descontando las comisiones y gastos acordados. Se proporcionará un desglose mensual de todos los movimientos."
+        title: "5. Aceptación en Caso de Cancelación",
+        content: "El propietario acepta que, en caso de haber aceptado formalmente una oferta y posteriormente decida retractarse antes de la firma del contrato, deberá reembolsar directamente al inquilino la cantidad entregada como anticipo o apartado de la propiedad."
       },
       {
-        title: "6. Mantenimiento y Reparaciones",
-        content: "Las solicitudes de mantenimiento se coordinarán con proveedores de confianza. Para reparaciones urgentes menores a $5,000 MXN, se procederá inmediatamente notificando al propietario. Para montos mayores, se solicitará autorización previa."
+        title: "6. Responsabilidad de la Agencia y Apoyo en la Mediación",
+        content: "La Agencia Tulum Rental Homes declara que su responsabilidad se limita a la intermediación entre arrendador y arrendatario durante el proceso de renta. Una vez firmado el contrato de arrendamiento, la Agencia no se hace responsable por daños materiales, incumplimientos contractuales o conflictos entre las partes. Sin embargo, se compromete, dentro de sus posibilidades y en un marco de buena fe, a interceder y apoyar en la mediación de conflictos domésticos que puedan surgir durante el tiempo que el inquilino habite el inmueble, con el objetivo de mantener una relación armónica entre ambas partes."
       },
       {
-        title: "7. Renovación y Terminación",
-        content: "Los contratos de administración se renuevan automáticamente a menos que se notifique la terminación con 60 días de anticipación. La terminación anticipada puede estar sujeta a penalidades según lo establecido en el contrato."
+        title: "7. Exclusión de Responsabilidad por Mantenimiento y Gastos Operativos",
+        content: "La Agencia Tulum Rental Homes no se hace responsable por el mantenimiento físico o técnico del inmueble (salvo acuerdo expreso). Toda gestión, reparación o gasto relacionado con servicios básicos, mobiliario, electrodomésticos u otros elementos del inmueble será responsabilidad exclusiva del propietario, a menos que se contrate a la Agencia Tulum Rental Homes para un servicio de administración integral o eventual."
       },
       {
-        title: "8. Exclusividad",
-        content: "Durante la vigencia del contrato, Tulum Rental Homes será el representante exclusivo para la comercialización de la propiedad. Esto garantiza una gestión eficiente y evita conflictos con múltiples intermediarios."
+        title: "8. Autorización para Firmar Preacuerdos",
+        content: "El propietario autoriza a la Agencia Tulum Rental Homes a presentar ofertas, recibir depósitos de apartado y gestionar preacuerdos de renta en su representación, en función de las condiciones previamente establecidas con él. La Agencia se compromete a mantener comunicación oportuna sobre cada oferta recibida. El propietario no podrá retractarse sin causa justificada una vez aceptada una oferta formal."
+      },
+      {
+        title: "9. Servicios Adicionales de Mantenimientos de la Agencia",
+        content: "Todos los servicios de la Agencia que el propietario contrate, ya sea mantenimiento, limpieza, conserjería, contaduría o abogacía, se le sumará un 15% adicional por gastos administrativos, al valor de la cotización."
+      },
+      {
+        title: "10. Protección de Datos y Uso de Información",
+        content: "El propietario autoriza el uso de su información únicamente para fines relacionados con la promoción, renta y gestión del inmueble, respetando la Ley Federal de Protección de Datos Personales en Posesión de los Particulares. La Agencia no compartirá estos datos con terceros ajenos al proceso sin autorización expresa."
+      },
+      {
+        title: "11. Matrícula de Asesores Inmobiliarios",
+        content: "La Agencia Tulum Rental Homes opera con base en la matrícula inmobiliaria de persona física registrada a nombre de Maximiliano Rocca, la cual ha sido emitida y aprobada por la Secretaría de Desarrollo Territorial Urbano Sustentable (SEDETUS) del Estado de Quintana Roo. Número de Matrícula: 191613HF0H0DFS009001181. El propietario puede verificar la vigencia y validez de dicha matrícula a través del sitio web oficial de SEDETUS."
+      },
+      {
+        title: "12. Alcance de los Servicios y Responsabilidad de la Agencia",
+        content: "Tulum Rental Homes actúa exclusivamente como broker o corredor inmobiliario, limitando su intervención a la promoción, intermediación y firma de contratos de arrendamiento entre propietarios e inquilinos. No ofrecemos servicios de administración de propiedades (property management) bajo ningún concepto. Podemos proporcionar servicios particulares —como limpieza, mantenimiento o asesoría— previa solicitud del propietario, y conforme a las condiciones establecidas en el punto 7 de este documento. Sin embargo, la Agencia no asume responsabilidad alguna sobre el mantenimiento, estado físico o conservación de la propiedad, ni sobre reparaciones anteriores o posteriores a la entrega al inquilino. La obligación de mantener la propiedad en condiciones habitables recae exclusivamente en el propietario."
       }
     ]
   },
@@ -189,36 +205,52 @@ const defaultOwnerTerms = {
     subtitle: "Service conditions and owner responsibilities",
     sections: [
       {
-        title: "1. Property Management Services",
-        content: "Tulum Rental Homes offers comprehensive property management services including: property listing and promotion, tenant management, rent collection, maintenance coordination, and monthly reports."
+        title: "1. Acceptance of Commission Payment",
+        content: "By means of this document, the owner agrees to pay Tulum Rental Homes Agency a commission corresponding to: 3 months' rent for 5-year contracts; 2.5 months' rent for 4-year contracts; 2 months' rent for 3-year contracts; 1.5 months' rent for 2-year contracts; 1 full month's rent for 1-year contracts; 1/2 month's rent for 6-month contracts. For contracts shorter than 6 months, the vacation modality will apply, with a commission of 15% on the total reservation amount."
       },
       {
-        title: "2. Commissions",
-        content: "The placement service commission is 1 month's rent for annual contracts and half a month for 6-month contracts. For sales, the commission is 6% of the property value. Specific terms are detailed in the service contract."
+        title: "2. Property Delivery to Tenant",
+        content: "The owner commits to making the necessary repairs to the property, ensuring it is in habitable and suitable condition for the tenant at the time of check-in. If these repairs are not completed before the move-in date, the owner agrees to complete them within a maximum period of 30 calendar days after delivery. Tulum Rental Homes is not responsible for refunding the commission if the tenant alleges maintenance problems with the property, whether from the check-in day or at any time during the lease period."
       },
       {
-        title: "3. Owner Responsibilities",
-        content: "The owner is responsible for: keeping the property in habitable condition, making structural and major system repairs, keeping necessary permits current, and complying with corresponding tax obligations."
+        title: "3. Delivery of Administration and Recognition of Management",
+        content: "The owner declares that Tulum Rental Homes Agency has acted in good faith at all times and has effectively collaborated in locating the tenant. Likewise, the owner states that there has been no fraud, deceit, or bad practice on the part of the Agency."
       },
       {
-        title: "4. Required Documentation",
-        content: "The owner must provide: official identification, proof of ownership, RFC (if applicable), signed service contract, and keys or access necessary for property management."
+        title: "4. Acceptance of Promotion and Use of Materials",
+        content: "The owner authorizes the use of promotional material (photographs, videos, 360 tours, descriptions, etc.) generated by Tulum Rental Homes Agency for the promotion, rental, and/or sale of their property. This material will be freely used by the Agency on its digital and/or physical platforms."
       },
       {
-        title: "5. Payments and Transfers",
-        content: "Rent payments will be transferred to the owner within 5 business days after receiving the tenant's payment, deducting agreed commissions and expenses. A monthly breakdown of all transactions will be provided."
+        title: "5. Acceptance in Case of Cancellation",
+        content: "The owner accepts that, in case of having formally accepted an offer and subsequently deciding to withdraw before signing the contract, they must directly reimburse the tenant the amount delivered as an advance or property reservation."
       },
       {
-        title: "6. Maintenance and Repairs",
-        content: "Maintenance requests will be coordinated with trusted providers. For urgent repairs under $5,000 MXN, we will proceed immediately notifying the owner. For larger amounts, prior authorization will be requested."
+        title: "6. Agency Responsibility and Mediation Support",
+        content: "Tulum Rental Homes Agency declares that its responsibility is limited to intermediation between landlord and tenant during the rental process. Once the lease agreement is signed, the Agency is not responsible for material damages, contractual breaches, or conflicts between the parties. However, it commits, within its possibilities and in a framework of good faith, to intercede and support in the mediation of domestic conflicts that may arise during the time the tenant occupies the property, with the objective of maintaining a harmonious relationship between both parties."
       },
       {
-        title: "7. Renewal and Termination",
-        content: "Management contracts are automatically renewed unless termination is notified 60 days in advance. Early termination may be subject to penalties as established in the contract."
+        title: "7. Exclusion of Liability for Maintenance and Operating Expenses",
+        content: "Tulum Rental Homes Agency is not responsible for the physical or technical maintenance of the property (except by express agreement). All management, repairs, or expenses related to basic services, furniture, appliances, or other property elements will be the exclusive responsibility of the owner, unless Tulum Rental Homes Agency is contracted for comprehensive or occasional management services."
       },
       {
-        title: "8. Exclusivity",
-        content: "During the contract term, Tulum Rental Homes will be the exclusive representative for marketing the property. This ensures efficient management and avoids conflicts with multiple intermediaries."
+        title: "8. Authorization to Sign Pre-agreements",
+        content: "The owner authorizes Tulum Rental Homes Agency to present offers, receive reservation deposits, and manage rental pre-agreements on their behalf, based on the conditions previously established with them. The Agency commits to maintaining timely communication about each offer received. The owner cannot withdraw without justified cause once a formal offer has been accepted."
+      },
+      {
+        title: "9. Additional Agency Maintenance Services",
+        content: "For all Agency services that the owner contracts, whether maintenance, cleaning, concierge, accounting, or legal services, an additional 15% will be added for administrative expenses to the quoted value."
+      },
+      {
+        title: "10. Data Protection and Use of Information",
+        content: "The owner authorizes the use of their information solely for purposes related to the promotion, rental, and management of the property, respecting the Federal Law on Protection of Personal Data Held by Private Parties. The Agency will not share this data with third parties outside the process without express authorization."
+      },
+      {
+        title: "11. Real Estate Advisor Registration",
+        content: "Tulum Rental Homes Agency operates based on the real estate registration of a natural person registered under the name of Maximiliano Rocca, which has been issued and approved by the Secretary of Sustainable Urban Territorial Development (SEDETUS) of the State of Quintana Roo. Registration Number: 191613HF0H0DFS009001181. The owner can verify the validity of this registration through the official SEDETUS website."
+      },
+      {
+        title: "12. Scope of Services and Agency Responsibility",
+        content: "Tulum Rental Homes acts exclusively as a real estate broker, limiting its intervention to the promotion, intermediation, and signing of lease agreements between owners and tenants. We do not offer property management services under any circumstances. We can provide particular services—such as cleaning, maintenance, or consulting—upon owner request, and according to the conditions established in point 7 of this document. However, the Agency assumes no responsibility for the maintenance, physical condition, or conservation of the property, nor for repairs before or after delivery to the tenant. The obligation to maintain the property in habitable condition rests exclusively with the owner."
       }
     ]
   }
