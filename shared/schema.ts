@@ -8431,6 +8431,11 @@ export const externalUnitMedia = pgTable("external_unit_media", {
   isHidden: boolean("is_hidden").default(false), // Hide from public view
   isCover: boolean("is_cover").default(false), // Cover image for the unit
   
+  // AI Enhancement tracking
+  isAiEnhanced: boolean("is_ai_enhanced").default(false), // Whether AI enhancement has been applied
+  originalStorageUrl: text("original_storage_url"), // Original photo URL before AI enhancement
+  enhancedAt: timestamp("enhanced_at"), // When the AI enhancement was applied
+  
   // Metadata
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
