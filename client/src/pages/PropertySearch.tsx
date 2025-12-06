@@ -567,7 +567,6 @@ export default function PropertySearch() {
                   context="public"
                   isFavorite={favoriteIds.has(property.id)}
                   onClick={() => setLocation(propertyUrl)}
-                  onView={() => setLocation(propertyUrl)}
                   onContact={() => setLocation(propertyUrl + "?contact=true")}
                   onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
                   onFavorite={() => {

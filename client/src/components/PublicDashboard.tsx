@@ -337,9 +337,11 @@ export default function PublicDashboard() {
                     status={getPropertyStatus(property)}
                     images={property.primaryImages || []}
                     petFriendly={property.petsAllowed}
-                    variant="landing"
+                    variant="featured"
                     context="public"
                     onClick={() => setLocation(propertyUrl)}
+                    onContact={() => setLocation(propertyUrl + "?contact=true")}
+                    onSchedule={() => setLocation(propertyUrl + "?schedule=true")}
                   />
                 );
               })

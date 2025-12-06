@@ -64,7 +64,7 @@ export type MatchInfo = {
   reasons: string[];
 };
 
-export type CardVariant = "default" | "landing";
+export type CardVariant = "default" | "landing" | "featured";
 
 export interface UnifiedPropertyCardProps {
   id: string;
@@ -378,6 +378,8 @@ export function UnifiedPropertyCard({
   className = "",
 }: UnifiedPropertyCardProps) {
   const isLanding = variant === "landing";
+  const isFeatured = variant === "featured";
+  const isCompact = isLanding || isFeatured;
   const statusInfo = statusConfig[status] || statusConfig.available;
   const imageCount = images?.length || 0;
   const primaryImage = images?.[0];
@@ -524,8 +526,8 @@ export function UnifiedPropertyCard({
           </div>
         </div>
         
-        {/* Price section - hidden in landing variant */}
-        {!isLanding && (
+        {/* Price section - hidden in landing and featured variants */}
+        {!isCompact && (
           <div className="space-y-1">
             {rentPrice && rentPrice > 0 && (
               <div className="flex items-baseline gap-1">
@@ -550,8 +552,8 @@ export function UnifiedPropertyCard({
           </div>
         )}
         
-        {/* Landing variant: Subtle divider and continuous specs */}
-        {isLanding ? (
+        {/* Compact variants (landing/featured): Subtle divider and continuous specs */}
+        {isCompact ? (
           <div className="flex flex-col gap-2">
             <Separator className="opacity-50" />
             <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
@@ -707,7 +709,7 @@ export function UnifiedPropertyCard({
         )}
       </CardContent>
 
-      {/* Hide footer in landing variant */}
+      {/* Hide footer only in landing variant (featured shows buttons) */}
       {!isLanding && (
       <CardFooter className="p-3 pt-0 flex gap-2 flex-wrap mt-auto">
         {context === "seller" && (
@@ -799,7 +801,7 @@ export function UnifiedPropertyCard({
                 Agendar visita
               </Button>
             )}
-            {onView && (
+            {onView && !isFeatured && (
               <Button 
                 variant="ghost" 
                 size="sm"
